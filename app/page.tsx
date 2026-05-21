@@ -15,12 +15,12 @@ import GuidePage from '../components/GuidePage';
 const ADMIN_PASSWORD = 'admin2026';
 
 const TAB_LABELS: { key: TabType; label: string }[] = [
-  { key: 'home', label: '홈' },
-  { key: 'videos', label: '강의 영상' },
-  { key: 'meeting', label: '미팅 요청' },
-  { key: 'board', label: '게시판' },
-  { key: 'share', label: '서비스 공유' },
-  { key: 'guide', label: '핵심 서비스 목록' },
+  { key: 'home',    label: '홈' },
+  { key: 'videos',  label: '강의' },
+  { key: 'meeting', label: '미팅' },
+  { key: 'board',   label: '게시판' },
+  { key: 'share',   label: '공유' },
+  { key: 'guide',   label: '서비스 가이드' },
 ];
 
 export default function Page() {
@@ -72,120 +72,144 @@ export default function Page() {
 
   const renderTab = () => {
     switch (activeTab) {
-      case 'home': return <MainPage onNavigate={navigateTo} />;
-      case 'videos': return <VideoPage />;
+      case 'home':    return <MainPage onNavigate={navigateTo} />;
+      case 'videos':  return <VideoPage />;
       case 'meeting': return <MeetingPage />;
-      case 'board': return <BoardPage />;
-      case 'share': return <SharePage />;
-      case 'guide': return <GuidePage />;
-      default: return <MainPage onNavigate={navigateTo} />;
+      case 'board':   return <BoardPage />;
+      case 'share':   return <SharePage />;
+      case 'guide':   return <GuidePage isAdmin={isAdmin} onNavigate={navigateTo} />;
+      default:        return <MainPage onNavigate={navigateTo} />;
     }
   };
 
   const avatarLetter = userInfo?.name ? userInfo.name[0] : '게';
-  const displayName = userInfo?.name || '게스트';
+  const displayName  = userInfo?.name ? `${userInfo.name}` : '게스트';
 
   return (
-    <div className="min-h-screen font-sans" style={{ background: '#F5F7FA', color: '#0F1E33' }}>
-      {/* 웰컴 팝업 */}
+    <div className="min-h-screen" style={{ background: 'var(--color-bg)', color: 'var(--color-ink)', fontFamily: 'var(--font-sans)' }}>
+
+      {/* ── 웰컴 팝업 ── */}
       {showWelcome && <WelcomePopup onClose={handleWelcomeClose} />}
 
-      {/* 관리자 로그인 모달 */}
+      {/* ── 관리자 로그인 모달 ── */}
       {showAdminLogin && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-8">
-            <h2 className="text-lg font-bold mb-1" style={{ color: '#0F1E33' }}>관리자 인증</h2>
-            <p className="text-xs mb-5" style={{ color: '#8A96A8' }}>관리자 비밀번호를 입력하세요</p>
-            <div className="relative mb-2">
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(20,24,31,0.5)' }}>
+          <div style={{
+            background: '#fff', borderRadius: 14,
+            boxShadow: '0 16px 48px rgba(0,0,0,0.22)',
+            width: '100%', maxWidth: 360, margin: '0 16px', padding: 32,
+          }}>
+            <h2 style={{ fontSize: 17, fontWeight: 700, color: 'var(--color-ink)', margin: '0 0 4px' }}>관리자 인증</h2>
+            <p style={{ fontSize: 12, color: 'var(--color-ink-3)', margin: '0 0 20px' }}>관리자 비밀번호를 입력하세요</p>
+            <div style={{ position: 'relative', marginBottom: 8 }}>
               <input
                 type={showPw ? 'text' : 'password'}
                 value={adminPw}
                 onChange={e => { setAdminPw(e.target.value); setAdminError(''); }}
                 onKeyDown={e => e.key === 'Enter' && handleAdminLogin()}
                 placeholder="비밀번호"
-                className="w-full rounded-lg px-4 py-2.5 pr-16 text-sm focus:outline-none"
-                style={{ border: '1.5px solid #E2E8F0', background: '#F8FAFC', color: '#0F1E33' }}
+                style={{
+                  width: '100%', padding: '10px 44px 10px 12px',
+                  borderRadius: 8, fontSize: 13.5, boxSizing: 'border-box',
+                  border: '1.5px solid var(--color-line)', background: 'var(--color-bg)',
+                  color: 'var(--color-ink)', outline: 'none',
+                }}
                 autoFocus
               />
-              <button
-                type="button"
-                onClick={() => setShowPw(v => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium transition-colors"
-                style={{ color: '#8A96A8' }}
-              >
+              <button type="button" onClick={() => setShowPw(v => !v)}
+                style={{
+                  position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
+                  fontSize: 11, fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer',
+                  color: 'var(--color-ink-3)',
+                }}>
                 {showPw ? '숨기기' : '보기'}
               </button>
             </div>
-            {adminError && <p className="text-xs text-red-500 mb-2">{adminError}</p>}
-            <div className="flex gap-3 mt-5">
+            {adminError && <p style={{ fontSize: 12, color: '#ef4444', margin: '0 0 8px' }}>{adminError}</p>}
+            <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
               <button
                 onClick={handleAdminLogin}
-                className="flex-1 py-2.5 rounded-lg text-sm font-semibold transition-colors"
-                style={{ background: '#2563EB', color: '#fff' }}
-              >
-                확인
-              </button>
+                style={{
+                  flex: 1, padding: '10px 0', borderRadius: 8, border: 'none',
+                  background: 'var(--color-primary)', color: '#fff',
+                  fontSize: 13.5, fontWeight: 600, cursor: 'pointer',
+                }}
+              >확인</button>
               <button
                 onClick={() => { setShowAdminLogin(false); setAdminPw(''); setAdminError(''); setShowPw(false); }}
-                className="flex-1 py-2.5 rounded-lg text-sm font-medium transition-colors"
-                style={{ background: '#F1F5F9', color: '#0F1E33' }}
-              >
-                취소
-              </button>
+                style={{
+                  flex: 1, padding: '10px 0', borderRadius: 8,
+                  border: '1px solid var(--color-line)', background: 'var(--color-surface)',
+                  fontSize: 13.5, fontWeight: 500, cursor: 'pointer', color: 'var(--color-ink-2)',
+                }}
+              >취소</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* 상단 헤더 — 유리효과 sticky */}
+      {/* ── TopBar ── */}
       <header style={{
-        position: 'sticky', top: 0, zIndex: 100,
-        background: 'rgba(255,255,255,0.92)',
-        backdropFilter: 'blur(12px) saturate(180%)',
-        WebkitBackdropFilter: 'blur(12px) saturate(180%)',
-        borderBottom: '1px solid #E8EDF5',
+        position: 'sticky', top: 0, zIndex: 50,
+        background: 'rgba(250,250,247,0.85)',
+        backdropFilter: 'saturate(140%) blur(10px)',
+        WebkitBackdropFilter: 'saturate(140%) blur(10px)',
+        borderBottom: '1px solid var(--color-line)',
       }}>
         <div style={{
-          maxWidth: 1280, margin: '0 auto',
-          padding: '0 24px', height: 64,
+          maxWidth: 'var(--container-max)', margin: '0 auto',
+          padding: '0 var(--container-pad)', height: 64,
           display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16,
         }}>
-          {/* 로고 */}
+
+          {/* Brand */}
           <button
             onClick={() => navigateTo('home')}
-            style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}
+            style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
           >
             <div style={{
-              width: 34, height: 34, borderRadius: 10,
-              background: 'linear-gradient(135deg, #2563EB 0%, #1E40AF 100%)',
-              color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 2px 8px rgba(37,99,235,0.25)',
-              fontSize: 16, fontWeight: 700,
-            }}>A</div>
-            <div style={{ textAlign: 'left' }}>
-              <div style={{ fontSize: 15, fontWeight: 700, color: '#0F1E33', letterSpacing: '-0.02em', lineHeight: 1 }}>
-                이랜드리테일 AI 캠퍼스
-              </div>
-              <div style={{ fontSize: 10, color: '#8A96A8', fontWeight: 500, letterSpacing: '0.08em', marginTop: 2 }}>
-                AI LEARNING HUB
-              </div>
+              width: 32, height: 32, borderRadius: 8,
+              background: 'var(--color-primary)',
+              display: 'grid', placeItems: 'center',
+              color: '#fff', fontFamily: 'var(--font-eng)', fontWeight: 700,
+              fontSize: 14, letterSpacing: '-0.02em', flexShrink: 0,
+            }}>
+              AC
+            </div>
+            <div style={{
+              fontWeight: 700, fontSize: 16, letterSpacing: '-0.01em',
+              color: 'var(--color-ink)', whiteSpace: 'nowrap',
+            }}>
+              이랜드리테일 AI 캠퍼스<span style={{ color: 'var(--color-secondary)' }}>.</span>
             </div>
           </button>
 
-          {/* 데스크탑 네비 */}
-          <nav className="hidden lg:flex items-center gap-1">
+          {/* Desktop nav */}
+          <nav className="hidden lg:flex" style={{ alignItems: 'center', gap: 4 }}>
             {TAB_LABELS.map(t => (
               <button
                 key={t.key}
                 onClick={() => navigateTo(t.key)}
-                className="transition-all"
                 style={{
-                  display: 'flex', alignItems: 'center', gap: 5,
                   padding: '8px 14px', borderRadius: 8, border: 'none', cursor: 'pointer',
-                  fontSize: 13.5, fontWeight: activeTab === t.key ? 600 : 500,
-                  background: activeTab === t.key ? '#EFF4FF' : 'transparent',
-                  color: activeTab === t.key ? '#2563EB' : '#4A5568',
-                  letterSpacing: '-0.01em', whiteSpace: 'nowrap',
+                  fontSize: 14, fontWeight: activeTab === t.key ? 600 : 500,
+                  background: activeTab === t.key ? 'var(--color-primary-50)' : 'transparent',
+                  color: activeTab === t.key ? 'var(--color-primary)' : 'var(--color-ink-2)',
+                  letterSpacing: '-0.01em', whiteSpace: 'nowrap' as const,
+                  transition: 'background 120ms ease, color 120ms ease',
+                  fontFamily: 'var(--font-sans)',
+                }}
+                onMouseEnter={e => {
+                  if (activeTab !== t.key) {
+                    (e.currentTarget as HTMLElement).style.background = 'rgba(0,74,153,0.06)';
+                    (e.currentTarget as HTMLElement).style.color = 'var(--color-primary)';
+                  }
+                }}
+                onMouseLeave={e => {
+                  if (activeTab !== t.key) {
+                    (e.currentTarget as HTMLElement).style.background = 'transparent';
+                    (e.currentTarget as HTMLElement).style.color = 'var(--color-ink-2)';
+                  }
                 }}
               >
                 {t.label}
@@ -193,46 +217,53 @@ export default function Page() {
             ))}
           </nav>
 
-          {/* 우측 — 유저 칩 + 관리자 버튼 */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {/* 유저 아바타 칩 */}
+          {/* Right: user chip + admin button + hamburger */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+            {/* User chip */}
             <div style={{
               display: 'flex', alignItems: 'center', gap: 8,
               padding: '4px 12px 4px 4px', borderRadius: 999,
-              background: '#F1F5F9', cursor: 'default',
+              border: '1px solid var(--color-line)', background: 'var(--color-surface)',
+              cursor: 'default',
             }}>
               <div style={{
-                width: 28, height: 28, borderRadius: '50%',
-                background: 'linear-gradient(135deg, #2563EB 0%, #7C3AED 100%)',
-                color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 12, fontWeight: 700,
-              }}>{avatarLetter}</div>
-              <span className="hidden sm:block" style={{ fontSize: 13, fontWeight: 600, color: '#0F1E33' }}>
+                width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
+                background: 'linear-gradient(135deg, var(--color-primary) 0%, #1B6CD6 100%)',
+                display: 'grid', placeItems: 'center',
+                color: '#fff', fontFamily: 'var(--font-eng)', fontWeight: 700, fontSize: 12,
+              }}>
+                {avatarLetter}
+              </div>
+              <span className="hidden sm:block" style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-ink-2)' }}>
                 {displayName}
               </span>
             </div>
 
-            {/* 관리자 버튼 */}
+            {/* Admin button */}
             <button
               onClick={() => setShowAdminLogin(true)}
-              className="transition-colors"
               style={{
-                padding: '7px 14px', borderRadius: 8, border: '1.5px solid #E2E8F0',
-                background: 'white', color: '#4A5568', fontSize: 13, fontWeight: 500, cursor: 'pointer',
+                padding: '8px 14px', borderRadius: 8,
+                border: '1px solid var(--color-line)', background: 'var(--color-surface)',
+                color: 'var(--color-ink-2)', fontSize: 13.5, fontWeight: 500, cursor: 'pointer',
+                transition: 'border-color 120ms ease',
+                fontFamily: 'var(--font-sans)',
               }}
+              onMouseEnter={e => ((e.currentTarget as HTMLElement).style.borderColor = 'var(--color-ink-2)')}
+              onMouseLeave={e => ((e.currentTarget as HTMLElement).style.borderColor = 'var(--color-line)')}
             >
               관리자
             </button>
 
-            {/* 모바일 햄버거 */}
+            {/* Mobile hamburger */}
             <button
               onClick={() => setMobileNav(v => !v)}
-              className="lg:hidden transition-colors"
+              className="lg:hidden"
               style={{
                 width: 36, height: 36, borderRadius: 8, border: 'none',
-                background: mobileNav ? '#EFF4FF' : 'transparent',
-                color: mobileNav ? '#2563EB' : '#4A5568', cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: mobileNav ? 'var(--color-primary-50)' : 'transparent',
+                color: mobileNav ? 'var(--color-primary)' : 'var(--color-ink-2)',
+                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: 18, fontWeight: 700,
               }}
             >
@@ -241,10 +272,11 @@ export default function Page() {
           </div>
         </div>
 
-        {/* 모바일 드로어 */}
+        {/* Mobile drawer */}
         {mobileNav && (
           <div style={{
-            borderTop: '1px solid #E8EDF5', background: 'rgba(255,255,255,0.98)',
+            borderTop: '1px solid var(--color-line)',
+            background: 'rgba(250,250,247,0.98)',
             padding: '8px 16px 16px',
           }}>
             {TAB_LABELS.map(t => (
@@ -254,11 +286,11 @@ export default function Page() {
                 style={{
                   display: 'flex', alignItems: 'center', gap: 10,
                   width: '100%', padding: '12px 14px', borderRadius: 8,
-                  background: activeTab === t.key ? '#EFF4FF' : 'transparent',
-                  color: activeTab === t.key ? '#2563EB' : '#4A5568',
+                  background: activeTab === t.key ? 'var(--color-primary-50)' : 'transparent',
+                  color: activeTab === t.key ? 'var(--color-primary)' : 'var(--color-ink-2)',
                   border: 'none', cursor: 'pointer', textAlign: 'left',
                   fontSize: 14, fontWeight: activeTab === t.key ? 600 : 500,
-                  marginBottom: 2,
+                  marginBottom: 2, fontFamily: 'var(--font-sans)',
                 }}
               >
                 {t.label}
@@ -269,9 +301,11 @@ export default function Page() {
               style={{
                 display: 'flex', alignItems: 'center', gap: 10,
                 width: '100%', padding: '12px 14px', borderRadius: 8,
-                background: 'transparent', color: '#8A96A8',
+                background: 'transparent', color: 'var(--color-ink-3)',
                 border: 'none', cursor: 'pointer', textAlign: 'left',
-                fontSize: 14, fontWeight: 500, borderTop: '1px solid #F1F5F9', marginTop: 4,
+                fontSize: 14, fontWeight: 500,
+                borderTop: '1px solid var(--color-line)', marginTop: 4,
+                fontFamily: 'var(--font-sans)',
               }}
             >
               관리자 모드
@@ -280,19 +314,32 @@ export default function Page() {
         )}
       </header>
 
-      {/* 메인 콘텐츠 */}
+      {/* ── Main content ── */}
       <main style={{ minHeight: 'calc(100vh - 64px)' }}>
         {renderTab()}
       </main>
 
-      {/* 푸터 */}
-      <footer style={{
-        borderTop: '1px solid #E8EDF5', background: 'white',
-        padding: '20px 24px', textAlign: 'center',
-        fontSize: 12, color: '#8A96A8',
-      }}>
-        © 2026 이랜드리테일 AI 캠퍼스 · 함께 만들어가는 AI 학습 커뮤니티
+      {/* ── Footer ── */}
+      <footer style={{ borderTop: '1px solid var(--color-line)', padding: '32px 0 48px' }}>
+        <div className="ac-container" style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          flexWrap: 'wrap', gap: 16,
+          fontSize: 12, color: 'var(--color-ink-3)',
+          fontFamily: 'var(--font-eng)',
+        }}>
+          <span>© 2026 이랜드리테일 AI 캠퍼스 · Internal Portal</span>
+          <div style={{ display: 'flex', gap: 20 }}>
+            {['개인정보처리방침', '이용약관', '관리자 문의'].map(l => (
+              <button key={l}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--color-ink-3)', padding: 0, fontFamily: 'var(--font-sans)' }}
+                onMouseEnter={e => ((e.currentTarget as HTMLElement).style.color = 'var(--color-ink)')}
+                onMouseLeave={e => ((e.currentTarget as HTMLElement).style.color = 'var(--color-ink-3)')}
+              >{l}</button>
+            ))}
+          </div>
+        </div>
       </footer>
+
     </div>
   );
 }

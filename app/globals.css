@@ -1,3 +1,180 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ============================================================
+   AI Campus — Design Tokens  (design_handoff_ai_campus/tokens.css)
+   ============================================================ */
+:root {
+  /* Brand */
+  --color-primary:        #004A99;
+  --color-primary-700:    #003A78;
+  --color-primary-50:     #EAF1FB;
+  --color-secondary:      #FF914D;
+  --color-secondary-50:   #FFF1E6;
+  --color-secondary-700:  #C26B33;
+  /* Neutrals */
+  --color-bg:             #FAFAF7;
+  --color-surface:        #FFFFFF;
+  --color-ink:            #14181F;
+  --color-ink-2:          #3C4350;
+  --color-ink-3:          #6B7280;
+  --color-line:           #ECEAE3;
+  --color-line-2:         #E2E0D8;
+  /* Status */
+  --color-success:        #22A66B;
+  --color-success-bg:     #F0F7EE;
+  --color-success-ink:    #2C7A4B;
+  /* Tone palettes — service-card monograms */
+  --tone-blue-bg:   #EAF1FB;  --tone-blue-ink:   #0B4FA5;  --tone-blue-line:   #DDE8F7;
+  --tone-orange-bg: #FFF1E6;  --tone-orange-ink: #C26B33;  --tone-orange-line: #FCE0CB;
+  --tone-green-bg:  #ECF7EE;  --tone-green-ink:  #2C7A4B;  --tone-green-line:  #D8EDDC;
+  --tone-purple-bg: #F1ECFB;  --tone-purple-ink: #5B3FB0;  --tone-purple-line: #E2D9F4;
+  --tone-slate-bg:  #EEF0F4;  --tone-slate-ink:  #2A323F;  --tone-slate-line:  #DCDFE6;
+  --tone-pink-bg:   #FBEAF1;  --tone-pink-ink:   #A03168;  --tone-pink-line:   #F4D6E1;
+  --tone-amber-bg:  #FBF3D7;  --tone-amber-ink:  #876200;  --tone-amber-line:  #F0E2A6;
+  /* Fonts */
+  --font-sans: 'Noto Sans KR', 'Inter', system-ui, -apple-system, sans-serif;
+  --font-eng:  'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  /* Shadows */
+  --shadow-card:       0 1px 2px rgba(20,24,31,0.04), 0 8px 24px -12px rgba(20,24,31,0.08);
+  --shadow-card-hover: 0 2px 4px rgba(20,24,31,0.06), 0 16px 40px -16px rgba(0,74,153,0.18);
+  --shadow-toast:      0 8px 24px rgba(0,0,0,0.18);
+  /* Radius */
+  --radius-sm:   4px;
+  --radius-md:   6px;
+  --radius:      8px;
+  --radius-lg:   10px;
+  --radius-xl:   12px;
+  --radius-2xl:  14px;
+  --radius-pill: 999px;
+  /* Layout */
+  --container-max: 1200px;
+  --container-pad: 32px;
+  --topbar-h:      64px;
+}
+
+/* ── Keyframes ─────────────────────────────────────────────── */
+@keyframes ac-pulse {
+  0%   { box-shadow: 0 0 0 0    rgba(255,145,77,0.5); }
+  70%  { box-shadow: 0 0 0 8px  rgba(255,145,77,0);   }
+  100% { box-shadow: 0 0 0 0    rgba(255,145,77,0);   }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ac-pulse { animation: none !important; }
+}
+
+/* ── Action-card CSS-driven hover effects ───────────────────── */
+.ac-icon  { transition: background 160ms ease, color 160ms ease; }
+.ac-arrow { transition: transform 160ms ease, opacity 160ms ease, color 160ms ease; }
+
+.ac-card {
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+  cursor: pointer;
+}
+.ac-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card-hover);
+  border-color: rgba(0,74,153,0.18) !important;
+}
+.ac-card:hover .ac-icon {
+  background: var(--color-primary) !important;
+  color: #fff !important;
+}
+.ac-card:hover .ac-arrow {
+  transform: translate(2px, -2px);
+  opacity: 1 !important;
+  color: var(--color-primary) !important;
+}
+/* Featured variant: icon flips to secondary on hover */
+.ac-card.featured:hover .ac-icon {
+  background: var(--color-secondary) !important;
+  color: #fff !important;
+}
+.ac-card.featured:hover .ac-arrow {
+  color: #fff !important;
+}
+
+/* ── Service-card hover (guide page) ────────────────────────── */
+.ac-svc {
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+  cursor: pointer;
+  position: relative;
+}
+.ac-svc:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card-hover);
+  border-color: rgba(0,74,153,0.18) !important;
+}
+/* Edit-mode overlay */
+.ac-svc-edit-overlay {
+  display: none;
+  position: absolute; top: 8px; right: 8px;
+  background: var(--color-ink); color: #fff;
+  border-radius: 6px; padding: 4px 8px;
+  font-family: var(--font-eng); font-size: 11px; font-weight: 500;
+  gap: 6px; align-items: center; z-index: 2;
+}
+body.ac-editing .ac-svc:hover .ac-svc-edit-overlay { display: inline-flex; }
+body.ac-editing .ac-svc:hover { border-color: var(--color-secondary) !important; }
+body.ac-editing .ac-svc { cursor: default; }
+
+/* Add-card (editing mode only) */
+.ac-add-card {
+  display: none;
+  background: transparent;
+  border: 1.5px dashed var(--color-line-2);
+  border-radius: var(--radius);
+  min-height: 168px;
+  align-items: center; justify-content: center;
+  flex-direction: column; gap: 8px;
+  color: var(--color-ink-3); font-size: 13px; font-weight: 500;
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+.ac-add-card:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: var(--color-primary-50);
+}
+body.ac-editing .ac-add-card { display: flex; }
+
+/* ── Layout helpers ─────────────────────────────────────────── */
+.ac-container {
+  max-width: var(--container-max);
+  margin: 0 auto;
+  padding: 0 var(--container-pad);
+}
+.ac-section {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 48px;
+  padding: 48px 0;
+  border-top: 1px solid var(--color-line);
+}
+.ac-section-first { border-top-color: transparent !important; padding-top: 32px !important; }
+.ac-section-label { position: sticky; top: 88px; align-self: start; }
+.ac-grid-1 { display: grid; grid-template-columns: 1fr; gap: 16px; }
+.ac-grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 16px; }
+.ac-grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 16px; }
+.ac-services-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px,1fr)); gap: 14px; }
+
+/* ── Responsive ─────────────────────────────────────────────── */
+@media (max-width: 960px) {
+  .ac-section { grid-template-columns: 1fr; gap: 20px; padding: 40px 0; }
+  .ac-section-label { position: static; }
+  .ac-grid-2, .ac-grid-3 { grid-template-columns: 1fr; }
+  .ac-card.featured { grid-column: span 1 !important; }
+  .ac-sg-page-head { grid-template-columns: 1fr !important; }
+  .ac-strip { grid-template-columns: 1fr !important; }
+  .ac-toc { max-width: 100% !important; justify-content: flex-start !important; }
+}
+@media (max-width: 600px) {
+  .ac-container { padding: 0 20px; }
+  .ac-hero { padding: 36px 0 16px !important; }
+  .ac-hero-h1 { font-size: 32px !important; }
+  .ac-stats { flex-wrap: wrap; gap: 16px 24px !important; }
+  .ac-group-head { grid-template-columns: auto 1fr !important; }
+  .ac-group-count { grid-column: 1 / -1; justify-self: start; }
+}
