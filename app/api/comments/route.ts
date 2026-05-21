@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServiceClient } from '../../../lib/supabase';
+import { sql } from '../../../lib/db';
 
 async function sha256(text: string) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
@@ -11,15 +11,15 @@ export async function GET(req: NextRequest) {
   const postId = new URL(req.url).searchParams.get('postId');
   if (!postId) return NextResponse.json({ error: 'postId 필요' }, { status: 400 });
 
-  const db = createServiceClient();
-  const { data, error } = await db
-    .from('comments')
-    .select('id,post_id,content,likes_count,is_deleted,created_at,updated_at')
-    .eq('post_id', postId)
-    .order('created_at', { ascending: true });
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
+  try {
+    const rows = await sql`
+      SELECT id, post_id, content, likes_count, is_deleted, created_at, updated_at
+      FROM comments WHERE post_id = ${postId}
+      ORDER BY created_at ASC`;
+    return NextResponse.json(rows);
+  } catch (e) {
+    return NextResponse.json({ error: String(e) }, { status: 500 });
+  }
 }
 
 // POST /api/comments
@@ -27,18 +27,12 @@ export async function POST(req: NextRequest) {
   const { postId, content, password } = await req.json();
   if (!postId || !content?.trim()) return NextResponse.json({ error: '내용은 필수입니다.' }, { status: 400 });
 
-  const db = createServiceClient();
   const password_hash = password ? await sha256(password) : null;
-
-  const { error: insertError } = await db
-    .from('comments')
-    .insert({ post_id: postId, content: content.trim(), password_hash });
-
-  if (insertError) return NextResponse.json({ error: insertError.message }, { status: 500 });
-
-  // comments_count 증가
-  const { data: post } = await db.from('posts').select('comments_count').eq('id', postId).single();
-  if (post) await db.from('posts').update({ comments_count: post.comments_count + 1 }).eq('id', postId);
-
-  return NextResponse.json({ ok: true }, { status: 201 });
+  try {
+    await sql`INSERT INTO comments (post_id, content, password_hash) VALUES (${postId}, ${content.trim()}, ${password_hash})`;
+    await sql`UPDATE posts SET comments_count = comments_count + 1 WHERE id = ${postId}`;
+    return NextResponse.json({ ok: true }, { status: 201 });
+  } catch (e) {
+    return NextResponse.json({ error: String(e) }, { status: 500 });
+  }
 }

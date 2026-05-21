@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServiceClient } from '../../../lib/supabase';
+import { sql } from '../../../lib/db';
 
 async function sha256(text: string) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
@@ -9,46 +9,44 @@ async function sha256(text: string) {
 // GET /api/posts?sort=latest|popular&page=1
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const sort  = searchParams.get('sort') || 'latest';
-  const page  = Math.max(1, Number(searchParams.get('page') || '1'));
-  const limit = 20;
+  const sort   = searchParams.get('sort') || 'latest';
+  const page   = Math.max(1, Number(searchParams.get('page') || '1'));
+  const limit  = 20;
+  const offset = (page - 1) * limit;
 
-  const db = createServiceClient();
-  let query = db
-    .from('posts')
-    .select('id,title,link,views_count,likes_count,comments_count,created_at')
-    .eq('is_deleted', false)
-    .range((page - 1) * limit, page * limit - 1);
-
-  if (sort === 'popular') {
-    query = query.order('likes_count', { ascending: false }).order('views_count', { ascending: false });
-  } else {
-    query = query.order('created_at', { ascending: false });
+  try {
+    const rows = sort === 'popular'
+      ? await sql`
+          SELECT id, title, link, views_count, likes_count, comments_count, created_at
+          FROM posts WHERE is_deleted = false
+          ORDER BY likes_count DESC, views_count DESC
+          LIMIT ${limit} OFFSET ${offset}`
+      : await sql`
+          SELECT id, title, link, views_count, likes_count, comments_count, created_at
+          FROM posts WHERE is_deleted = false
+          ORDER BY created_at DESC
+          LIMIT ${limit} OFFSET ${offset}`;
+    return NextResponse.json(rows);
+  } catch (e) {
+    return NextResponse.json({ error: String(e) }, { status: 500 });
   }
-
-  const { data, error } = await query;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
 }
 
 // POST /api/posts
 export async function POST(req: NextRequest) {
-  const body = await req.json();
-  const { title, content, password, link } = body;
-
+  const { title, content, password, link } = await req.json();
   if (!title?.trim() || !content?.trim()) {
     return NextResponse.json({ error: '제목과 내용은 필수입니다.' }, { status: 400 });
   }
 
-  const db = createServiceClient();
   const password_hash = password ? await sha256(password) : null;
-
-  const { data, error } = await db
-    .from('posts')
-    .insert({ title: title.trim(), content: content.trim(), password_hash, link: link || null })
-    .select('id')
-    .single();
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data, { status: 201 });
+  try {
+    const rows = await sql`
+      INSERT INTO posts (title, content, password_hash, link)
+      VALUES (${title.trim()}, ${content.trim()}, ${password_hash}, ${link || null})
+      RETURNING id`;
+    return NextResponse.json(rows[0], { status: 201 });
+  } catch (e) {
+    return NextResponse.json({ error: String(e) }, { status: 500 });
+  }
 }
