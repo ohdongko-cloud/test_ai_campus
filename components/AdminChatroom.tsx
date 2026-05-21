@@ -1,21 +1,51 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { getChatroomUrl, setChatroomUrl } from '../lib/utils';
+import {
+  getChatroomUrl, setChatroomUrl,
+  getChatroomPassword, setChatroomPassword,
+  getChatroomRules, setChatroomRules,
+} from '../lib/utils';
 
 export default function AdminChatroom() {
   const [url, setUrl] = useState('');
+  const [password, setPassword] = useState('');
+  const [rules, setRules] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
   useEffect(() => {
     setUrl(getChatroomUrl());
+    setPassword(getChatroomPassword());
+    setRules(getChatroomRules());
   }, []);
 
-  const handleSave = () => {
-    setChatroomUrl(url);
-    setSuccessMsg('오픈채팅방 링크가 업데이트되었습니다.');
+  const showSuccess = (msg: string) => {
+    setSuccessMsg(msg);
     setTimeout(() => setSuccessMsg(''), 3000);
+  };
+
+  const handleSaveUrl = () => {
+    setChatroomUrl(url);
     window.dispatchEvent(new Event('storage'));
+    showSuccess('오픈채팅방 링크가 저장되었습니다.');
+  };
+
+  const handleSavePassword = () => {
+    setChatroomPassword(password);
+    window.dispatchEvent(new Event('storage'));
+    showSuccess('입장 비밀번호가 저장되었습니다.');
+  };
+
+  const handleSaveRules = () => {
+    setChatroomRules(rules);
+    window.dispatchEvent(new Event('storage'));
+    showSuccess('이용 규칙이 저장되었습니다.');
+  };
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%', border: '1.5px solid #E2E8F0', borderRadius: 6,
+    padding: '8px 12px', fontSize: 13, color: '#0F1E33',
+    outline: 'none', boxSizing: 'border-box', background: '#fff',
   };
 
   return (
@@ -26,9 +56,10 @@ export default function AdminChatroom() {
         </div>
       )}
 
+      {/* URL */}
       <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-        <h3 className="text-base font-semibold text-gray-800 mb-4">오픈채팅방 URL 관리</h3>
-        <div className="space-y-4">
+        <h3 className="text-base font-semibold text-gray-800 mb-4">오픈채팅방 URL</h3>
+        <div className="space-y-3">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">카카오톡 오픈채팅방 URL</label>
             <input
@@ -36,14 +67,14 @@ export default function AdminChatroom() {
               value={url}
               onChange={e => setUrl(e.target.value)}
               placeholder="https://open.kakao.com/..."
-              className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-gray-500"
+              style={inputStyle}
             />
           </div>
-          <p className="text-sm text-gray-400">
-            저장 후 메인 페이지의 오픈채팅방 버튼에 즉시 반영됩니다.
+          <p className="text-xs text-gray-400">
+            저장 후 입장하기 버튼에 즉시 반영됩니다.
           </p>
           <button
-            onClick={handleSave}
+            onClick={handleSaveUrl}
             className="bg-black text-white px-5 py-2 rounded text-sm font-medium hover:bg-gray-800 transition-colors"
           >
             저장
@@ -51,9 +82,61 @@ export default function AdminChatroom() {
         </div>
       </div>
 
-      {/* 현재 URL 미리보기 */}
+      {/* 입장 비밀번호 */}
+      <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+        <h3 className="text-base font-semibold text-gray-800 mb-4">입장 비밀번호</h3>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">비밀번호</label>
+            <input
+              type="text"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder="채팅방 입장 비밀번호 (없으면 비워두세요)"
+              style={inputStyle}
+            />
+          </div>
+          <p className="text-xs text-gray-400">
+            설정 시 팝업에서 복사 버튼과 함께 표시됩니다.
+          </p>
+          <button
+            onClick={handleSavePassword}
+            className="bg-black text-white px-5 py-2 rounded text-sm font-medium hover:bg-gray-800 transition-colors"
+          >
+            저장
+          </button>
+        </div>
+      </div>
+
+      {/* 이용 규칙 */}
+      <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+        <h3 className="text-base font-semibold text-gray-800 mb-4">이용 규칙</h3>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">규칙 내용</label>
+            <textarea
+              rows={7}
+              value={rules}
+              onChange={e => setRules(e.target.value)}
+              placeholder="이용 규칙을 입력하세요. 줄바꿈이 그대로 표시됩니다."
+              style={{ ...inputStyle, resize: 'vertical' }}
+            />
+          </div>
+          <p className="text-xs text-gray-400">
+            입력 내용이 입장 팝업의 &quot;이용 규칙&quot; 섹션에 그대로 표시됩니다.
+          </p>
+          <button
+            onClick={handleSaveRules}
+            className="bg-black text-white px-5 py-2 rounded text-sm font-medium hover:bg-gray-800 transition-colors"
+          >
+            저장
+          </button>
+        </div>
+      </div>
+
+      {/* 미리보기 */}
       <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-        <p className="text-xs text-gray-500 mb-1">현재 저장된 URL</p>
+        <p className="text-xs text-gray-500 mb-1">현재 채팅방 URL</p>
         <a
           href={url}
           target="_blank"

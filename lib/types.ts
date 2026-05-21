@@ -1,10 +1,24 @@
+export interface VideoStage {
+  id: string;
+  title: string;
+  description: string;
+}
+
+export interface VideoLevel {
+  id: string;
+  name: string;
+  description: string;
+}
+
 export interface Video {
   id: string;
   title: string;
-  level: '기초' | '중급' | '고급' | '응용';
+  level: string; // 커스텀 레벨 지원을 위해 string으로 변경
   description: string;
   youtubeUrl: string;
   viewCount: number;
+  stages?: VideoStage[];
+  order?: number;
 }
 
 export interface Reservation {
@@ -24,9 +38,11 @@ export interface Reservation {
 
 export interface BlockedSlot {
   id: string;
-  date: string;
+  date?: string;       // 특정 날짜 (YYYY-MM-DD), recurring=false일 때 사용
+  dayOfWeek?: number;  // 1=월 ... 5=금, recurring=true일 때 사용
   startTime: string;
   reason?: string;
+  recurring: boolean;
 }
 
 export interface SharedService {

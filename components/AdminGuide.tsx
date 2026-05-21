@@ -195,7 +195,15 @@ export default function AdminGuide() {
                             <div className="flex items-center gap-3">
                               <label className="flex items-center gap-1.5 cursor-pointer">
                                 <input type="checkbox" checked={item.recommended}
-                                  onChange={e => { updateItem(group.id, item.id, 'recommended', e.target.checked); saveItems(group.id); }}
+                                  onChange={e => {
+                                    const checked = e.target.checked;
+                                    const next = groups.map(g =>
+                                      g.id === group.id
+                                        ? { ...g, items: g.items.map(i => i.id === item.id ? { ...i, recommended: checked } : i) }
+                                        : g
+                                    );
+                                    save(next);
+                                  }}
                                   className="w-3.5 h-3.5 accent-green-600" />
                                 <span className="text-xs text-gray-600">추천</span>
                               </label>

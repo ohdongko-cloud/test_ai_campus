@@ -65,9 +65,15 @@ export default function MeetingPage() {
       r.date === date && r.startTime === time && r.status !== 'cancelled'
     );
 
-  // 관리자 차단 슬롯 여부
+  // 관리자 차단 슬롯 여부 (recurring: 요일 기준, non-recurring: 특정 날짜 기준)
   const isBlocked = (date: string, time: string): boolean =>
-    blockedSlots.some(b => b.date === date && b.startTime === time);
+    blockedSlots.some(b => {
+      if (b.recurring) {
+        const d = new Date(date + 'T00:00:00');
+        return b.dayOfWeek === d.getDay() && b.startTime === time;
+      }
+      return b.date === date && b.startTime === time;
+    });
 
   // 선택 불가 여부
   const isUnavailable = (date: string, time: string): boolean =>

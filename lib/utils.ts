@@ -1,4 +1,4 @@
-import { Video, Reservation, SharedService, UserInfo, ClickLog, BlockedSlot, GuideGroup } from './types';
+import { Video, Reservation, SharedService, UserInfo, ClickLog, BlockedSlot, GuideGroup, VideoLevel } from './types';
 export type { UserInfo };
 
 // localStorage 키
@@ -9,10 +9,26 @@ export const KEYS = {
   RESERVATIONS: 'axtf_reservations',
   SERVICES: 'axtf_services',
   CHATROOM_URL: 'axtf_chatroom_url',
+  CHATROOM_PASSWORD: 'axtf_chatroom_password',
+  CHATROOM_RULES: 'axtf_chatroom_rules',
   CLICK_LOG: 'axtf_click_log',
   GUIDE_GROUPS: 'axtf_guide_groups',
   NOA_URL: 'axtf_noa_url',
+  VIDEO_LEVELS: 'axtf_video_levels',
 };
+
+const DEFAULT_VIDEO_LEVELS: VideoLevel[] = [
+  { id: 'basic',        name: '기초', description: '기초 개념과 입문 수준의 강의' },
+  { id: 'intermediate', name: '중급', description: '실무 활용 수준의 강의' },
+  { id: 'advanced',     name: '고급', description: '심화 및 고급 기술 강의' },
+  { id: 'applied',      name: '응용', description: '실제 프로젝트 적용 수준의 강의' },
+];
+
+const DEFAULT_CHATROOM_RULES = `1. 존댓말로 소통해 주세요.
+2. AI 관련 질문과 팁만 공유해 주세요.
+3. 타인 비방 및 욕설은 금지입니다.
+4. 광고·홍보성 게시물은 삭제됩니다.
+5. 회사 기밀 정보는 공유하지 마세요.`;
 
 const DEFAULT_GUIDE_GROUPS: GuideGroup[] = [
   {
@@ -178,6 +194,40 @@ export function getChatroomUrl(): string {
 
 export function setChatroomUrl(url: string): void {
   localStorage.setItem(KEYS.CHATROOM_URL, url);
+}
+
+export function getChatroomPassword(): string {
+  return localStorage.getItem(KEYS.CHATROOM_PASSWORD) || '';
+}
+
+export function setChatroomPassword(pw: string): void {
+  localStorage.setItem(KEYS.CHATROOM_PASSWORD, pw);
+}
+
+export function getChatroomRules(): string {
+  return localStorage.getItem(KEYS.CHATROOM_RULES) || DEFAULT_CHATROOM_RULES;
+}
+
+export function setChatroomRules(rules: string): void {
+  localStorage.setItem(KEYS.CHATROOM_RULES, rules);
+}
+
+export function getVideoLevels(): VideoLevel[] {
+  try {
+    const raw = localStorage.getItem(KEYS.VIDEO_LEVELS);
+    return raw ? JSON.parse(raw) : DEFAULT_VIDEO_LEVELS;
+  } catch { return DEFAULT_VIDEO_LEVELS; }
+}
+
+export function setVideoLevels(levels: VideoLevel[]): void {
+  localStorage.setItem(KEYS.VIDEO_LEVELS, JSON.stringify(levels));
+}
+
+export function getClickLogInRange(start: string, end: string): ClickLog[] {
+  return getClickLog().filter(log => {
+    const d = log.timestamp.slice(0, 10);
+    return d >= start && d <= end;
+  });
 }
 
 export function getNoaUrl(): string {

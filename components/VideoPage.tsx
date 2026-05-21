@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Video } from '../lib/types';
-import { getVideos, setVideos, extractVideoId } from '../lib/utils';
+import { Video, VideoLevel } from '../lib/types';
+import { getVideos, setVideos, extractVideoId, getVideoLevels } from '../lib/utils';
 
 const T = {
   primary: '#004A99', primaryDark: '#003A78', primaryLight: '#E6EEF7', primarySoft: '#F0F5FB',
@@ -20,14 +20,19 @@ const T = {
   fontEn: '"Inter", system-ui, sans-serif',
 };
 
-const LEVEL_BADGE: Record<string, { bg: string; fg: string }> = {
-  '기초': { bg: T.primaryLight, fg: T.primary },
-  '중급': { bg: T.secondaryLight, fg: T.secondaryDark },
-  '고급': { bg: T.infoBg, fg: T.info },
-  '응용': { bg: '#EEF1F6', fg: T.textBody },
-};
+// 기본 4색 + 오버플로우용 팔레트
+const BADGE_PALETTES = [
+  { bg: T.primaryLight, fg: T.primary },
+  { bg: T.secondaryLight, fg: T.secondaryDark },
+  { bg: T.infoBg, fg: T.info },
+  { bg: '#EEF1F6', fg: T.textBody },
+  { bg: '#F0E6F7', fg: '#6940C9' },
+  { bg: '#FCE6EA', fg: T.danger },
+  { bg: '#E6F6EE', fg: T.success },
+  { bg: '#FFF6DB', fg: '#9C7100' },
+];
 
-const PALETTES = [
+const CARD_PALETTES = [
   { bg: '#E6EEF7', fg: '#004A99' },
   { bg: '#FFF1E6', fg: '#C2581F' },
   { bg: '#E6F6EE', fg: '#1E9E6A' },
@@ -36,16 +41,24 @@ const PALETTES = [
   { bg: '#FFF6DB', fg: '#9C7100' },
 ];
 
-const LEVELS = ['전체', '기초', '중급', '고급', '응용'];
+function getBadgeStyle(levelName: string, levels: VideoLevel[]): { bg: string; fg: string } {
+  const idx = levels.findIndex(l => l.name === levelName);
+  return BADGE_PALETTES[idx >= 0 ? idx % BADGE_PALETTES.length : BADGE_PALETTES.length - 1];
+}
 
 export default function VideoPage() {
   const [videos, setVideosState] = useState<Video[]>([]);
+  const [levels, setLevels] = useState<VideoLevel[]>([]);
   const [search, setSearch] = useState('');
   const [levelFilter, setLevelFilter] = useState('전체');
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
   const [hoverCard, setHoverCard] = useState<string | null>(null);
+  const [openStageIdx, setOpenStageIdx] = useState<number | null>(null);
 
-  const load = () => setVideosState(getVideos());
+  const load = () => {
+    setVideosState(getVideos());
+    setLevels(getVideoLevels());
+  };
 
   useEffect(() => {
     load();
@@ -54,15 +67,19 @@ export default function VideoPage() {
     return () => window.removeEventListener('storage', handler);
   }, []);
 
+  const levelNames = levels.map(l => l.name);
+
   const filtered = videos.filter(v => {
     const matchLevel = levelFilter === '전체' || v.level === levelFilter;
-    const matchSearch = v.title.toLowerCase().includes(search.toLowerCase()) ||
+    const matchSearch =
+      v.title.toLowerCase().includes(search.toLowerCase()) ||
       v.description.toLowerCase().includes(search.toLowerCase());
     return matchLevel && matchSearch;
   });
 
-  const levelCounts: Record<string, number> = { '기초': 0, '중급': 0, '고급': 0, '응용': 0 };
-  videos.forEach(v => { if (levelCounts[v.level] !== undefined) levelCounts[v.level]++; });
+  // 레벨별 영상 수 (동적)
+  const levelCounts: Record<string, number> = {};
+  videos.forEach(v => { levelCounts[v.level] = (levelCounts[v.level] || 0) + 1; });
 
   const handleWatch = (video: Video) => {
     const updated = videos.map(v =>
@@ -71,7 +88,13 @@ export default function VideoPage() {
     setVideos(updated);
     setVideosState(updated);
     setSelectedVideo({ ...video, viewCount: video.viewCount + 1 });
+    setOpenStageIdx(null);
   };
+
+  const sidebarItems = [
+    { id: '전체', count: videos.length },
+    ...levelNames.map(name => ({ id: name, count: levelCounts[name] || 0 })),
+  ];
 
   return (
     <div style={{ maxWidth: 1280, margin: '0 auto', padding: '32px 24px 64px', fontFamily: T.fontKo }}>
@@ -119,12 +142,12 @@ export default function VideoPage() {
               />
             </div>
 
-            {/* 레벨 필터 */}
+            {/* 레벨 필터 (동적) */}
             <div style={{ fontSize: 11, fontWeight: 700, color: T.textMuted, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 10 }}>
               레벨
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-              {[{ id: '전체', count: videos.length }, ...LEVELS.slice(1).map(l => ({ id: l, count: levelCounts[l] }))].map(lv => {
+              {sidebarItems.map(lv => {
                 const on = levelFilter === lv.id;
                 return (
                   <button
@@ -187,8 +210,8 @@ export default function VideoPage() {
               gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
             }}>
               {filtered.map((v, idx) => {
-                const badge = LEVEL_BADGE[v.level] || LEVEL_BADGE['응용'];
-                const palette = PALETTES[idx % PALETTES.length];
+                const badge = getBadgeStyle(v.level, levels);
+                const palette = CARD_PALETTES[idx % CARD_PALETTES.length];
                 const isHover = hoverCard === v.id;
                 return (
                   <div
@@ -235,6 +258,15 @@ export default function VideoPage() {
                         <span style={{ fontSize: 11, color: T.textMuted }}>
                           조회 {v.viewCount.toLocaleString()}
                         </span>
+                        {v.stages && v.stages.length > 0 && (
+                          <span style={{
+                            fontSize: 10, color: T.primary,
+                            background: T.primaryLight, padding: '1px 6px',
+                            borderRadius: 999, fontWeight: 600,
+                          }}>
+                            {v.stages.length}단계
+                          </span>
+                        )}
                       </div>
                       <div style={{
                         fontSize: 15, fontWeight: 700, color: T.text,
@@ -279,11 +311,12 @@ export default function VideoPage() {
             onClick={e => e.stopPropagation()}
             style={{
               background: T.surface, borderRadius: T.r3,
-              width: '100%', maxWidth: 840, maxHeight: 'calc(100vh - 32px)',
+              width: '100%', maxWidth: 860, maxHeight: 'calc(100vh - 32px)',
               boxShadow: '0 4px 12px rgba(15,30,51,0.06), 0 16px 40px rgba(15,30,51,0.10)',
               overflow: 'hidden', display: 'flex', flexDirection: 'column',
             }}
           >
+            {/* 유튜브 플레이어 */}
             <div style={{ aspectRatio: '16/9', background: '#000', flexShrink: 0 }}>
               <iframe
                 width="100%" height="100%"
@@ -294,22 +327,26 @@ export default function VideoPage() {
                 style={{ display: 'block', border: 'none' }}
               />
             </div>
-            <div style={{ padding: 24, overflowY: 'auto' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                <span style={{
-                  display: 'inline-flex', alignItems: 'center', height: 20, padding: '0 8px',
-                  fontSize: 11, background: LEVEL_BADGE[selectedVideo.level]?.bg || '#EEF1F6',
-                  color: LEVEL_BADGE[selectedVideo.level]?.fg || T.textBody,
-                  borderRadius: 999, fontWeight: 600,
-                }}>{selectedVideo.level}</span>
-                <span style={{ fontSize: 12, color: T.textMuted }}>
-                  조회 {selectedVideo.viewCount.toLocaleString()}
-                </span>
-              </div>
-              <div style={{
-                display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12,
-              }}>
+
+            {/* 영상 정보 */}
+            <div style={{ padding: '20px 24px', overflowY: 'auto', flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 16 }}>
                 <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                    {(() => {
+                      const badge = getBadgeStyle(selectedVideo.level, levels);
+                      return (
+                        <span style={{
+                          display: 'inline-flex', alignItems: 'center', height: 20, padding: '0 8px',
+                          fontSize: 11, background: badge.bg, color: badge.fg,
+                          borderRadius: 999, fontWeight: 600,
+                        }}>{selectedVideo.level}</span>
+                      );
+                    })()}
+                    <span style={{ fontSize: 12, color: T.textMuted }}>
+                      조회 {selectedVideo.viewCount.toLocaleString()}
+                    </span>
+                  </div>
                   <h3 style={{
                     margin: '0 0 8px', fontSize: 20, fontWeight: 700, color: T.text,
                     fontFamily: T.fontKo, letterSpacing: '-0.02em',
@@ -331,16 +368,85 @@ export default function VideoPage() {
                   </svg>
                 </button>
               </div>
+
+              {/* 학습 단계 아코디언 */}
+              {selectedVideo.stages && selectedVideo.stages.length > 0 && (
+                <div style={{ borderTop: `1px solid ${T.border}`, paddingTop: 16 }}>
+                  <div style={{
+                    fontSize: 13, fontWeight: 700, color: T.text, marginBottom: 10,
+                    display: 'flex', alignItems: 'center', gap: 6,
+                  }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={T.primary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+                    </svg>
+                    학습 단계 ({selectedVideo.stages.length}단계)
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {selectedVideo.stages.map((stage, idx) => {
+                      const isOpen = openStageIdx === idx;
+                      return (
+                        <div
+                          key={stage.id}
+                          style={{
+                            border: `1.5px solid ${isOpen ? T.primary : T.border}`,
+                            borderRadius: T.r, overflow: 'hidden',
+                            transition: 'border-color .15s',
+                          }}
+                        >
+                          <button
+                            onClick={() => setOpenStageIdx(isOpen ? null : idx)}
+                            style={{
+                              width: '100%', display: 'flex', alignItems: 'center',
+                              gap: 10, padding: '10px 14px',
+                              background: isOpen ? T.primaryLight : T.surface,
+                              border: 'none', cursor: 'pointer',
+                              textAlign: 'left', transition: 'background .15s',
+                            }}
+                          >
+                            <span style={{
+                              width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
+                              background: isOpen ? T.primary : T.bg,
+                              color: isOpen ? '#fff' : T.textMuted,
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              fontSize: 11, fontWeight: 700,
+                            }}>
+                              {idx + 1}
+                            </span>
+                            <span style={{
+                              flex: 1, fontSize: 13, fontWeight: 600,
+                              color: isOpen ? T.primary : T.text,
+                            }}>
+                              {stage.title}
+                            </span>
+                            <svg
+                              width="14" height="14" viewBox="0 0 24 24"
+                              fill="none" stroke={isOpen ? T.primary : T.textMuted}
+                              strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                              style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform .2s', flexShrink: 0 }}
+                            >
+                              <path d="M6 9l6 6 6-6"/>
+                            </svg>
+                          </button>
+                          {isOpen && stage.description && (
+                            <div style={{
+                              padding: '10px 14px 12px 46px',
+                              fontSize: 13, color: T.textBody, lineHeight: 1.65,
+                              background: T.primarySoft,
+                              whiteSpace: 'pre-wrap',
+                            }}>
+                              {stage.description}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
       )}
-
-      <style>{`
-        @media (max-width: 768px) {
-          .lect-grid { grid-template-columns: 1fr !important; }
-        }
-      `}</style>
     </div>
   );
 }

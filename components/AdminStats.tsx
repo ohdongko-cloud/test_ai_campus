@@ -1,80 +1,150 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
 } from 'recharts';
-import { getVideos, getReservations, getServices, aggregateClickLog } from '../lib/utils';
-import { Video } from '../lib/types';
+import { getVideos, getReservations, getServices, aggregateClickLog, getClickLogInRange } from '../lib/utils';
+import { Video, ClickLog } from '../lib/types';
 
 const PIE_COLORS: Record<string, string> = {
   '기초': '#22C55E', '중급': '#2563EB', '고급': '#F97316', '응용': '#6B7280',
 };
+
+const BUTTON_KEYS = ['강의영상', '게시판', '미팅요청', '오픈채팅방', '서비스공유'] as const;
+type ButtonKey = typeof BUTTON_KEYS[number];
+
+const BUTTON_LABELS: Record<ButtonKey, string> = {
+  강의영상: '강의 영상',
+  게시판: '게시판',
+  미팅요청: '미팅 요청',
+  오픈채팅방: '오픈채팅방',
+  서비스공유: '서비스 공유',
+};
+
+function today(): string { return new Date().toISOString().slice(0, 10); }
+function daysAgo(n: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d.toISOString().slice(0, 10);
+}
 
 export default function AdminStats() {
   const [copied, setCopied] = useState(false);
   const [videos, setVideos] = useState<Video[]>([]);
   const [reservationCount, setReservationCount] = useState(0);
   const [serviceCount, setServiceCount] = useState(0);
-  const [clickData, setClickData] = useState<{ name: string; value: number }[]>([]);
-  const [totalClicks, setTotalClicks] = useState(0);
   const [levelData, setLevelData] = useState<{ name: string; value: number }[]>([]);
 
-  const load = () => {
+  // 날짜 범위 필터
+  const [startDate, setStartDate] = useState(daysAgo(29));
+  const [endDate, setEndDate] = useState(today());
+
+  // 버튼 타입 필터 (선택된 것만 표시)
+  const [selectedButtons, setSelectedButtons] = useState<Set<ButtonKey>>(new Set(BUTTON_KEYS));
+
+  // 필터된 클릭 집계
+  const [clickData, setClickData] = useState<{ name: string; value: number }[]>([]);
+  const [totalClicks, setTotalClicks] = useState(0);
+  const [perDayData, setPerDayData] = useState<{ name: string; value: number }[]>([]);
+
+  const computeClickStats = useCallback((start: string, end: string, buttons: Set<ButtonKey>) => {
+    const logs: ClickLog[] = getClickLogInRange(start, end);
+
+    // 버튼별 집계
+    const clickMap: Record<string, number> = {};
+    BUTTON_KEYS.forEach(k => { clickMap[k] = 0; });
+    logs.forEach(log => { if (clickMap[log.button] !== undefined) clickMap[log.button]++; });
+
+    const filtered = BUTTON_KEYS
+      .filter(k => buttons.has(k))
+      .map(k => ({ name: BUTTON_LABELS[k], value: clickMap[k] }));
+    setClickData(filtered);
+    setTotalClicks(filtered.reduce((s, c) => s + c.value, 0));
+
+    // 날짜별 집계 (선택된 버튼 기준)
+    const dayMap: Record<string, number> = {};
+    logs.forEach(log => {
+      if (buttons.has(log.button as ButtonKey)) {
+        const d = log.timestamp.slice(0, 10);
+        dayMap[d] = (dayMap[d] || 0) + 1;
+      }
+    });
+    const sorted = Object.entries(dayMap)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([name, value]) => ({ name: name.slice(5), value })); // MM-DD
+    setPerDayData(sorted);
+  }, []);
+
+  const load = useCallback(() => {
     const vids = getVideos();
     const res = getReservations();
     const svc = getServices();
-    const clicks = aggregateClickLog();
 
     setVideos(vids);
     setReservationCount(res.length);
     setServiceCount(svc.length);
 
-    const clickArr = [
-      { name: '강의영상', value: clicks['강의영상'] || 0 },
-      { name: '게시판', value: clicks['게시판'] || 0 },
-      { name: '미팅요청', value: clicks['미팅요청'] || 0 },
-      { name: '오픈채팅방', value: clicks['오픈채팅방'] || 0 },
-      { name: '서비스공유', value: clicks['서비스공유'] || 0 },
-    ];
-    setClickData(clickArr);
-    setTotalClicks(clickArr.reduce((s, c) => s + c.value, 0));
-
     const levelMap: Record<string, number> = { '기초': 0, '중급': 0, '고급': 0, '응용': 0 };
     vids.forEach(v => { if (levelMap[v.level] !== undefined) levelMap[v.level]++; });
     setLevelData(Object.entries(levelMap).map(([name, value]) => ({ name, value })));
-  };
+
+    computeClickStats(startDate, endDate, selectedButtons);
+  }, [startDate, endDate, selectedButtons, computeClickStats]);
 
   useEffect(() => {
     load();
     const handler = () => load();
     window.addEventListener('storage', handler);
     return () => window.removeEventListener('storage', handler);
-  }, []);
+  }, [load]);
+
+  // 날짜/버튼 필터 변경 시 클릭 통계 재계산
+  useEffect(() => {
+    computeClickStats(startDate, endDate, selectedButtons);
+  }, [startDate, endDate, selectedButtons, computeClickStats]);
 
   const sortedVideos = [...videos].sort((a, b) => b.viewCount - a.viewCount).slice(0, 10);
   const topVideo = sortedVideos[0];
 
+  const toggleButton = (k: ButtonKey) => {
+    setSelectedButtons(prev => {
+      const next = new Set(prev);
+      if (next.has(k)) { if (next.size > 1) next.delete(k); }
+      else next.add(k);
+      return next;
+    });
+  };
+
+  const setQuickRange = (days: number | null) => {
+    if (days === null) {
+      setStartDate('2020-01-01');
+      setEndDate(today());
+    } else {
+      setStartDate(daysAgo(days - 1));
+      setEndDate(today());
+    }
+  };
+
   const handleCopyReport = () => {
     const clicks = aggregateClickLog();
-    const today = new Date().toISOString().slice(0, 10);
     const levelMap: Record<string, number> = { '기초': 0, '중급': 0, '고급': 0, '응용': 0 };
     videos.forEach(v => { if (levelMap[v.level] !== undefined) levelMap[v.level]++; });
 
     const text = `[이랜드리테일 AI 캠퍼스 운영 현황 보고]
-기준일: ${today}
+기준일: ${today()}
 
 ■ 전체 미팅 예약 건수: ${reservationCount}건
 ■ 등록 교육 영상 수: ${videos.length}개 (기초 ${levelMap['기초']} / 중급 ${levelMap['중급']} / 고급 ${levelMap['고급']} / 응용 ${levelMap['응용']})
 ■ 가장 많이 시청된 영상: ${topVideo ? `${topVideo.title} (${topVideo.viewCount}회)` : '없음'}
 ■ 공유된 AI 서비스 수: ${serviceCount}개
-■ 버튼별 클릭 현황:
-  - 강의 영상 시청하기: ${clicks['강의영상'] || 0}회
-  - 게시판 작성: ${clicks['게시판'] || 0}회
-  - 미팅 요청하기: ${clicks['미팅요청'] || 0}회
-  - 오픈채팅방 입장: ${clicks['오픈채팅방'] || 0}회
-  - 내 서비스 공유하기: ${clicks['서비스공유'] || 0}회`;
+■ 버튼별 클릭 현황 (전체):
+  - 강의 영상: ${clicks['강의영상'] || 0}회
+  - 게시판: ${clicks['게시판'] || 0}회
+  - 미팅 요청: ${clicks['미팅요청'] || 0}회
+  - 오픈채팅방: ${clicks['오픈채팅방'] || 0}회
+  - 서비스 공유: ${clicks['서비스공유'] || 0}회`;
 
     navigator.clipboard.writeText(text).then(() => {
       setCopied(true);
@@ -86,7 +156,7 @@ export default function AdminStats() {
     { label: '전체 미팅 예약', value: reservationCount, unit: '건' },
     { label: '등록 영상 수', value: videos.length, unit: '개' },
     { label: '공유 서비스 수', value: serviceCount, unit: '개' },
-    { label: '총 버튼 클릭수', value: totalClicks, unit: '회' },
+    { label: `기간 내 클릭수 (${startDate.slice(5)} ~ ${endDate.slice(5)})`, value: totalClicks, unit: '회' },
   ];
 
   return (
@@ -109,12 +179,77 @@ export default function AdminStats() {
         ))}
       </div>
 
+      {/* ── 날짜 범위 & 버튼 타입 필터 ── */}
+      <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm space-y-4">
+        <h3 className="text-base font-semibold text-gray-800">클릭 통계 필터</h3>
+
+        {/* 날짜 범위 */}
+        <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">시작일</label>
+            <input
+              type="date"
+              value={startDate}
+              onChange={e => setStartDate(e.target.value)}
+              className="border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">종료일</label>
+            <input
+              type="date"
+              value={endDate}
+              onChange={e => setEndDate(e.target.value)}
+              className="border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none"
+            />
+          </div>
+          <div className="flex gap-1.5">
+            {[
+              { label: '오늘', days: 1 },
+              { label: '7일', days: 7 },
+              { label: '30일', days: 30 },
+              { label: '전체', days: null },
+            ].map(q => (
+              <button
+                key={q.label}
+                onClick={() => setQuickRange(q.days)}
+                className="px-3 py-1.5 rounded text-xs font-medium border border-gray-300 bg-white hover:bg-gray-50 transition-colors"
+              >
+                {q.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 버튼 타입 필터 */}
+        <div>
+          <p className="text-xs text-gray-500 mb-2">표시할 버튼</p>
+          <div className="flex flex-wrap gap-2">
+            {BUTTON_KEYS.map(k => {
+              const on = selectedButtons.has(k);
+              return (
+                <button
+                  key={k}
+                  onClick={() => toggleButton(k)}
+                  className={`px-3 py-1 rounded text-xs font-medium border transition-colors ${
+                    on ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-500 border-gray-300'
+                  }`}
+                >
+                  {BUTTON_LABELS[k]}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
       {/* 차트 row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* 버튼별 클릭수 막대 차트 */}
+        {/* 버튼별 클릭수 */}
         <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-          <h3 className="text-base font-semibold text-gray-800 mb-4">버튼별 클릭수</h3>
-          <ResponsiveContainer width="100%" height={250}>
+          <h3 className="text-base font-semibold text-gray-800 mb-1">버튼별 클릭수</h3>
+          <p className="text-xs text-gray-400 mb-4">{startDate} ~ {endDate}</p>
+          <ResponsiveContainer width="100%" height={220}>
             <BarChart data={clickData} margin={{ top: 16, right: 8, left: 0, bottom: 0 }}>
               <XAxis dataKey="name" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
@@ -127,7 +262,7 @@ export default function AdminStats() {
         {/* 레벨별 영상 수 파이 차트 */}
         <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
           <h3 className="text-base font-semibold text-gray-800 mb-4">레벨별 영상 수</h3>
-          <ResponsiveContainer width="100%" height={250}>
+          <ResponsiveContainer width="100%" height={220}>
             <PieChart>
               <Pie data={levelData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80}>
                 {levelData.map((entry, i) => (
@@ -140,6 +275,22 @@ export default function AdminStats() {
           </ResponsiveContainer>
         </div>
       </div>
+
+      {/* 날짜별 클릭 추이 */}
+      {perDayData.length > 0 && (
+        <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+          <h3 className="text-base font-semibold text-gray-800 mb-1">날짜별 클릭 추이</h3>
+          <p className="text-xs text-gray-400 mb-4">{startDate} ~ {endDate} (선택된 버튼 합산)</p>
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={perDayData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+              <XAxis dataKey="name" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
+              <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+              <Tooltip />
+              <Bar dataKey="value" fill="#6366F1" radius={[3, 3, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
 
       {/* 영상별 조회수 순위 */}
       <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">

@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from 'react';
 import { TabType } from '../lib/types';
-import { addClickLog, getChatroomUrl, getNoaUrl } from '../lib/utils';
+import { addClickLog, getNoaUrl } from '../lib/utils';
+import ChatroomPopup from './ChatroomPopup';
 
 interface Props {
   onNavigate: (tab: TabType) => void;
@@ -84,11 +86,14 @@ const BOARD_CARD: CardDef = {
 };
 
 export default function MainPage({ onNavigate }: Props) {
+  const [showChatroomPopup, setShowChatroomPopup] = useState(false);
+
   const handleCardClick = (card: CardDef) => {
     addClickLog(card.action);
-    if (card.external) {
-      const url = card.externalKey === 'noa' ? getNoaUrl() : getChatroomUrl();
-      window.open(url, '_blank', 'noopener,noreferrer');
+    if (card.externalKey === 'chatroom') {
+      setShowChatroomPopup(true);
+    } else if (card.external) {
+      window.open(getNoaUrl(), '_blank', 'noopener,noreferrer');
     } else if (card.tab) {
       onNavigate(card.tab);
     }
@@ -228,6 +233,11 @@ export default function MainPage({ onNavigate }: Props) {
           {renderCard(BOARD_CARD)}
         </div>
       </div>
+
+      {/* 오픈채팅방 팝업 */}
+      {showChatroomPopup && (
+        <ChatroomPopup onClose={() => setShowChatroomPopup(false)} />
+      )}
     </div>
   );
 }
