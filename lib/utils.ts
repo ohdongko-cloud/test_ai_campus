@@ -153,10 +153,39 @@ export function getReservations(): Reservation[] {
   } catch { return []; }
 }
 
+// 시간(HH:MM)에 분 추가
+export function addMinutes(time: string, minutes: number): string {
+  const [h, m] = time.split(':').map(Number);
+  const total = h * 60 + m + minutes;
+  const nh = Math.floor(total / 60) % 24;
+  const nm = total % 60;
+  return `${String(nh).padStart(2, '0')}:${String(nm).padStart(2, '0')}`;
+}
+
+// 두 시각 사이 분 차이 (HH:MM)
+export function minutesBetween(start: string, end: string): number {
+  const [sh, sm] = start.split(':').map(Number);
+  const [eh, em] = end.split(':').map(Number);
+  return (eh * 60 + em) - (sh * 60 + sm);
+}
+
 export function getBlockedSlots(): BlockedSlot[] {
   try {
     const raw = localStorage.getItem(KEYS.BLOCKED_SLOTS);
-    return raw ? JSON.parse(raw) : [];
+    const slots: BlockedSlot[] = raw ? JSON.parse(raw) : [];
+    // 마이그레이션: endTime 없는 레코드는 startTime + 1시간으로 채움
+    let needsSave = false;
+    const migrated = slots.map(b => {
+      if (!b.endTime) {
+        needsSave = true;
+        return { ...b, endTime: addMinutes(b.startTime, 60) };
+      }
+      return b;
+    });
+    if (needsSave) {
+      localStorage.setItem(KEYS.BLOCKED_SLOTS, JSON.stringify(migrated));
+    }
+    return migrated;
   } catch { return []; }
 }
 

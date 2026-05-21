@@ -7,13 +7,13 @@ import {
   getReservations, setReservations,
   getBlockedSlots, setBlockedSlots,
   generateId, generateTimeSlots,
+  addMinutes, minutesBetween,
 } from '../lib/utils';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 type Filter = '전체' | '이번 주' | '이번 달';
 
 const DAY_NAMES = ['월', '화', '수', '목', '금'];
-// BlockedSlot.dayOfWeek: 1=월(Mon)…5=금(Fri), matching JS getDay()
 const DOW_OPTIONS = [
   { label: '월', value: 1 },
   { label: '화', value: 2 },
@@ -21,6 +21,7 @@ const DOW_OPTIONS = [
   { label: '목', value: 4 },
   { label: '금', value: 5 },
 ];
+const MAX_BLOCK_HOURS = 8;
 
 function getWeekRange(): [string, string] {
   const today = new Date();
@@ -40,6 +41,55 @@ function getMonthRange(): [string, string] {
   return [start, end];
 }
 
+// 두 BlockedSlot이 같은 "키"(요일 or 날짜)인지 확인
+function isSameKey(a: BlockedSlot, b: BlockedSlot): boolean {
+  if (a.recurring !== b.recurring) return false;
+  return a.recurring ? a.dayOfWeek === b.dayOfWeek : a.date === b.date;
+}
+
+// 두 슬롯이 시간 범위에서 겹치는지 확인
+function overlapsTime(a: BlockedSlot, b: BlockedSlot): boolean {
+  const aEnd = a.endTime ?? addMinutes(a.startTime, 60);
+  const bEnd = b.endTime ?? addMinutes(b.startTime, 60);
+  return a.startTime < bEnd && b.startTime < aEnd;
+}
+
+// 겹치는 슬롯 병합 처리
+function mergeIntoSlots(existing: BlockedSlot[], newSlot: BlockedSlot): BlockedSlot[] {
+  let merged = { ...newSlot };
+  const rest: BlockedSlot[] = [];
+  for (const s of existing) {
+    if (isSameKey(s, merged) && overlapsTime(s, merged)) {
+      const sEnd = s.endTime ?? addMinutes(s.startTime, 60);
+      const mEnd = merged.endTime ?? addMinutes(merged.startTime, 60);
+      merged = {
+        ...merged,
+        startTime: merged.startTime < s.startTime ? merged.startTime : s.startTime,
+        endTime: mEnd > sEnd ? mEnd : sEnd,
+        reason: merged.reason || s.reason,
+      };
+    } else {
+      rest.push(s);
+    }
+  }
+  return [...rest, merged];
+}
+
+// 새 차단 슬롯이 기존 예약과 충돌하는지 검사
+function findConflictingReservations(newSlot: BlockedSlot, reservations: Reservation[]): Reservation[] {
+  const slotEnd = newSlot.endTime ?? addMinutes(newSlot.startTime, 60);
+  return reservations.filter(r => {
+    if (r.status === 'cancelled') return false;
+    if (newSlot.recurring) {
+      const d = new Date(r.date + 'T00:00:00');
+      if (d.getDay() !== newSlot.dayOfWeek) return false;
+    } else {
+      if (r.date !== newSlot.date) return false;
+    }
+    return r.startTime >= newSlot.startTime && r.startTime < slotEnd;
+  });
+}
+
 export default function AdminMeetings() {
   const [reservations, setReservationsState] = useState<Reservation[]>([]);
   const [filter, setFilter] = useState<Filter>('전체');
@@ -49,11 +99,15 @@ export default function AdminMeetings() {
   const [newRecurring, setNewRecurring] = useState(true);
   const [newDow, setNewDow] = useState<number>(1);
   const [newDate, setNewDate] = useState('');
-  const [newTime, setNewTime] = useState('09:00');
+  const [newStartTime, setNewStartTime] = useState('09:00');
+  const [newEndTime, setNewEndTime] = useState('10:00');
   const [newReason, setNewReason] = useState('');
+  const [blockError, setBlockError] = useState('');
   const [blockMsg, setBlockMsg] = useState('');
 
   const timeSlots = generateTimeSlots();
+  // 종료시간 선택 옵션: 시작시간보다 이후 + 17:00까지
+  const endTimeOptions = [...timeSlots, '17:00'].filter(t => t > newStartTime);
 
   const load = () => {
     setReservationsState(getReservations());
@@ -66,6 +120,15 @@ export default function AdminMeetings() {
     window.addEventListener('storage', handler);
     return () => window.removeEventListener('storage', handler);
   }, []);
+
+  // 시작시간 변경 시 종료시간 자동 보정
+  const handleStartTimeChange = (t: string) => {
+    setNewStartTime(t);
+    if (newEndTime <= t) {
+      setNewEndTime(addMinutes(t, 30));
+    }
+    setBlockError('');
+  };
 
   // ── 예약 필터 ──
   const filtered = reservations.filter(r => {
@@ -124,25 +187,53 @@ export default function AdminMeetings() {
 
   // ── 차단 슬롯 추가 ──
   const handleAddBlock = () => {
+    setBlockError('');
+
+    // 검증 1: 특정 날짜일 때 날짜 필수
     if (!newRecurring && !newDate) {
-      setBlockMsg('날짜를 선택해주세요.');
-      setTimeout(() => setBlockMsg(''), 3000);
+      setBlockError('날짜를 선택해주세요.');
       return;
     }
+    // 검증 2: 종료시간 > 시작시간
+    if (newEndTime <= newStartTime) {
+      setBlockError('종료시간은 시작시간보다 이후여야 합니다.');
+      return;
+    }
+    // 검증 3: 최대 8시간
+    const diff = minutesBetween(newStartTime, newEndTime);
+    if (diff > MAX_BLOCK_HOURS * 60) {
+      setBlockError(`차단 범위는 최대 ${MAX_BLOCK_HOURS}시간을 초과할 수 없습니다.`);
+      return;
+    }
+
     const slot: BlockedSlot = {
       id: generateId(),
       recurring: newRecurring,
-      startTime: newTime,
+      startTime: newStartTime,
+      endTime: newEndTime,
       reason: newReason || undefined,
       ...(newRecurring ? { dayOfWeek: newDow } : { date: newDate }),
     };
-    const next = [...blocked, slot];
+
+    // 검증 4: 기존 예약과 충돌 확인
+    const conflicts = findConflictingReservations(slot, reservations);
+    if (conflicts.length > 0) {
+      const names = conflicts.map(r => `${r.name}(${r.date} ${r.startTime})`).join(', ');
+      setBlockError(`기존 예약과 충돌합니다: ${names}`);
+      return;
+    }
+
+    // 겹치는 슬롯 병합
+    const next = mergeIntoSlots(blocked, slot);
     setBlockedSlots(next);
     setBlockedState(next);
     window.dispatchEvent(new Event('storage'));
+
     setNewDate('');
     setNewReason('');
-    setBlockMsg('차단 슬롯이 추가되었습니다.');
+    setNewStartTime('09:00');
+    setNewEndTime('10:00');
+    setBlockMsg('차단 슬롯이 저장되었습니다.');
     setTimeout(() => setBlockMsg(''), 3000);
   };
 
@@ -154,9 +245,8 @@ export default function AdminMeetings() {
   };
 
   const dowLabel = (d: number) => DOW_OPTIONS.find(o => o.value === d)?.label ?? String(d);
-
-  const recurringSlots = blocked.filter(b => b.recurring);
-  const specificSlots = blocked.filter(b => !b.recurring);
+  const recurringSlots = blocked.filter(b => b.recurring).sort((a, b) => (a.dayOfWeek ?? 0) - (b.dayOfWeek ?? 0));
+  const specificSlots = blocked.filter(b => !b.recurring).sort((a, b) => (a.date ?? '').localeCompare(b.date ?? ''));
 
   return (
     <div className="space-y-6">
@@ -167,9 +257,7 @@ export default function AdminMeetings() {
             key={f}
             onClick={() => setFilter(f)}
             className={`px-4 py-2 rounded text-sm font-medium border transition-colors ${
-              filter === f
-                ? 'bg-black text-white border-black'
-                : 'bg-white text-black border-gray-300 hover:bg-gray-50'
+              filter === f ? 'bg-black text-white border-black' : 'bg-white text-black border-gray-300 hover:bg-gray-50'
             }`}
           >
             {f}
@@ -191,23 +279,21 @@ export default function AdminMeetings() {
       </div>
 
       {/* ── 차단 슬롯 관리 ── */}
-      <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm space-y-4">
+      <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm space-y-5">
         <h3 className="text-base font-semibold text-gray-800">예약 차단 시간 관리</h3>
 
         {blockMsg && (
-          <div className="bg-green-50 border border-green-200 text-green-800 rounded p-2 text-sm">
-            {blockMsg}
-          </div>
+          <div className="bg-green-50 border border-green-200 text-green-800 rounded p-2 text-sm">{blockMsg}</div>
         )}
 
         {/* 추가 폼 */}
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-3">
           <p className="text-xs font-semibold text-gray-600">새 차단 슬롯 추가</p>
 
-          {/* 반복/특정 날짜 토글 */}
+          {/* 반복 / 특정 날짜 토글 */}
           <div className="flex gap-2">
             <button
-              onClick={() => setNewRecurring(true)}
+              onClick={() => { setNewRecurring(true); setBlockError(''); }}
               className={`px-3 py-1.5 rounded text-xs font-medium border transition-colors ${
                 newRecurring ? 'bg-black text-white border-black' : 'bg-white text-gray-600 border-gray-300'
               }`}
@@ -215,7 +301,7 @@ export default function AdminMeetings() {
               매주 반복
             </button>
             <button
-              onClick={() => setNewRecurring(false)}
+              onClick={() => { setNewRecurring(false); setBlockError(''); }}
               className={`px-3 py-1.5 rounded text-xs font-medium border transition-colors ${
                 !newRecurring ? 'bg-black text-white border-black' : 'bg-white text-gray-600 border-gray-300'
               }`}
@@ -224,15 +310,15 @@ export default function AdminMeetings() {
             </button>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            {/* 요일 or 날짜 */}
+          {/* 요일/날짜 + 시작~종료 시간 (한 행) */}
+          <div className="grid grid-cols-3 gap-3">
             {newRecurring ? (
               <div>
                 <label className="block text-xs text-gray-500 mb-1">요일</label>
                 <select
                   value={newDow}
-                  onChange={e => setNewDow(Number(e.target.value))}
-                  className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none"
+                  onChange={e => { setNewDow(Number(e.target.value)); setBlockError(''); }}
+                  className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-gray-500"
                 >
                   {DOW_OPTIONS.map(o => (
                     <option key={o.value} value={o.value}>{o.label}요일</option>
@@ -245,23 +331,31 @@ export default function AdminMeetings() {
                 <input
                   type="date"
                   value={newDate}
-                  onChange={e => setNewDate(e.target.value)}
-                  className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none"
+                  onChange={e => { setNewDate(e.target.value); setBlockError(''); }}
+                  className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-gray-500"
                 />
               </div>
             )}
 
-            {/* 시작 시간 */}
             <div>
               <label className="block text-xs text-gray-500 mb-1">시작 시간</label>
               <select
-                value={newTime}
-                onChange={e => setNewTime(e.target.value)}
-                className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none"
+                value={newStartTime}
+                onChange={e => handleStartTimeChange(e.target.value)}
+                className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-gray-500"
               >
-                {timeSlots.map(t => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
+                {timeSlots.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">종료 시간</label>
+              <select
+                value={newEndTime}
+                onChange={e => { setNewEndTime(e.target.value); setBlockError(''); }}
+                className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-gray-500"
+              >
+                {endTimeOptions.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
           </div>
@@ -274,9 +368,14 @@ export default function AdminMeetings() {
               value={newReason}
               onChange={e => setNewReason(e.target.value)}
               placeholder="예: 전사 회의, 외부 출장 등"
-              className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none"
+              className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-gray-500"
             />
           </div>
+
+          {/* 에러 메시지 */}
+          {blockError && (
+            <p className="text-xs text-red-600 font-medium">{blockError}</p>
+          )}
 
           <button
             onClick={handleAddBlock}
@@ -290,21 +389,35 @@ export default function AdminMeetings() {
         {recurringSlots.length > 0 && (
           <div>
             <p className="text-xs font-semibold text-gray-600 mb-2">매주 반복 차단 ({recurringSlots.length}건)</p>
-            <div className="space-y-1">
-              {recurringSlots.map(b => (
-                <div key={b.id} className="flex items-center justify-between bg-blue-50 border border-blue-100 rounded px-3 py-2 text-xs">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="bg-blue-200 text-blue-800 px-2 py-0.5 rounded font-semibold">
-                      매주 {dowLabel(b.dayOfWeek!)}요일
-                    </span>
-                    <span className="text-gray-700 font-medium">{b.startTime}</span>
-                    {b.reason && <span className="text-gray-500">— {b.reason}</span>}
-                  </div>
-                  <button onClick={() => handleDeleteBlock(b.id)} className="text-red-400 hover:text-red-600 ml-4 shrink-0">
-                    삭제
-                  </button>
-                </div>
-              ))}
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-xs">
+                <thead>
+                  <tr className="bg-blue-50">
+                    <th className="border border-blue-100 px-3 py-2 text-left font-semibold text-blue-800">요일</th>
+                    <th className="border border-blue-100 px-3 py-2 text-left font-semibold text-blue-800">차단 시간</th>
+                    <th className="border border-blue-100 px-3 py-2 text-left font-semibold text-blue-800">사유</th>
+                    <th className="border border-blue-100 px-3 py-2 text-center font-semibold text-blue-800">삭제</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recurringSlots.map(b => (
+                    <tr key={b.id} className="hover:bg-blue-50/50">
+                      <td className="border border-blue-100 px-3 py-2">
+                        <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded font-semibold">
+                          매주 {dowLabel(b.dayOfWeek!)}요일
+                        </span>
+                      </td>
+                      <td className="border border-blue-100 px-3 py-2 font-medium text-gray-800">
+                        {b.startTime}–{b.endTime ?? addMinutes(b.startTime, 60)}
+                      </td>
+                      <td className="border border-blue-100 px-3 py-2 text-gray-500">{b.reason ?? '—'}</td>
+                      <td className="border border-blue-100 px-3 py-2 text-center">
+                        <button onClick={() => handleDeleteBlock(b.id)} className="text-red-400 hover:text-red-600 font-medium">삭제</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         )}
@@ -313,22 +426,31 @@ export default function AdminMeetings() {
         {specificSlots.length > 0 && (
           <div>
             <p className="text-xs font-semibold text-gray-600 mb-2">특정 날짜 차단 ({specificSlots.length}건)</p>
-            <div className="space-y-1">
-              {specificSlots
-                .slice()
-                .sort((a, b) => (a.date ?? '').localeCompare(b.date ?? ''))
-                .map(b => (
-                  <div key={b.id} className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded px-3 py-2 text-xs">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="bg-gray-200 text-gray-700 px-2 py-0.5 rounded font-semibold">{b.date}</span>
-                      <span className="text-gray-700 font-medium">{b.startTime}</span>
-                      {b.reason && <span className="text-gray-500">— {b.reason}</span>}
-                    </div>
-                    <button onClick={() => handleDeleteBlock(b.id)} className="text-red-400 hover:text-red-600 ml-4 shrink-0">
-                      삭제
-                    </button>
-                  </div>
-                ))}
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-xs">
+                <thead>
+                  <tr className="bg-gray-50">
+                    <th className="border border-gray-200 px-3 py-2 text-left font-semibold text-gray-600">날짜</th>
+                    <th className="border border-gray-200 px-3 py-2 text-left font-semibold text-gray-600">차단 시간</th>
+                    <th className="border border-gray-200 px-3 py-2 text-left font-semibold text-gray-600">사유</th>
+                    <th className="border border-gray-200 px-3 py-2 text-center font-semibold text-gray-600">삭제</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {specificSlots.map(b => (
+                    <tr key={b.id} className="hover:bg-gray-50">
+                      <td className="border border-gray-200 px-3 py-2 font-medium">{b.date}</td>
+                      <td className="border border-gray-200 px-3 py-2 font-medium text-gray-800">
+                        {b.startTime}–{b.endTime ?? addMinutes(b.startTime, 60)}
+                      </td>
+                      <td className="border border-gray-200 px-3 py-2 text-gray-500">{b.reason ?? '—'}</td>
+                      <td className="border border-gray-200 px-3 py-2 text-center">
+                        <button onClick={() => handleDeleteBlock(b.id)} className="text-red-400 hover:text-red-600 font-medium">삭제</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         )}
@@ -340,17 +462,13 @@ export default function AdminMeetings() {
 
       {/* 예약 목록 테이블 */}
       <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-        <h3 className="text-base font-semibold text-gray-800 mb-4">
-          예약 목록 ({filtered.length}건)
-        </h3>
+        <h3 className="text-base font-semibold text-gray-800 mb-4">예약 목록 ({filtered.length}건)</h3>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-xs" style={{ minWidth: '900px' }}>
             <thead>
               <tr className="bg-gray-50">
                 {['상태', '신청일시', '이름', '직무·직급', '예약날짜', '예약시간', '이메일', '전화번호', '담당업무요약', '문의내용', '확정/취소', '삭제'].map(col => (
-                  <th key={col} className="border border-gray-200 px-3 py-2 text-left text-xs text-gray-600 font-semibold whitespace-nowrap">
-                    {col}
-                  </th>
+                  <th key={col} className="border border-gray-200 px-3 py-2 text-left text-xs text-gray-600 font-semibold whitespace-nowrap">{col}</th>
                 ))}
               </tr>
             </thead>
@@ -365,15 +483,9 @@ export default function AdminMeetings() {
                 filtered.map(r => (
                   <tr key={r.id} className="hover:bg-gray-50 align-top">
                     <td className="border border-gray-200 px-3 py-2 whitespace-nowrap">
-                      {r.status === 'confirmed' && (
-                        <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-medium">확정</span>
-                      )}
-                      {r.status === 'cancelled' && (
-                        <span className="bg-red-100 text-red-600 px-2 py-0.5 rounded text-xs font-medium">취소</span>
-                      )}
-                      {(!r.status || r.status === 'pending') && (
-                        <span className="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded text-xs font-medium">검토중</span>
-                      )}
+                      {r.status === 'confirmed' && <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-medium">확정</span>}
+                      {r.status === 'cancelled' && <span className="bg-red-100 text-red-600 px-2 py-0.5 rounded text-xs font-medium">취소</span>}
+                      {(!r.status || r.status === 'pending') && <span className="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded text-xs font-medium">검토중</span>}
                     </td>
                     <td className="border border-gray-200 px-3 py-2 whitespace-nowrap">{r.registeredAt}</td>
                     <td className="border border-gray-200 px-3 py-2 whitespace-nowrap">{r.name}</td>
@@ -387,35 +499,21 @@ export default function AdminMeetings() {
                     <td className="border border-gray-200 px-3 py-2 whitespace-nowrap">
                       <div className="flex flex-col gap-1">
                         {r.status !== 'confirmed' && (
-                          <button
-                            onClick={() => handleStatusChange(r.id, 'confirmed')}
-                            className="bg-green-600 text-white px-2 py-1 rounded text-xs font-medium hover:bg-green-700 transition-colors"
-                          >
-                            확정
-                          </button>
+                          <button onClick={() => handleStatusChange(r.id, 'confirmed')}
+                            className="bg-green-600 text-white px-2 py-1 rounded text-xs font-medium hover:bg-green-700 transition-colors">확정</button>
                         )}
                         {r.status !== 'cancelled' && (
-                          <button
-                            onClick={() => handleStatusChange(r.id, 'cancelled')}
-                            className="bg-white text-red-500 border border-red-300 px-2 py-1 rounded text-xs font-medium hover:bg-red-50 transition-colors"
-                          >
-                            취소
-                          </button>
+                          <button onClick={() => handleStatusChange(r.id, 'cancelled')}
+                            className="bg-white text-red-500 border border-red-300 px-2 py-1 rounded text-xs font-medium hover:bg-red-50 transition-colors">취소</button>
                         )}
                         {r.status === 'confirmed' && (
-                          <button
-                            onClick={() => handleStatusChange(r.id, 'pending')}
-                            className="bg-white text-gray-500 border border-gray-300 px-2 py-1 rounded text-xs font-medium hover:bg-gray-50 transition-colors"
-                          >
-                            되돌리기
-                          </button>
+                          <button onClick={() => handleStatusChange(r.id, 'pending')}
+                            className="bg-white text-gray-500 border border-gray-300 px-2 py-1 rounded text-xs font-medium hover:bg-gray-50 transition-colors">되돌리기</button>
                         )}
                       </div>
                     </td>
                     <td className="border border-gray-200 px-3 py-2">
-                      <button onClick={() => handleDelete(r.id)} className="text-red-500 hover:text-red-700">
-                        삭제
-                      </button>
+                      <button onClick={() => handleDelete(r.id)} className="text-red-500 hover:text-red-700">삭제</button>
                     </td>
                   </tr>
                 ))

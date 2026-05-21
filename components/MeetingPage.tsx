@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Reservation } from '../lib/types';
 import {
   getReservations, setReservations, getWeekDates, generateTimeSlots,
@@ -65,14 +65,20 @@ export default function MeetingPage() {
       r.date === date && r.startTime === time && r.status !== 'cancelled'
     );
 
-  // 관리자 차단 슬롯 여부 (recurring: 요일 기준, non-recurring: 특정 날짜 기준)
+  // 관리자 차단 슬롯 여부: [startTime, endTime) 범위 내 slot 포함 여부
   const isBlocked = (date: string, time: string): boolean =>
     blockedSlots.some(b => {
+      // endTime 없는 레거시 데이터는 startTime+30분으로 처리 (utils에서 마이그레이션되므로 보험용)
+      const endTime = b.endTime ?? (() => {
+        const [h, m] = b.startTime.split(':').map(Number);
+        const total = h * 60 + m + 30;
+        return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+      })();
       if (b.recurring) {
         const d = new Date(date + 'T00:00:00');
-        return b.dayOfWeek === d.getDay() && b.startTime === time;
+        return b.dayOfWeek === d.getDay() && b.startTime <= time && time < endTime;
       }
-      return b.date === date && b.startTime === time;
+      return b.date === date && b.startTime <= time && time < endTime;
     });
 
   // 선택 불가 여부
@@ -111,8 +117,8 @@ export default function MeetingPage() {
       r.date === date && r.startTime === time && r.status === 'pending'
     );
 
-  const getSlotContent = (date: string, time: string): { label: string; sub?: string } => {
-    if (isBlocked(date, time)) return { label: '예약중' };
+  const getSlotContent = (date: string, time: string): { label: string; sub?: string; blocked?: boolean } => {
+    if (isBlocked(date, time)) return { label: '예약 불가', blocked: true };
     const confirmed = getConfirmedReservation(date, time);
     if (confirmed) return { label: '예약 확정', sub: maskName(confirmed.name) };
     const pending = getPendingReservation(date, time);
@@ -122,20 +128,22 @@ export default function MeetingPage() {
     return { label: '' };
   };
 
-  const getSlotStyle = (date: string, time: string): string => {
-    if (isBlocked(date, time))
-      return 'bg-gray-200 text-gray-500 cursor-not-allowed text-xs';
+  const getSlotStyle = (date: string, time: string): React.CSSProperties => {
+    if (isBlocked(date, time)) return {
+      background: 'repeating-linear-gradient(-45deg,#e5e7eb,#e5e7eb 3px,#f3f4f6 3px,#f3f4f6 7px)',
+      color: '#9ca3af', cursor: 'not-allowed', fontSize: 11,
+    };
     const confirmed = getConfirmedReservation(date, time);
     if (confirmed)
-      return 'bg-green-100 text-green-700 cursor-not-allowed text-xs font-medium';
+      return { background: '#dcfce7', color: '#15803d', cursor: 'not-allowed', fontSize: 11, fontWeight: 500 };
     const pending = getPendingReservation(date, time);
     if (pending)
-      return 'bg-yellow-50 text-yellow-700 cursor-not-allowed text-xs';
+      return { background: '#fefce8', color: '#a16207', cursor: 'not-allowed', fontSize: 11 };
     if (isReserved(date, time))
-      return 'bg-gray-200 text-gray-500 cursor-not-allowed text-xs';
+      return { background: '#e5e7eb', color: '#6b7280', cursor: 'not-allowed', fontSize: 11 };
     if (isSelected(date, time))
-      return 'bg-blue-600 text-white text-xs cursor-pointer';
-    return 'bg-white hover:bg-gray-50 cursor-pointer text-xs';
+      return { background: '#2563eb', color: '#fff', fontSize: 11, cursor: 'pointer' };
+    return { background: '#fff', fontSize: 11, cursor: 'pointer' };
   };
 
   const getSelectedSummary = (): string => {
@@ -265,12 +273,18 @@ export default function MeetingPage() {
                     <td
                       key={i}
                       onClick={() => handleSlotClick(dateStr, slot)}
-                      className={`border border-gray-200 px-1 py-1 text-center ${getSlotStyle(dateStr, slot)}`}
-                      style={{ minHeight: '32px' }}
+                      className="border border-gray-200 px-1 py-1 text-center"
+                      style={{ minHeight: '32px', ...getSlotStyle(dateStr, slot) }}
                     >
                       {content.label && (
                         <div className="leading-tight">
-                          <div>{content.label}</div>
+                          {content.blocked ? (
+                            <div style={{ fontSize: 10, fontWeight: 600, color: '#9ca3af', letterSpacing: '-0.02em' }}>
+                              🚫 예약 불가
+                            </div>
+                          ) : (
+                            <div>{content.label}</div>
+                          )}
                           {content.sub && <div className="text-xs opacity-80">{content.sub}</div>}
                         </div>
                       )}

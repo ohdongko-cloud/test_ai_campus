@@ -41,6 +41,7 @@ export interface BlockedSlot {
   date?: string;       // 특정 날짜 (YYYY-MM-DD), recurring=false일 때 사용
   dayOfWeek?: number;  // 1=월 ... 5=금, recurring=true일 때 사용
   startTime: string;
+  endTime?: string;    // 차단 종료 시각 (없으면 startTime+1h로 마이그레이션)
   reason?: string;
   recurring: boolean;
 }
