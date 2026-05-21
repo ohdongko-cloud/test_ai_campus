@@ -58,9 +58,13 @@ export interface SharedService {
 export interface UserInfo {
   visited: boolean;
   name: string;
-  org: string;
-  role: string;
+  org: string;            // 구버전 호환 (= organizationName)
+  role: string;           // 구버전 호환 (= position)
   email: string;
+  corporationName?: string;   // 법인명
+  organizationName?: string;  // 조직명(브랜드/점포/팀명)
+  position?: string;          // 직무
+  userId?: string;            // DB users.id
 }
 
 export interface ClickLog {

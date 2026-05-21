@@ -46,6 +46,21 @@ CREATE TABLE IF NOT EXISTS comment_likes (
   UNIQUE(comment_id, session_id)
 );
 
+-- users (회원)
+CREATE TABLE IF NOT EXISTS users (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name              TEXT NOT NULL,
+  corporation_name  TEXT NOT NULL,
+  organization_name TEXT NOT NULL,
+  position          TEXT NOT NULL,
+  email             TEXT NOT NULL,
+  password_hash     TEXT NOT NULL,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS users_email_idx ON users (email);
+
 -- updated_at 자동 갱신 트리거
 CREATE OR REPLACE FUNCTION set_updated_at()
 RETURNS TRIGGER AS $$
@@ -57,3 +72,6 @@ CREATE TRIGGER posts_updated_at
 
 CREATE TRIGGER comments_updated_at
   BEFORE UPDATE ON comments FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+CREATE TRIGGER users_updated_at
+  BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION set_updated_at();

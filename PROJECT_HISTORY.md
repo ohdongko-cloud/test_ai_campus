@@ -2,6 +2,84 @@
 
 ---
 
+## v1.2.0 — 회원 로그인/회원가입 기능 추가
+
+**구현일시**: 2026-05-21  
+**배포 URL**: https://test-ai-campus.vercel.app
+
+### 구현 요약
+
+웰컴 팝업을 **3단계 인증 플로우**로 전면 교체했습니다.  
+이메일 입력 → 신규 회원이면 회원가입 폼, 기존 회원이면 로그인 폼으로 자동 분기합니다.  
+"나중에 입력" 버튼을 제거하여 반드시 인증을 완료해야 서비스를 이용할 수 있습니다.  
+Neon PostgreSQL에 `users` 테이블을 추가하고 3개의 API 라우트로 인증을 처리합니다.
+
+### 변경 기능
+
+| 항목 | 내용 |
+|---|---|
+| 인증 플로우 | 단일 폼 → 3단계 (이메일 확인 → 회원가입 또는 로그인) |
+| 이메일 단계 | 이메일 입력 후 "다음" 클릭 → `/api/users/exists` 호출로 신규/기존 회원 판별 |
+| 회원가입 단계 | 이름·법인명·조직명·직무·이메일(읽기전용)·비밀번호(8자 이상) 입력 |
+| 로그인 단계 | 이메일(읽기전용)·비밀번호 입력, 비밀번호 분실 안내 표시 |
+| 비밀번호 분실 | "비밀번호를 잊으셨습니까? oh_dongha01@eland.co.kr로 문의하세요." |
+| 나중에 입력 제거 | 팝업 닫기 버튼 및 "나중에 입력" 버튼 완전 제거 — 인증 필수 |
+| UserInfo 확장 | `corporationName`, `organizationName`, `position`, `userId` 필드 추가 |
+| DB 사용자 테이블 | Neon `users` 테이블 신규 생성, 이메일 유니크 인덱스 |
+| 비밀번호 보안 | SHA-256 해시 저장 (Web Crypto API `crypto.subtle.digest`) |
+
+### 변경된 파일
+
+```
+lib/
+  types.ts                UserInfo 필드 확장 (corporationName, organizationName, position, userId)
+
+components/
+  WelcomePopup.tsx        3단계 인증 플로우로 전면 재작성
+
+app/api/users/
+  route.ts                POST /api/users — 회원가입
+  login/route.ts          POST /api/users/login — 로그인
+  exists/route.ts         GET /api/users/exists?email= — 이메일 중복 확인
+
+supabase/
+  schema.sql              users 테이블 + 유니크 인덱스 + updated_at 트리거 추가
+
+PROJECT_HISTORY.md        v1.2.0 항목 추가
+```
+
+### DB 구조 변경
+
+```sql
+-- Neon PostgreSQL에 추가
+CREATE TABLE users (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name              TEXT NOT NULL,
+  corporation_name  TEXT NOT NULL,
+  organization_name TEXT NOT NULL,
+  position          TEXT NOT NULL,
+  email             TEXT NOT NULL,
+  password_hash     TEXT NOT NULL,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX users_email_idx ON users (email);
+```
+
+### 테스트 체크리스트
+
+- [x] 미등록 이메일 입력 → 회원가입 폼으로 이동
+- [x] 등록된 이메일 입력 → 로그인 폼으로 이동
+- [x] 비밀번호 8자 미만 입력 시 에러 메시지 표시
+- [x] 이미 등록된 이메일로 회원가입 시도 → 오류 처리
+- [x] 잘못된 비밀번호로 로그인 시도 → "비밀번호가 올바르지 않습니다." 표시
+- [x] 회원가입 성공 시 localStorage에 사용자 정보 저장 후 팝업 닫힘
+- [x] 로그인 성공 시 localStorage에 사용자 정보 저장 후 팝업 닫힘
+- [x] 팝업 외부 클릭해도 닫히지 않음 (인증 완료 전 강제 표시)
+- [x] TypeScript 컴파일 에러 없음 (tsc --noEmit 통과)
+
+---
+
 ## v1.1.0 — 예약 차단 시간 종료시간 지원
 
 **구현일시**: 2026-05-21  
