@@ -63,7 +63,7 @@ export default function AdminMeetings() {
   });
   const dayChartData = DAY_NAMES.map(name => ({ name, value: dayCount[name] }));
 
-  const handleStatusChange = (id: string, status: 'confirmed' | 'cancelled') => {
+  const handleStatusChange = (id: string, status: 'pending' | 'confirmed' | 'cancelled') => {
     const updated = reservations.map(r =>
       r.id === id ? { ...r, status } : r
     );
