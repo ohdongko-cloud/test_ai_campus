@@ -393,40 +393,21 @@ export default function MainPage({ onNavigate }: Props) {
 
         {/* ── Hero ── */}
         <section className="ac-hero" style={{ padding: '56px 0 24px' }}>
-          {/* Eyebrow chip */}
-          <div style={{
-            display: 'inline-flex', alignItems: 'center', gap: 8,
-            fontFamily: 'var(--font-eng)', fontSize: 12, fontWeight: 600,
-            letterSpacing: '0.08em', textTransform: 'uppercase' as const,
-            color: 'var(--color-primary)',
-            padding: '6px 12px', borderRadius: 999,
-            background: 'var(--color-primary-50)',
-            marginBottom: 18,
-          }}>
-            <span className="ac-pulse" style={{
-              width: 6, height: 6, borderRadius: '50%',
-              background: 'var(--color-secondary)',
-              animation: 'ac-pulse 2s infinite',
-              flexShrink: 0,
-            }} />
-            AI Campus · 2026 봄 시즌
-          </div>
-
           {/* H1 */}
           <h1 className="ac-hero-h1" style={{
             fontSize: 'clamp(36px, 4.5vw, 56px)',
-            lineHeight: 1.1, letterSpacing: '-0.025em',
+            lineHeight: 1.15, letterSpacing: '-0.025em',
             fontWeight: 700, margin: '0 0 14px', maxWidth: 900,
             color: 'var(--color-ink)',
           }}>
-            무엇을 먼저 해볼까요?<br />
-            <span style={{ color: 'var(--color-primary)' }}>행동으로</span> 시작하세요.
+            시간 아깝게 하는 업무?<br />
+            <span style={{ color: 'var(--color-primary)' }}>이제 AI로 자동화</span> 할 수 있습니다.
           </h1>
 
           {/* Lead */}
           <p style={{ fontSize: 17, lineHeight: 1.55, color: 'var(--color-ink-2)', margin: 0, maxWidth: 640 }}>
-            학습, 제작, 질문, 공유 — 사용자의 다음 한 걸음을 중심으로 화면을 재구성했습니다.
-            원하는 행동을 골라 곧바로 시작하세요.
+            반복 업무, 보고서, 예약 관리, 데이터 정리까지.<br />
+            나만의 업무 자동화 서비스를 직접 만들 수 있도록 도와드립니다.
           </p>
 
           {/* Step row */}
@@ -472,7 +453,7 @@ export default function MainPage({ onNavigate }: Props) {
               <FeaturedCard
                 icon={<LearnIcon />}
                 title="AI 학습 시작하기"
-                desc="수준별 강의로 기초부터 심화까지. 진도 추적과 수료증까지 한 번에."
+                desc="따라하기만 하면 기초부터 심화까지 직접 구현할 수 있습니다."
                 meta="42 lessons · 3 levels"
                 metaRight={<Badge variant="featured">추천 코스</Badge>}
                 onClick={() => handleNav('videos', 'AI 학습 시작하기')}
@@ -490,7 +471,7 @@ export default function MainPage({ onNavigate }: Props) {
             <div className="ac-grid-2">
               <ActionCard
                 icon={<NoaIcon />}
-                title="사내 도구 NOA 활용"
+                title="NOA로 바로 만들기"
                 desc="사내 AI 시스템 NOA를 바로 시작해보세요. 실제 업무에 즉시 적용할 수 있습니다."
                 meta={<><LiveDot />운영중</>}
                 metaRight="새 탭 ↗"
@@ -553,7 +534,7 @@ export default function MainPage({ onNavigate }: Props) {
               <WideCard
                 icon={<ShareIcon />}
                 title="내 프로젝트 자랑하기"
-                desc="직접 만들어본 AI 서비스를 동료들에게 공유하고, 피드백과 박수를 받으세요."
+                desc="작은 성공경험, 실패경험을 공유해 함께 성장할 수 있는 선순환 고리를 만들어보세요"
                 metaLeft={
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                     <span style={{ display: 'inline-flex' }}>
