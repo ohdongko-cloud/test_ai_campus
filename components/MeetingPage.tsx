@@ -1,0 +1,391 @@
+"use client";
+
+import { useState, useEffect } from 'react';
+import { Reservation } from '../lib/types';
+import {
+  getReservations, setReservations, getWeekDates, generateTimeSlots,
+  getNextSlot, generateId, formatDate, formatDateTime, getUserInfo,
+  getBlockedSlots, maskName,
+} from '../lib/utils';
+import { BlockedSlot } from '../lib/types';
+
+const DAY_NAMES = ['월', '화', '수', '목', '금'];
+
+interface SelectedSlot {
+  date: string;
+  startTime: string;
+  endTime: string;
+}
+
+export default function MeetingPage() {
+  const [weekOffset, setWeekOffset] = useState(0);
+  const [weekDates, setWeekDates] = useState<Date[]>([]);
+  const [timeSlots] = useState<string[]>(generateTimeSlots());
+  const [reservations, setReservationsState] = useState<Reservation[]>([]);
+  const [blockedSlots, setBlockedSlotsState] = useState<BlockedSlot[]>([]);
+  const [selected, setSelected] = useState<SelectedSlot | null>(null);
+  const [successMsg, setSuccessMsg] = useState('');
+
+  // Form state
+  const [formName, setFormName] = useState('');
+  const [formRole, setFormRole] = useState('');
+  const [formTask, setFormTask] = useState('');
+  const [formInquiry, setFormInquiry] = useState('');
+  const [formEmail, setFormEmail] = useState('');
+  const [formPhone, setFormPhone] = useState('');
+
+  useEffect(() => {
+    setWeekDates(getWeekDates(weekOffset));
+  }, [weekOffset]);
+
+  const loadAll = () => {
+    setReservationsState(getReservations());
+    setBlockedSlotsState(getBlockedSlots());
+  };
+
+  useEffect(() => {
+    loadAll();
+    const handler = () => loadAll();
+    window.addEventListener('storage', handler);
+    return () => window.removeEventListener('storage', handler);
+  }, []);
+
+  useEffect(() => {
+    const info = getUserInfo();
+    if (info) {
+      if (info.name) setFormName(info.name);
+      if (info.role) setFormRole(info.role);
+      if (info.email) setFormEmail(info.email);
+    }
+  }, []);
+
+  // 예약된 슬롯 여부 (cancelled 제외)
+  const isReserved = (date: string, time: string): boolean =>
+    reservations.some(r =>
+      r.date === date && r.startTime === time && r.status !== 'cancelled'
+    );
+
+  // 관리자 차단 슬롯 여부
+  const isBlocked = (date: string, time: string): boolean =>
+    blockedSlots.some(b => b.date === date && b.startTime === time);
+
+  // 선택 불가 여부
+  const isUnavailable = (date: string, time: string): boolean =>
+    isReserved(date, time) || isBlocked(date, time);
+
+  // 해당 슬롯의 예약 정보 (확정 상태)
+  const getConfirmedReservation = (date: string, time: string) =>
+    reservations.find(r =>
+      r.date === date && r.startTime === time && r.status === 'confirmed'
+    );
+
+  const isSelected = (date: string, time: string): boolean =>
+    selected?.date === date && (selected.startTime === time || selected.endTime === time);
+
+  const handleSlotClick = (date: string, time: string) => {
+    if (isUnavailable(date, time)) return;
+
+    if (selected && selected.date === date) {
+      const nextSlot = getNextSlot(selected.startTime);
+      if (time === selected.startTime) {
+        setSelected(null);
+      } else if (time === nextSlot && !isUnavailable(date, nextSlot)) {
+        setSelected({ date, startTime: selected.startTime, endTime: nextSlot });
+      } else {
+        setSelected({ date, startTime: time, endTime: time });
+      }
+    } else {
+      setSelected({ date, startTime: time, endTime: time });
+    }
+  };
+
+  // pending 예약 슬롯
+  const getPendingReservation = (date: string, time: string) =>
+    reservations.find(r =>
+      r.date === date && r.startTime === time && r.status === 'pending'
+    );
+
+  const getSlotContent = (date: string, time: string): { label: string; sub?: string } => {
+    if (isBlocked(date, time)) return { label: '예약중' };
+    const confirmed = getConfirmedReservation(date, time);
+    if (confirmed) return { label: '예약 확정', sub: maskName(confirmed.name) };
+    const pending = getPendingReservation(date, time);
+    if (pending) return { label: '일정 확인 중' };
+    if (isReserved(date, time)) return { label: '예약중' };
+    if (isSelected(date, time)) return { label: '선택됨' };
+    return { label: '' };
+  };
+
+  const getSlotStyle = (date: string, time: string): string => {
+    if (isBlocked(date, time))
+      return 'bg-gray-200 text-gray-500 cursor-not-allowed text-xs';
+    const confirmed = getConfirmedReservation(date, time);
+    if (confirmed)
+      return 'bg-green-100 text-green-700 cursor-not-allowed text-xs font-medium';
+    const pending = getPendingReservation(date, time);
+    if (pending)
+      return 'bg-yellow-50 text-yellow-700 cursor-not-allowed text-xs';
+    if (isReserved(date, time))
+      return 'bg-gray-200 text-gray-500 cursor-not-allowed text-xs';
+    if (isSelected(date, time))
+      return 'bg-blue-600 text-white text-xs cursor-pointer';
+    return 'bg-white hover:bg-gray-50 cursor-pointer text-xs';
+  };
+
+  const getSelectedSummary = (): string => {
+    if (!selected) return '';
+    const dateObj = weekDates.find(d => formatDate(d) === selected.date);
+    if (!dateObj) return '';
+    const dayIdx = dateObj.getDay() - 1;
+    const dayName = DAY_NAMES[dayIdx] || '';
+    const month = dateObj.getMonth() + 1;
+    const day = dateObj.getDate();
+    const endTime = selected.endTime === selected.startTime
+      ? getNextSlot(selected.startTime)
+      : getNextSlot(selected.endTime);
+    return `선택된 시간: ${dayName}요일 ${month}/${day} ${selected.startTime} ~ ${endTime}`;
+  };
+
+  const isFormValid = () =>
+    formName && formRole && formTask && formInquiry && formEmail && formPhone && selected;
+
+  const handleReserve = () => {
+    if (!isFormValid() || !selected) return;
+    const endTime = selected.endTime === selected.startTime
+      ? getNextSlot(selected.startTime)
+      : getNextSlot(selected.endTime);
+
+    const newRes: Reservation = {
+      id: generateId(),
+      name: formName,
+      role: formRole,
+      taskSummary: formTask,
+      inquiry: formInquiry,
+      email: formEmail,
+      phone: formPhone,
+      date: selected.date,
+      startTime: selected.startTime,
+      endTime,
+      registeredAt: formatDateTime(new Date()),
+      status: 'pending',
+    };
+    const updated = [...reservations, newRes];
+    setReservations(updated);
+    setReservationsState(updated);
+
+    const dateObj = new Date(selected.date + 'T00:00:00');
+    const month = dateObj.getMonth() + 1;
+    const day = dateObj.getDate();
+    setSuccessMsg(`예약이 완료되었습니다 — ${formName}님의 ${month}/${day} ${selected.startTime} 미팅이 등록되었습니다`);
+    setTimeout(() => setSuccessMsg(''), 4000);
+
+    setSelected(null);
+    setFormTask('');
+    setFormInquiry('');
+    window.dispatchEvent(new Event('storage'));
+  };
+
+  const handleCancel = () => {
+    setSelected(null);
+    setFormTask('');
+    setFormInquiry('');
+  };
+
+  const userInfo = getUserInfo();
+  const myReservations = userInfo?.email
+    ? reservations.filter(r => r.email === userInfo.email)
+    : reservations;
+
+  return (
+    <div className="max-w-5xl mx-auto px-4 py-10">
+      {successMsg && (
+        <div className="mb-4 bg-green-50 border border-green-200 text-green-800 rounded p-3 text-sm">
+          {successMsg}
+        </div>
+      )}
+
+      <h1 className="text-2xl font-bold text-gray-900 mb-2">미팅 요청하기</h1>
+      <p className="text-sm text-gray-500 mb-1">
+        AI서비스 구현 어려울 경우 미팅 요청해주세요. 일정 확인 후 메일로 개별 연락 드립니다.
+      </p>
+      <p className="text-sm text-gray-400 mb-6">
+        원하는 날짜와 시간을 선택하고 예약 정보를 입력하세요. 30분 또는 1시간 단위로 예약 가능합니다.
+      </p>
+
+      {/* 주 이동 */}
+      <div className="flex items-center gap-4 mb-4">
+        <button
+          onClick={() => setWeekOffset(w => w - 1)}
+          className="bg-white border border-gray-300 text-black px-3 py-1.5 rounded text-sm hover:bg-gray-50"
+        >
+          &lt; 이전 주
+        </button>
+        <span className="text-sm font-medium text-gray-700">
+          {weekDates.length > 0
+            ? `${weekDates[0].getMonth() + 1}/${weekDates[0].getDate()} ~ ${weekDates[4].getMonth() + 1}/${weekDates[4].getDate()}`
+            : ''}
+        </span>
+        <button
+          onClick={() => setWeekOffset(w => w + 1)}
+          className="bg-white border border-gray-300 text-black px-3 py-1.5 rounded text-sm hover:bg-gray-50"
+        >
+          다음 주 &gt;
+        </button>
+      </div>
+
+      {/* 캘린더 테이블 */}
+      <div className="overflow-x-auto mb-4">
+        <table className="w-full border-collapse text-sm" style={{ minWidth: '600px' }}>
+          <thead>
+            <tr className="bg-gray-50">
+              <th className="border border-gray-200 px-3 py-2 text-xs text-gray-500 font-medium w-16">시간</th>
+              {weekDates.map((d, i) => (
+                <th key={i} className="border border-gray-200 px-2 py-2 text-xs text-gray-700 font-semibold">
+                  {DAY_NAMES[i]} {d.getMonth() + 1}/{d.getDate()}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {timeSlots.map(slot => (
+              <tr key={slot}>
+                <td className="border border-gray-200 px-3 py-1.5 text-xs text-gray-500 font-medium bg-gray-50 text-center">
+                  {slot}
+                </td>
+                {weekDates.map((d, i) => {
+                  const dateStr = formatDate(d);
+                  const content = getSlotContent(dateStr, slot);
+                  return (
+                    <td
+                      key={i}
+                      onClick={() => handleSlotClick(dateStr, slot)}
+                      className={`border border-gray-200 px-1 py-1 text-center ${getSlotStyle(dateStr, slot)}`}
+                      style={{ minHeight: '32px' }}
+                    >
+                      {content.label && (
+                        <div className="leading-tight">
+                          <div>{content.label}</div>
+                          {content.sub && <div className="text-xs opacity-80">{content.sub}</div>}
+                        </div>
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* 선택된 시간 요약 */}
+      {selected && (
+        <div className="mb-6 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded p-3">
+          {getSelectedSummary()}
+        </div>
+      )}
+
+      {/* 예약 폼 */}
+      {selected && (
+        <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm mb-8">
+          <h2 className="text-lg font-semibold text-gray-800 mb-5">예약 정보 입력</h2>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">이름 <span className="text-red-500">*</span></label>
+              <input type="text" value={formName} onChange={e => setFormName(e.target.value)}
+                className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-gray-500" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">직무 / 직급 <span className="text-red-500">*</span></label>
+              <input type="text" value={formRole} onChange={e => setFormRole(e.target.value)}
+                placeholder="예: 마케팅팀 과장"
+                className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-gray-500" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">현재 담당 업무 요약 <span className="text-red-500">*</span></label>
+              <textarea rows={3} value={formTask} onChange={e => setFormTask(e.target.value)}
+                className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-gray-500 resize-none" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">필요한 서비스 / 문의 내용 <span className="text-red-500">*</span></label>
+              <textarea rows={3} value={formInquiry} onChange={e => setFormInquiry(e.target.value)}
+                className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-gray-500 resize-none" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">이메일 주소 <span className="text-red-500">*</span></label>
+              <input type="email" value={formEmail} onChange={e => setFormEmail(e.target.value)}
+                className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-gray-500" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">전화번호 <span className="text-red-500">*</span></label>
+              <input type="text" value={formPhone} onChange={e => setFormPhone(e.target.value)}
+                placeholder="010-0000-0000"
+                className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-gray-500" />
+            </div>
+          </div>
+          <div className="flex gap-3 mt-6">
+            <button
+              onClick={handleReserve}
+              disabled={!isFormValid()}
+              className={`px-5 py-2 rounded text-sm font-medium transition-colors ${
+                isFormValid()
+                  ? 'bg-black text-white hover:bg-gray-800'
+                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              }`}
+            >
+              예약 완료
+            </button>
+            <button
+              onClick={handleCancel}
+              className="bg-white text-black border border-gray-300 px-5 py-2 rounded text-sm font-medium hover:bg-gray-50"
+            >
+              취소
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 내 예약 내역 */}
+      <div className="mt-8">
+        <h2 className="text-lg font-semibold text-gray-800 mb-4">내 예약 내역</h2>
+        {myReservations.length === 0 ? (
+          <p className="text-sm text-gray-500">예약 내역이 없습니다.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-sm" style={{ minWidth: '600px' }}>
+              <thead>
+                <tr className="bg-gray-50">
+                  {['상태', '날짜', '시간', '담당 업무 요약', '문의 내용'].map(col => (
+                    <th key={col} className="border border-gray-200 px-3 py-2 text-left text-xs text-gray-600 font-semibold">
+                      {col}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {myReservations.map(r => (
+                  <tr key={r.id} className="hover:bg-gray-50">
+                    <td className="border border-gray-200 px-3 py-2 text-xs whitespace-nowrap">
+                      {r.status === 'confirmed' && (
+                        <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-medium">확정</span>
+                      )}
+                      {r.status === 'cancelled' && (
+                        <span className="bg-red-100 text-red-600 px-2 py-0.5 rounded text-xs font-medium">취소</span>
+                      )}
+                      {(!r.status || r.status === 'pending') && (
+                        <span className="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded text-xs font-medium">검토중</span>
+                      )}
+                    </td>
+                    <td className="border border-gray-200 px-3 py-2 text-xs whitespace-nowrap">{r.date}</td>
+                    <td className="border border-gray-200 px-3 py-2 text-xs whitespace-nowrap">{r.startTime} ~ {r.endTime}</td>
+                    <td className="border border-gray-200 px-3 py-2 text-xs">{r.taskSummary}</td>
+                    <td className="border border-gray-200 px-3 py-2 text-xs">{r.inquiry}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
