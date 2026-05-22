@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { TabType } from '../lib/types';
-import { addClickLog, getNoaUrl } from '../lib/utils';
+import { addClickLog, getNoaUrl, getReservations, getServices, getWeekDates } from '../lib/utils';
 import ChatroomPopup from './ChatroomPopup';
 
 interface Props {
@@ -362,6 +362,32 @@ export default function MainPage({ onNavigate }: Props) {
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showChatroomPopup, setShowChatroomPopup] = useState(false);
 
+  // ── 실시간 통계 ──
+  const [availableSlots, setAvailableSlots] = useState<number | null>(null);
+  const [boardStats, setBoardStats] = useState<{ postsThisWeek: number; postsNew: number } | null>(null);
+  const [shareCount, setShareCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    // 1. 이번 주 예약 가능 슬롯 (localStorage 기반)
+    const weekDates = getWeekDates();
+    const weekStart = weekDates[0].toISOString().slice(0, 10);
+    const weekEnd   = weekDates[4].toISOString().slice(0, 10);
+    const reserved  = getReservations().filter(
+      r => r.date >= weekStart && r.date <= weekEnd && r.status !== 'cancelled'
+    );
+    const TOTAL = 18 * 5; // 08:00~17:00, 30분 슬롯, 월~금
+    setAvailableSlots(Math.max(0, TOTAL - reserved.length));
+
+    // 2. 공유 서비스 수 (localStorage 기반)
+    setShareCount(getServices().length);
+
+    // 3. 게시판 통계 (DB API)
+    fetch('/api/stats')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setBoardStats(d); })
+      .catch(() => {});
+  }, []);
+
   const showToast = useCallback((msg: string) => {
     setToastMsg(msg);
     setToastVisible(true);
@@ -499,9 +525,15 @@ export default function MainPage({ onNavigate }: Props) {
               <ActionCard
                 icon={<MentorIcon />}
                 title="멘토링 예약"
-                desc="AI 전문가와 1:1 미팅을 예약하세요. 30분 슬롯, 매주 화·목."
-                meta="8 mentors"
-                metaRight={<Badge variant="primary">슬롯 5개</Badge>}
+                desc="AX팀과 1:1 미팅을 예약하세요. 30분 슬롯, 매주 화·목."
+                meta="5 mentors"
+                metaRight={
+                  availableSlots === null
+                    ? <Badge variant="primary">슬롯 확인 중</Badge>
+                    : availableSlots > 0
+                    ? <Badge variant="primary">슬롯 {availableSlots}개</Badge>
+                    : <Badge variant="secondary">이번주 마감</Badge>
+                }
                 onClick={() => handleNav('meeting', '멘토링 예약')}
               />
               <ActionCard
@@ -516,8 +548,12 @@ export default function MainPage({ onNavigate }: Props) {
                 icon={<BoardIcon />}
                 title="익명 Q&A 게시판"
                 desc="익명으로 질문과 고민을 자유롭게 공유하세요. 부담 없이, 솔직하게."
-                meta="128 posts this week"
-                metaRight={<Badge variant="new">신규 12</Badge>}
+                meta={boardStats !== null ? `${boardStats.postsThisWeek} posts this week` : '— posts this week'}
+                metaRight={
+                  boardStats !== null && boardStats.postsNew > 0
+                    ? <Badge variant="new">신규 {boardStats.postsNew}</Badge>
+                    : undefined
+                }
                 onClick={() => handleNav('board', '익명 Q&A 게시판')}
               />
             </div>
@@ -556,7 +592,11 @@ export default function MainPage({ onNavigate }: Props) {
                         </span>
                       ))}
                     </span>
-                    <span>+38명이 공유했어요</span>
+                    <span>
+                      {shareCount !== null && shareCount > 0
+                        ? `+${shareCount}명이 공유했어요`
+                        : '첫 번째로 공유해 보세요'}
+                    </span>
                   </span>
                 }
                 metaRight={<Badge variant="secondary">HOT</Badge>}

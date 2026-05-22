@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Post, Comment } from '../lib/types';
+import { getUserInfo } from '../lib/utils';
 
 // ────────────────────────────── 유틸 ──────────────────────────────
 function getSessionId(): string {
@@ -166,9 +167,21 @@ function WriteForm({ onBack, editPost }: { onBack: (newId?: string) => void; edi
   const [content, setContent] = useState(editPost?.content || '');
   const [link, setLink]       = useState(editPost?.link || '');
   const [password, setPassword] = useState('');
+  const [pwAutoFilled, setPwAutoFilled] = useState(false);
   const [err, setErr]         = useState('');
   const [loading, setLoading] = useState(false);
   const isEdit = !!editPost;
+
+  // 로그인 사번으로 비밀번호 자동 설정
+  useEffect(() => {
+    if (!isEdit) {
+      const info = getUserInfo();
+      if (info?.employeeId) {
+        setPassword(info.employeeId);
+        setPwAutoFilled(true);
+      }
+    }
+  }, [isEdit]);
 
   const submit = async () => {
     if (!title.trim() || !content.trim()) { setErr('제목과 내용을 입력해주세요.'); return; }
@@ -235,7 +248,12 @@ function WriteForm({ onBack, editPost }: { onBack: (newId?: string) => void; edi
           <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="수정·삭제 시 필요합니다"
             style={{ width: '100%', border: `1.5px solid ${T.border}`, borderRadius: T.r, padding: '10px 14px', fontSize: 14, color: T.text, outline: 'none', boxSizing: 'border-box' }}
             onFocus={e => e.target.style.borderColor = T.primary} onBlur={e => e.target.style.borderColor = T.border} />
-          {!password && !isEdit && (
+          {pwAutoFilled && !isEdit && (
+            <p style={{ margin: '6px 0 0', fontSize: 12, color: '#1D4ED8', background: '#EFF6FF', border: '1px solid #BFDBFE', padding: '6px 10px', borderRadius: 6 }}>
+              🔐 로그인 사번으로 자동 설정되었습니다. 수정·삭제 시 동일하게 사용됩니다.
+            </p>
+          )}
+          {!password && !isEdit && !pwAutoFilled && (
             <p style={{ margin: '6px 0 0', fontSize: 12, color: '#B45309', background: '#FFFBEB', border: '1px solid #FDE68A', padding: '6px 10px', borderRadius: 6 }}>
               ⚠️ 비밀번호를 설정하지 않으면 게시 후 수정·삭제가 불가능합니다.
             </p>

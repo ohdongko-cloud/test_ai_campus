@@ -176,8 +176,7 @@ export default function WelcomePopup({ onClose }: Props) {
     if (!corporationName.trim()) errs.corporationName = '법인명을 입력해주세요.';
     if (!organizationName.trim()) errs.organizationName = '조직명을 입력해주세요.';
     if (!position.trim()) errs.position = '직무를 입력해주세요.';
-    if (!password) errs.password = '비밀번호를 입력해주세요.';
-    else if (password.length < 8) errs.password = '비밀번호는 8자 이상이어야 합니다.';
+    if (!password.trim()) errs.password = '사번을 입력해주세요.';
     setSignupErrors(errs);
     if (Object.keys(errs).length > 0) return;
 
@@ -216,6 +215,7 @@ export default function WelcomePopup({ onClose }: Props) {
         organizationName: data.organization_name,
         position: data.position,
         userId: data.id,
+        employeeId: password.trim(),
       });
       onClose();
     } catch {
@@ -251,6 +251,7 @@ export default function WelcomePopup({ onClose }: Props) {
         organizationName: data.organization_name,
         position: data.position,
         userId: data.id,
+        employeeId: loginPassword.trim(),
       });
       onClose();
     } catch {
@@ -408,12 +409,20 @@ export default function WelcomePopup({ onClose }: Props) {
               <Field label="이메일" required placeholder=""
                 iconKey="mail" value={emailInput} disabled />
               <Field
-                label="간편 로그인 비밀번호" required
-                placeholder="8자 이상 (영문·숫자·특수문자 조합 권장)"
+                label="사번 (직원번호)" required
+                placeholder="사번을 입력하세요 (예: E12345)"
                 type={showPw ? 'text' : 'password'} iconKey="lock"
                 value={password} onChange={setPassword} error={signupErrors.password}
                 showToggle onToggle={() => setShowPw(v => !v)}
               />
+
+              {/* 연락처 안내 */}
+              <p style={{ margin: 0, fontSize: 11, color: T.textFaint, textAlign: 'center' }}>
+                문의사항:{' '}
+                <a href="mailto:oh_dongha01@eland.co.kr" style={{ color: T.textMuted, textDecoration: 'none' }}>
+                  oh_dongha01@eland.co.kr
+                </a>
+              </p>
 
               <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
                 <button
@@ -464,14 +473,14 @@ export default function WelcomePopup({ onClose }: Props) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <Field label="이메일" placeholder="" iconKey="mail" value={emailInput} disabled />
               <Field
-                label="간편 로그인 비밀번호" required placeholder="비밀번호를 입력하세요"
+                label="사번 (직원번호)" required placeholder="사번을 입력하세요 (예: E12345)"
                 type={showLoginPw ? 'text' : 'password'} iconKey="lock"
                 value={loginPassword} onChange={v => { setLoginPassword(v); setLoginError(''); }}
                 error={loginError}
                 showToggle onToggle={() => setShowLoginPw(v => !v)}
               />
 
-              {/* 비밀번호 분실 안내 */}
+              {/* 사번 분실 안내 */}
               <div style={{
                 padding: '10px 14px', borderRadius: T.r,
                 background: '#FFFBEB', border: '1px solid #FDE68A',
@@ -481,7 +490,7 @@ export default function WelcomePopup({ onClose }: Props) {
                   <circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>
                 </svg>
                 <span style={{ fontSize: 12, color: '#92400E', lineHeight: 1.55 }}>
-                  비밀번호를 잊으셨습니까?{' '}
+                  사번을 잊으셨습니까?{' '}
                   <a
                     href="mailto:oh_dongha01@eland.co.kr"
                     style={{ color: T.primary, fontWeight: 600, textDecoration: 'underline' }}

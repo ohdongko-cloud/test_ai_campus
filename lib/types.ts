@@ -65,6 +65,7 @@ export interface UserInfo {
   organizationName?: string;  // 조직명(브랜드/점포/팀명)
   position?: string;          // 직무
   userId?: string;            // DB users.id
+  employeeId?: string;        // 사번 (원문 저장, 게시판 비번 자동완성용)
 }
 
 export interface ClickLog {

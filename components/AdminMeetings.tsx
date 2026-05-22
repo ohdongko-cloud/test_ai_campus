@@ -21,7 +21,7 @@ const DOW_OPTIONS = [
   { label: '목', value: 4 },
   { label: '금', value: 5 },
 ];
-const MAX_BLOCK_HOURS = 8;
+const MAX_BLOCK_HOURS = 99;
 
 function getWeekRange(): [string, string] {
   const today = new Date();
