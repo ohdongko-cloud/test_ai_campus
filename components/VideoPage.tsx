@@ -1,8 +1,13 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { Video, VideoLevel } from '../lib/types';
-import { getVideos, setVideos, extractVideoId, getVideoLevels } from '../lib/utils';
+import { useState, useEffect, useMemo } from 'react';
+import { Video, VideoLevel, VideoStats, VideoComment } from '../lib/types';
+import { getVideos, setVideos, extractVideoId, getVideoLevels, getSessionId } from '../lib/utils';
+
+function youtubeThumb(youtubeUrl: string): string | null {
+  const id = extractVideoId(youtubeUrl);
+  return id ? `https://img.youtube.com/vi/${id}/hqdefault.jpg` : null;
+}
 
 const T = {
   primary: '#004A99', primaryDark: '#003A78', primaryLight: '#E6EEF7', primarySoft: '#F0F5FB',
@@ -55,6 +60,59 @@ export default function VideoPage() {
   const [hoverCard, setHoverCard] = useState<string | null>(null);
   const [openStageIdx, setOpenStageIdx] = useState<number | null>(null);
   const [copiedStageIdx, setCopiedStageIdx] = useState<number | null>(null);
+  const [statsMap, setStatsMap] = useState<Record<string, VideoStats>>({});
+  const [thumbFailed, setThumbFailed] = useState<Record<string, true>>({});
+  const [likeBusy, setLikeBusy] = useState<Record<string, true>>({});
+
+  const videoIds = useMemo(() => videos.map(v => v.id).join(','), [videos]);
+
+  // 영상 목록 변경 시 stats 일괄 조회
+  useEffect(() => {
+    if (!videoIds) return;
+    const sid = getSessionId();
+    const url = `/api/videos/stats?ids=${encodeURIComponent(videoIds)}&sessionId=${encodeURIComponent(sid)}`;
+    fetch(url)
+      .then(r => r.ok ? r.json() : [])
+      .then((rows: VideoStats[]) => {
+        const next: Record<string, VideoStats> = {};
+        for (const r of rows) next[r.video_id] = r;
+        setStatsMap(next);
+      })
+      .catch(() => { /* network 실패 시 0으로 표시 */ });
+  }, [videoIds]);
+
+  const getStats = (id: string): VideoStats => statsMap[id] || { video_id: id, likes_count: 0, comments_count: 0, liked: false };
+
+  const handleToggleLike = async (videoId: string) => {
+    if (likeBusy[videoId]) return;
+    const before = getStats(videoId);
+    const liked = !before.liked;
+    const optimistic: VideoStats = {
+      ...before,
+      liked,
+      likes_count: Math.max(0, before.likes_count + (liked ? 1 : -1)),
+    };
+    setStatsMap(m => ({ ...m, [videoId]: optimistic }));
+    setLikeBusy(b => ({ ...b, [videoId]: true }));
+    try {
+      const res = await fetch(`/api/videos/${encodeURIComponent(videoId)}/like`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: getSessionId(), action: liked ? 'like' : 'unlike' }),
+      });
+      if (!res.ok) throw new Error('like failed');
+      const data = await res.json();
+      setStatsMap(m => ({ ...m, [videoId]: { ...optimistic, likes_count: data.likes_count, liked: data.liked } }));
+    } catch {
+      setStatsMap(m => ({ ...m, [videoId]: before }));
+      alert('좋아요 처리에 실패했습니다. 잠시 후 다시 시도해주세요.');
+    } finally {
+      setLikeBusy(b => {
+        const { [videoId]: _drop, ...rest } = b;
+        return rest;
+      });
+    }
+  };
 
   const copyStageDescription = async (idx: number, text: string) => {
     let ok = false;
@@ -123,6 +181,98 @@ export default function VideoPage() {
     setVideosState(updated);
     setSelectedVideo({ ...video, viewCount: video.viewCount + 1 });
     setOpenStageIdx(null);
+  };
+
+  // ── 댓글 ──
+  const [comments, setComments] = useState<VideoComment[]>([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [newComment, setNewComment] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!selectedVideo) {
+      setComments([]);
+      setNewComment('');
+      setNewPassword('');
+      return;
+    }
+    setCommentsLoading(true);
+    fetch(`/api/videos/${encodeURIComponent(selectedVideo.id)}/comments`)
+      .then(r => r.ok ? r.json() : [])
+      .then((rows: VideoComment[]) => setComments(rows))
+      .catch(() => setComments([]))
+      .finally(() => setCommentsLoading(false));
+  }, [selectedVideo?.id]);
+
+  const submitComment = async () => {
+    if (!selectedVideo) return;
+    const text = newComment.trim();
+    if (!text || submitting) return;
+    setSubmitting(true);
+    try {
+      const res = await fetch(`/api/videos/${encodeURIComponent(selectedVideo.id)}/comments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: text,
+          password: newPassword || undefined,
+          sessionId: getSessionId(),
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data?.error || '댓글 등록에 실패했습니다.');
+        return;
+      }
+      setNewComment('');
+      setNewPassword('');
+      // 목록 새로고침
+      const list = await fetch(`/api/videos/${encodeURIComponent(selectedVideo.id)}/comments`).then(r => r.json()).catch(() => []);
+      setComments(list);
+      // 카드 카운트도 +1
+      setStatsMap(m => {
+        const cur = m[selectedVideo.id] || { video_id: selectedVideo.id, likes_count: 0, comments_count: 0, liked: false };
+        return { ...m, [selectedVideo.id]: { ...cur, comments_count: cur.comments_count + 1 } };
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const deleteComment = async (commentId: string) => {
+    const password = window.prompt('비밀번호를 입력하세요.');
+    if (password == null) return;
+    if (!password) { alert('비밀번호를 입력해주세요.'); return; }
+
+    const res = await fetch(`/api/videos/comments/${encodeURIComponent(commentId)}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      alert(data?.error || '삭제에 실패했습니다.');
+      return;
+    }
+    setComments(cs => cs.map(c => c.id === commentId ? { ...c, is_deleted: true, content: '' } : c));
+    if (selectedVideo) {
+      setStatsMap(m => {
+        const cur = m[selectedVideo.id];
+        if (!cur) return m;
+        return { ...m, [selectedVideo.id]: { ...cur, comments_count: Math.max(0, cur.comments_count - 1) } };
+      });
+    }
+  };
+
+  const formatDate = (iso: string) => {
+    try {
+      const d = new Date(iso);
+      const pad = (n: number) => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    } catch {
+      return iso;
+    }
   };
 
   const sidebarItems = [
@@ -262,24 +412,47 @@ export default function VideoPage() {
                     }}
                   >
                     {/* 썸네일 */}
-                    <div style={{
-                      aspectRatio: '16/9',
-                      background: palette.bg,
-                      backgroundImage: `repeating-linear-gradient(135deg, transparent 0 12px, ${palette.fg}11 12px 13px)`,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      position: 'relative', overflow: 'hidden',
-                    }}>
-                      <div style={{
-                        width: 52, height: 52, borderRadius: '50%',
-                        background: 'rgba(255,255,255,0.95)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
-                      }}>
-                        <svg width="20" height="20" viewBox="0 0 24 24">
-                          <path d="M9 7l9 5-9 5V7z" fill={T.primary}/>
-                        </svg>
-                      </div>
-                    </div>
+                    {(() => {
+                      const thumb = youtubeThumb(v.youtubeUrl);
+                      const useFallback = !thumb || thumbFailed[v.id];
+                      return (
+                        <div style={{
+                          aspectRatio: '16/9',
+                          background: palette.bg,
+                          backgroundImage: useFallback
+                            ? `repeating-linear-gradient(135deg, transparent 0 12px, ${palette.fg}11 12px 13px)`
+                            : undefined,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          position: 'relative', overflow: 'hidden',
+                        }}>
+                          {!useFallback && (
+                            <img
+                              src={thumb}
+                              alt={v.title}
+                              onError={() => setThumbFailed(m => ({ ...m, [v.id]: true }))}
+                              style={{
+                                position: 'absolute', inset: 0,
+                                width: '100%', height: '100%',
+                                objectFit: 'cover',
+                                transform: isHover ? 'scale(1.04)' : 'scale(1)',
+                                transition: 'transform .25s ease',
+                              }}
+                            />
+                          )}
+                          <div style={{
+                            position: 'relative', zIndex: 1,
+                            width: 52, height: 52, borderRadius: '50%',
+                            background: 'rgba(255,255,255,0.95)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.18)',
+                          }}>
+                            <svg width="20" height="20" viewBox="0 0 24 24">
+                              <path d="M9 7l9 5-9 5V7z" fill={T.primary}/>
+                            </svg>
+                          </div>
+                        </div>
+                      );
+                    })()}
 
                     {/* 카드 본문 */}
                     <div style={{ padding: 16 }}>
@@ -312,16 +485,64 @@ export default function VideoPage() {
                         display: '-webkit-box', WebkitLineClamp: 2,
                         WebkitBoxOrient: 'vertical' as const, overflow: 'hidden',
                       }}>{v.description}</p>
-                      <div style={{
-                        marginTop: 14, paddingTop: 12, borderTop: `1px dashed ${T.border}`,
-                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                        fontSize: 13, fontWeight: 600, color: T.primary,
-                      }}>
-                        <span>시청하기</span>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={T.primary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M5 12h14M13 6l6 6-6 6"/>
-                        </svg>
-                      </div>
+
+                      {/* 좋아요 / 댓글 인디케이터 */}
+                      {(() => {
+                        const s = getStats(v.id);
+                        return (
+                          <div style={{
+                            marginTop: 14, paddingTop: 12, borderTop: `1px dashed ${T.border}`,
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                            gap: 8,
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                              <button
+                                type="button"
+                                onClick={e => { e.stopPropagation(); handleToggleLike(v.id); }}
+                                disabled={!!likeBusy[v.id]}
+                                aria-pressed={!!s.liked}
+                                aria-label={s.liked ? '좋아요 취소' : '좋아요'}
+                                style={{
+                                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                                  padding: '4px 10px', borderRadius: 999, cursor: 'pointer',
+                                  background: s.liked ? T.dangerBg : T.surface,
+                                  border: `1px solid ${s.liked ? '#FBCBD2' : T.border}`,
+                                  color: s.liked ? T.danger : T.textBody,
+                                  fontSize: 12, fontWeight: 600, fontFamily: T.fontKo,
+                                  transition: 'all .15s',
+                                  opacity: likeBusy[v.id] ? 0.6 : 1,
+                                }}
+                              >
+                                <svg width="13" height="13" viewBox="0 0 24 24"
+                                  fill={s.liked ? T.danger : 'none'}
+                                  stroke={s.liked ? T.danger : T.textMuted}
+                                  strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                                </svg>
+                                {s.likes_count}
+                              </button>
+                              <div
+                                aria-label={`댓글 ${s.comments_count}개`}
+                                style={{
+                                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                                  color: T.textMuted, fontSize: 12, fontWeight: 600,
+                                  fontFamily: T.fontKo,
+                                }}>
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                                </svg>
+                                {s.comments_count}
+                              </div>
+                            </div>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: T.primary }}>
+                              시청하기
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={T.primary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M5 12h14M13 6l6 6-6 6"/>
+                              </svg>
+                            </span>
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                 );
@@ -528,6 +749,112 @@ export default function VideoPage() {
                   </div>
                 </div>
               )}
+
+              {/* 댓글 패널 */}
+              <div style={{ borderTop: `1px solid ${T.border}`, paddingTop: 16, marginTop: 16 }}>
+                <div style={{
+                  fontSize: 13, fontWeight: 700, color: T.text, marginBottom: 12,
+                  display: 'flex', alignItems: 'center', gap: 6,
+                }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={T.primary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                  </svg>
+                  댓글 ({comments.filter(c => !c.is_deleted).length})
+                </div>
+
+                {/* 작성 폼 */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+                  <textarea
+                    value={newComment}
+                    onChange={e => setNewComment(e.target.value)}
+                    maxLength={1000}
+                    rows={2}
+                    placeholder="이 영상에 대한 의견을 남겨주세요."
+                    style={{
+                      width: '100%', padding: '8px 12px',
+                      border: `1px solid ${T.border}`, borderRadius: T.r,
+                      fontSize: 13, color: T.text, fontFamily: T.fontKo,
+                      resize: 'vertical', outline: 'none', background: T.surface,
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input
+                      type="password"
+                      value={newPassword}
+                      onChange={e => setNewPassword(e.target.value)}
+                      placeholder="삭제용 비밀번호 (선택)"
+                      style={{
+                        flex: 1, padding: '7px 12px',
+                        border: `1px solid ${T.border}`, borderRadius: T.r,
+                        fontSize: 12, color: T.text, fontFamily: T.fontKo,
+                        outline: 'none', background: T.surface,
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={submitComment}
+                      disabled={!newComment.trim() || submitting}
+                      style={{
+                        padding: '7px 18px', borderRadius: T.r, border: 'none',
+                        background: !newComment.trim() || submitting ? T.borderStrong : T.primary,
+                        color: '#fff', fontSize: 13, fontWeight: 600, fontFamily: T.fontKo,
+                        cursor: !newComment.trim() || submitting ? 'not-allowed' : 'pointer',
+                        whiteSpace: 'nowrap',
+                      }}>
+                      {submitting ? '등록 중...' : '등록'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* 댓글 목록 */}
+                {commentsLoading ? (
+                  <div style={{ textAlign: 'center', padding: '20px 0', fontSize: 13, color: T.textMuted }}>
+                    댓글을 불러오는 중...
+                  </div>
+                ) : comments.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '20px 0', fontSize: 13, color: T.textFaint }}>
+                    아직 댓글이 없습니다. 가장 먼저 의견을 남겨보세요.
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {comments.map(c => (
+                      <div key={c.id} style={{
+                        padding: '10px 12px',
+                        background: T.surfaceAlt,
+                        border: `1px solid ${T.border}`,
+                        borderRadius: T.r,
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+                          <div style={{
+                            flex: 1, fontSize: 13,
+                            color: c.is_deleted ? T.textFaint : T.textBody,
+                            fontStyle: c.is_deleted ? 'italic' : 'normal',
+                            lineHeight: 1.55, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                          }}>
+                            {c.is_deleted ? '삭제된 댓글입니다.' : c.content}
+                          </div>
+                          {!c.is_deleted && (
+                            <button
+                              type="button"
+                              onClick={() => deleteComment(c.id)}
+                              style={{
+                                background: 'transparent', border: 'none', color: T.textFaint,
+                                fontSize: 11, cursor: 'pointer', fontFamily: T.fontKo,
+                                padding: '2px 6px',
+                              }}>
+                              삭제
+                            </button>
+                          )}
+                        </div>
+                        <div style={{ fontSize: 11, color: T.textFaint, marginTop: 6 }}>
+                          {formatDate(c.created_at)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
