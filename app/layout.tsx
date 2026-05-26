@@ -1,9 +1,38 @@
 import type { Metadata } from "next";
 import "./globals.css";
 
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL || "https://test-ai-campus.vercel.app";
+const TITLE = "이랜드리테일 AI 캠퍼스";
+const DESCRIPTION = "이랜드리테일 AI 교육 허브 — 학습, 제작, 질문, 공유";
+
 export const metadata: Metadata = {
-  title: "이랜드리테일 AI 캠퍼스",
-  description: "이랜드리테일 AI 교육 허브 — 학습, 제작, 질문, 공유",
+  metadataBase: new URL(SITE_URL),
+  title: { default: TITLE, template: `%s | ${TITLE}` },
+  description: DESCRIPTION,
+  applicationName: TITLE,
+  keywords: [
+    "이랜드리테일",
+    "AI 캠퍼스",
+    "AI 교육",
+    "이랜드 AI",
+    "사내 AI 학습",
+  ],
+  themeColor: "#1647A8",
+  openGraph: {
+    type: "website",
+    locale: "ko_KR",
+    url: SITE_URL,
+    siteName: TITLE,
+    title: TITLE,
+    description: DESCRIPTION,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: TITLE,
+    description: DESCRIPTION,
+  },
+  robots: { index: true, follow: true },
 };
 
 export default function RootLayout({
