@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '../../../../lib/db';
 import { requireAdmin } from '../../../../lib/admin-auth';
+import { assertCleanFields, BadTextError } from '../../../../lib/text-validation';
 
 // POST /api/admin/videos
 // body: { id?, title, level, description?, youtubeUrl, stages?, order_idx? }
@@ -19,6 +20,13 @@ export async function POST(req: NextRequest) {
 
   if (!title || !youtubeUrl || !level) {
     return NextResponse.json({ error: 'title/level/youtubeUrl 필수' }, { status: 400 });
+  }
+
+  try {
+    assertCleanFields({ title, level, description, youtubeUrl }, ['title', 'level', 'description']);
+  } catch (e) {
+    if (e instanceof BadTextError) return NextResponse.json({ error: e.message }, { status: 400 });
+    throw e;
   }
 
   try {

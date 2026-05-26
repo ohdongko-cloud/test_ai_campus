@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '../../../lib/db';
+import { assertCleanFields, BadTextError } from '../../../lib/text-validation';
 
 // GET /api/reservations
 // 사용자 측: PII 제외, 날짜/시간/상태만 반환 (가용성 확인용)
@@ -28,6 +29,12 @@ export async function POST(req: NextRequest) {
   const required = ['name', 'role', 'taskSummary', 'email', 'date', 'startTime', 'endTime'];
   for (const k of required) {
     if (!body[k]) return NextResponse.json({ error: `${k} 필수` }, { status: 400 });
+  }
+  try {
+    assertCleanFields(body, ['name', 'role', 'taskSummary', 'inquiry', 'email', 'phone']);
+  } catch (e) {
+    if (e instanceof BadTextError) return NextResponse.json({ error: e.message }, { status: 400 });
+    throw e;
   }
   try {
     const rows = await sql`

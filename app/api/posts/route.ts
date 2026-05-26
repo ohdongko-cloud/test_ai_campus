@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '../../../lib/db';
+import { containsReplacementChar } from '../../../lib/text-validation';
 
 async function sha256(text: string) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
@@ -37,6 +38,9 @@ export async function POST(req: NextRequest) {
   const { title, content, password, link } = await req.json();
   if (!title?.trim() || !content?.trim()) {
     return NextResponse.json({ error: '제목과 내용은 필수입니다.' }, { status: 400 });
+  }
+  if (containsReplacementChar(title) || containsReplacementChar(content)) {
+    return NextResponse.json({ error: '지원하지 않는 문자가 포함되어 있습니다.' }, { status: 400 });
   }
 
   const password_hash = password ? await sha256(password) : null;

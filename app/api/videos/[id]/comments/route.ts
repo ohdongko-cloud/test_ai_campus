@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '../../../../../lib/db';
+import { containsReplacementChar } from '../../../../../lib/text-validation';
 
 async function sha256(text: string) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
@@ -36,6 +37,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const text = typeof content === 'string' ? content.trim() : '';
   if (!text) return NextResponse.json({ error: '내용은 필수입니다.' }, { status: 400 });
   if (text.length > 1000) return NextResponse.json({ error: '댓글은 1000자 이하로 작성해주세요.' }, { status: 400 });
+  if (containsReplacementChar(text)) {
+    return NextResponse.json({ error: '지원하지 않는 문자가 포함되어 있습니다. UTF-8 한글로 다시 작성해주세요.' }, { status: 400 });
+  }
 
   // 간단한 cooldown rate limit (세션 + IP)
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
