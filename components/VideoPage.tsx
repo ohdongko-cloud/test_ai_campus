@@ -54,6 +54,40 @@ export default function VideoPage() {
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
   const [hoverCard, setHoverCard] = useState<string | null>(null);
   const [openStageIdx, setOpenStageIdx] = useState<number | null>(null);
+  const [copiedStageIdx, setCopiedStageIdx] = useState<number | null>(null);
+
+  const copyStageDescription = async (idx: number, text: string) => {
+    let ok = false;
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        ok = true;
+      }
+    } catch {
+      ok = false;
+    }
+    if (!ok) {
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+      } catch {
+        ok = false;
+      }
+    }
+    if (ok) {
+      setCopiedStageIdx(idx);
+      setTimeout(() => setCopiedStageIdx(c => (c === idx ? null : c)), 1500);
+    } else {
+      alert('복사에 실패했습니다.');
+    }
+  };
 
   const load = () => {
     setVideosState(getVideos());
@@ -430,11 +464,62 @@ export default function VideoPage() {
                           {isOpen && stage.description && (
                             <div style={{
                               padding: '10px 14px 12px 46px',
-                              fontSize: 13, color: T.textBody, lineHeight: 1.65,
                               background: T.primarySoft,
-                              whiteSpace: 'pre-wrap',
                             }}>
-                              {stage.description}
+                              <div style={{ marginBottom: 8 }}>
+                                <button
+                                  type="button"
+                                  onClick={() => copyStageDescription(idx, stage.description)}
+                                  style={{
+                                    display: 'inline-flex', alignItems: 'center', gap: 6,
+                                    minHeight: 28, padding: '4px 10px',
+                                    background: copiedStageIdx === idx ? T.successBg : T.surface,
+                                    border: `1px solid ${copiedStageIdx === idx ? T.success : T.border}`,
+                                    color: copiedStageIdx === idx ? T.success : T.text,
+                                    borderRadius: T.r, fontSize: 12, fontWeight: 600,
+                                    cursor: 'pointer', fontFamily: T.fontKo,
+                                    transition: 'background .15s, border-color .15s, color .15s',
+                                  }}
+                                  onMouseEnter={e => {
+                                    if (copiedStageIdx !== idx) {
+                                      e.currentTarget.style.background = T.primaryLight;
+                                      e.currentTarget.style.borderColor = T.primary;
+                                      e.currentTarget.style.color = T.primary;
+                                    }
+                                  }}
+                                  onMouseLeave={e => {
+                                    if (copiedStageIdx !== idx) {
+                                      e.currentTarget.style.background = T.surface;
+                                      e.currentTarget.style.borderColor = T.border;
+                                      e.currentTarget.style.color = T.text;
+                                    }
+                                  }}
+                                  aria-label="스테이지 설명 전체 복사"
+                                >
+                                  {copiedStageIdx === idx ? (
+                                    <>
+                                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M5 12l5 5L20 7"/>
+                                      </svg>
+                                      복사됨
+                                    </>
+                                  ) : (
+                                    <>
+                                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <rect x="9" y="9" width="11" height="11" rx="2"/>
+                                        <path d="M5 15V5a2 2 0 012-2h10"/>
+                                      </svg>
+                                      전체 복사
+                                    </>
+                                  )}
+                                </button>
+                              </div>
+                              <div style={{
+                                fontSize: 13, color: T.textBody, lineHeight: 1.65,
+                                whiteSpace: 'pre-wrap',
+                              }}>
+                                {stage.description}
+                              </div>
                             </div>
                           )}
                         </div>
