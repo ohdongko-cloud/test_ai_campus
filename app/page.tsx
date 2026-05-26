@@ -11,8 +11,7 @@ import BoardPage from '../components/BoardPage';
 import SharePage from '../components/SharePage';
 import AdminDashboard from '../components/AdminDashboard';
 import GuidePage from '../components/GuidePage';
-
-const ADMIN_PASSWORD = 'admin2026';
+import { setAdminPassword, isAdminAuthenticated, clearAdminPassword } from '../lib/admin-client';
 
 const TAB_LABELS: { key: TabType; label: string }[] = [
   { key: 'home',    label: '홈' },
@@ -41,17 +40,31 @@ export default function Page() {
     } else {
       setUserInfo(info);
     }
+    // 같은 탭에서 새로고침해도 어드민 세션 유지
+    if (isAdminAuthenticated()) setIsAdmin(true);
   }, []);
 
-  const handleAdminLogin = () => {
-    if (adminPw === ADMIN_PASSWORD) {
+  const handleAdminLogin = async () => {
+    // 서버에 ping 해서 비번 검증. 401이면 에러.
+    try {
+      setAdminPassword(adminPw);
+      const res = await fetch('/api/admin/ping', {
+        method: 'POST',
+        headers: { 'X-Admin-Password': adminPw },
+      });
+      if (!res.ok) {
+        clearAdminPassword();
+        setAdminError('비밀번호가 올바르지 않습니다.');
+        return;
+      }
       setIsAdmin(true);
       setShowAdminLogin(false);
       setAdminPw('');
       setAdminError('');
       setShowPw(false);
-    } else {
-      setAdminError('비밀번호가 올바르지 않습니다.');
+    } catch {
+      clearAdminPassword();
+      setAdminError('인증 서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.');
     }
   };
 
@@ -67,7 +80,7 @@ export default function Page() {
   };
 
   if (isAdmin) {
-    return <AdminDashboard onExit={() => setIsAdmin(false)} />;
+    return <AdminDashboard onExit={() => { clearAdminPassword(); setIsAdmin(false); }} />;
   }
 
   const renderTab = () => {
