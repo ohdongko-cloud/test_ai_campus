@@ -9,6 +9,7 @@ import AdminChatroom from './AdminChatroom';
 import AdminServices from './AdminServices';
 import AdminBoardStats from './AdminBoardStats';
 import AdminGuide from './AdminGuide';
+import AdminImport from './AdminImport';
 
 interface Props {
   onExit: () => void;
@@ -31,6 +32,7 @@ const TABS: TabInfo[] = [
 
 export default function AdminDashboard({ onExit }: Props) {
   const [activeTab, setActiveTab] = useState<AdminTabType>('stats');
+  const [showImport, setShowImport] = useState(false);
 
   const renderContent = () => {
     switch (activeTab) {
@@ -72,17 +74,32 @@ export default function AdminDashboard({ onExit }: Props) {
             </div>
           </div>
         </div>
-        <button
-          onClick={onExit}
-          style={{
-            padding: '8px 16px', borderRadius: 8,
-            border: '1.5px solid #E2E8F0', background: 'white',
-            color: '#4A5568', fontSize: 13, fontWeight: 500, cursor: 'pointer',
-          }}
-        >
-          관리자 모드 종료
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button
+            onClick={() => setShowImport(true)}
+            title="이 브라우저의 localStorage 데이터를 서버 DB로 일괄 업로드"
+            style={{
+              padding: '8px 14px', borderRadius: 8,
+              border: '1.5px solid #BFDBFE', background: '#EFF6FF',
+              color: '#1D4ED8', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+            }}
+          >
+            🔄 로컬→서버 업로드
+          </button>
+          <button
+            onClick={onExit}
+            style={{
+              padding: '8px 16px', borderRadius: 8,
+              border: '1.5px solid #E2E8F0', background: 'white',
+              color: '#4A5568', fontSize: 13, fontWeight: 500, cursor: 'pointer',
+            }}
+          >
+            관리자 모드 종료
+          </button>
+        </div>
       </header>
+
+      {showImport && <AdminImport onClose={() => setShowImport(false)} />}
 
       <div style={{ display: 'flex', minHeight: 'calc(100vh - 64px)' }}>
         {/* 좌측 사이드바 — PC */}
