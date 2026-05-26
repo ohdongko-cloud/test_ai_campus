@@ -30,6 +30,48 @@ function LevelEditRow({ level, onSave, onCancel }: {
   );
 }
 
+function VideoEditRow({ video, onSave, onCancel }: {
+  video: Video;
+  onSave: (id: string, title: string, youtubeUrl: string) => void;
+  onCancel: () => void;
+}) {
+  const [title, setTitle] = useState(video.title);
+  const [url, setUrl] = useState(video.youtubeUrl);
+  const trimmedTitle = title.trim();
+  const vid = extractVideoId(url);
+  const canSave = !!trimmedTitle && !!vid;
+  return (
+    <div className="flex items-center gap-2 flex-1 flex-wrap">
+      <input
+        value={title}
+        onChange={e => setTitle(e.target.value)}
+        placeholder="영상 제목"
+        className="border border-gray-300 rounded px-2 py-1 text-xs flex-1 min-w-[140px] focus:outline-none"
+      />
+      <div className="flex-1 min-w-[180px]">
+        <input
+          value={url}
+          onChange={e => setUrl(e.target.value)}
+          placeholder="https://www.youtube.com/watch?v=..."
+          className="border border-gray-300 rounded px-2 py-1 text-xs w-full focus:outline-none"
+        />
+        {url && (
+          <p className="text-[10px] text-gray-400 mt-0.5">
+            videoId: <span className={`font-mono ${vid ? 'text-blue-500' : 'text-red-500'}`}>{vid || '인식 불가'}</span>
+          </p>
+        )}
+      </div>
+      <button
+        onClick={() => canSave && onSave(video.id, trimmedTitle, url)}
+        disabled={!canSave}
+        className={`text-xs px-2 py-1 rounded border ${canSave ? 'text-blue-600 hover:text-blue-800 border-blue-200 hover:bg-blue-50' : 'text-gray-300 border-gray-100 cursor-not-allowed'}`}
+      >저장</button>
+      <button onClick={onCancel}
+        className="text-xs text-gray-500 px-2 py-1 rounded border border-gray-200 hover:bg-gray-50">취소</button>
+    </div>
+  );
+}
+
 function StageEditor({ videoId, initialStages, onSave }: {
   videoId: string;
   initialStages: VideoStage[];
@@ -100,6 +142,7 @@ export default function AdminVideos() {
   const [msg, setMsg] = useState('');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [editStagesId, setEditStagesId] = useState<string | null>(null);
+  const [editVideoId, setEditVideoId] = useState<string | null>(null);
   const [editLevelId, setEditLevelId] = useState<string | null>(null);
 
   // Add form
@@ -161,6 +204,12 @@ export default function AdminVideos() {
 
   const handleLevelChange = (id: string, lv: string) =>
     persist(videos.map(v => v.id === id ? { ...v, level: lv } : v));
+
+  const handleSaveVideo = (id: string, newTitle: string, newUrl: string) => {
+    persist(videos.map(v => v.id === id ? { ...v, title: newTitle, youtubeUrl: newUrl } : v));
+    setEditVideoId(null);
+    flash('영상 정보가 수정되었습니다.');
+  };
 
   const updateVideoStages = (id: string, stages: VideoStage[]) =>
     persist(videos.map(v => v.id === id ? { ...v, stages } : v));
@@ -330,42 +379,61 @@ export default function AdminVideos() {
           {videos.length === 0 && (
             <p className="text-sm text-gray-400 text-center py-8">등록된 영상이 없습니다.</p>
           )}
-          {videos.map((v, idx) => (
+          {videos.map((v, idx) => {
+            const isEditing = editVideoId === v.id;
+            return (
             <div key={v.id} className="border border-gray-200 rounded-lg overflow-hidden">
               <div className="flex items-center gap-2 px-3 py-2.5 bg-gray-50 hover:bg-gray-100 transition-colors">
                 {/* 순서 변경 */}
                 <div className="flex flex-col gap-0.5 shrink-0">
-                  <button onClick={() => moveVideo(idx, -1)} disabled={idx === 0}
+                  <button onClick={() => moveVideo(idx, -1)} disabled={idx === 0 || isEditing}
                     className="text-gray-400 hover:text-gray-700 disabled:opacity-20 text-xs leading-none">▲</button>
-                  <button onClick={() => moveVideo(idx, 1)} disabled={idx === videos.length - 1}
+                  <button onClick={() => moveVideo(idx, 1)} disabled={idx === videos.length - 1 || isEditing}
                     className="text-gray-400 hover:text-gray-700 disabled:opacity-20 text-xs leading-none">▼</button>
                 </div>
                 <span className="text-xs text-gray-400 font-mono w-5 shrink-0 text-center">{idx + 1}</span>
                 {/* 레벨 */}
                 <select value={v.level} onChange={e => handleLevelChange(v.id, e.target.value)}
-                  className="border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none shrink-0">
+                  disabled={isEditing}
+                  className="border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none shrink-0 disabled:opacity-50">
                   {levels.map(lv => <option key={lv.id} value={lv.name}>{lv.name}</option>)}
                 </select>
-                {/* 제목 */}
-                <span className="text-xs font-semibold text-gray-700 flex-1 truncate">{v.title}</span>
-                <span className="text-xs text-gray-400 shrink-0">{v.viewCount}회</span>
-                {/* 스테이지 토글 */}
-                <button onClick={() => setEditStagesId(editStagesId === v.id ? null : v.id)}
-                  className="text-xs text-blue-600 hover:text-blue-800 px-2 py-0.5 rounded border border-blue-200 hover:bg-blue-50 whitespace-nowrap shrink-0">
-                  스테이지{v.stages?.length ? ` (${v.stages.length})` : ''}
-                </button>
-                {/* 삭제 */}
-                <button onClick={() => setConfirmDeleteId(v.id)}
-                  className="text-xs text-red-500 hover:text-red-700 px-2 py-0.5 rounded border border-red-200 hover:bg-red-50 shrink-0">
-                  삭제
-                </button>
+                {isEditing ? (
+                  <VideoEditRow
+                    video={v}
+                    onSave={handleSaveVideo}
+                    onCancel={() => setEditVideoId(null)}
+                  />
+                ) : (
+                  <>
+                    {/* 제목 */}
+                    <span className="text-xs font-semibold text-gray-700 flex-1 truncate">{v.title}</span>
+                    <span className="text-xs text-gray-400 shrink-0">{v.viewCount}회</span>
+                    {/* 편집 */}
+                    <button onClick={() => setEditVideoId(v.id)}
+                      className="text-xs text-gray-700 hover:text-black px-2 py-0.5 rounded border border-gray-300 hover:bg-gray-100 whitespace-nowrap shrink-0">
+                      편집
+                    </button>
+                    {/* 스테이지 토글 */}
+                    <button onClick={() => setEditStagesId(editStagesId === v.id ? null : v.id)}
+                      className="text-xs text-blue-600 hover:text-blue-800 px-2 py-0.5 rounded border border-blue-200 hover:bg-blue-50 whitespace-nowrap shrink-0">
+                      스테이지{v.stages?.length ? ` (${v.stages.length})` : ''}
+                    </button>
+                    {/* 삭제 */}
+                    <button onClick={() => setConfirmDeleteId(v.id)}
+                      className="text-xs text-red-500 hover:text-red-700 px-2 py-0.5 rounded border border-red-200 hover:bg-red-50 shrink-0">
+                      삭제
+                    </button>
+                  </>
+                )}
               </div>
               {/* 스테이지 편집 패널 */}
-              {editStagesId === v.id && (
+              {editStagesId === v.id && !isEditing && (
                 <StageEditor videoId={v.id} initialStages={v.stages || []} onSave={updateVideoStages} />
               )}
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>
