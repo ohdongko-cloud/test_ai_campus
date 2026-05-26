@@ -4,11 +4,10 @@ import { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import { Reservation, BlockedSlot } from '../lib/types';
 import {
-  getReservations, setReservations,
-  getBlockedSlots, setBlockedSlots,
-  generateId, generateTimeSlots,
+  generateTimeSlots,
   addMinutes, minutesBetween,
 } from '../lib/utils';
+import { adminFetch, AdminAuthError } from '../lib/admin-client';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 type Filter = '전체' | '이번 주' | '이번 달';
@@ -109,16 +108,24 @@ export default function AdminMeetings() {
   // 종료시간 선택 옵션: 시작시간보다 이후 + 17:00까지
   const endTimeOptions = [...timeSlots, '17:00'].filter(t => t > newStartTime);
 
-  const load = () => {
-    setReservationsState(getReservations());
-    setBlockedState(getBlockedSlots());
+  const load = async () => {
+    try {
+      const [rRes, bRes] = await Promise.all([
+        adminFetch('/api/admin/reservations'),
+        fetch('/api/blocked-slots'),
+      ]);
+      if (rRes.ok) setReservationsState(await rRes.json());
+      if (bRes.ok) setBlockedState(await bRes.json());
+    } catch (e) {
+      if (e instanceof AdminAuthError) {
+        setBlockError('관리자 세션이 만료되었습니다. 다시 로그인해주세요.');
+      }
+    }
   };
 
   useEffect(() => {
     load();
-    const handler = () => load();
-    window.addEventListener('storage', handler);
-    return () => window.removeEventListener('storage', handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // 시작시간 변경 시 종료시간 자동 보정
@@ -153,18 +160,28 @@ export default function AdminMeetings() {
   });
   const dayChartData = DAY_NAMES.map(name => ({ name, value: dayCount[name] }));
 
-  const handleStatusChange = (id: string, status: 'pending' | 'confirmed' | 'cancelled') => {
-    const updated = reservations.map(r => r.id === id ? { ...r, status } : r);
-    setReservations(updated);
-    setReservationsState(updated);
-    window.dispatchEvent(new Event('storage'));
+  const handleStatusChange = async (id: string, status: 'pending' | 'confirmed' | 'cancelled') => {
+    // optimistic
+    setReservationsState(rs => rs.map(r => r.id === id ? { ...r, status } : r));
+    try {
+      const res = await adminFetch(`/api/admin/reservations/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+    } catch {
+      await load();
+    }
   };
 
-  const handleDelete = (id: string) => {
-    const updated = reservations.filter(r => r.id !== id);
-    setReservations(updated);
-    setReservationsState(updated);
-    window.dispatchEvent(new Event('storage'));
+  const handleDelete = async (id: string) => {
+    setReservationsState(rs => rs.filter(r => r.id !== id));
+    try {
+      const res = await adminFetch(`/api/admin/reservations/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error(await res.text());
+    } catch {
+      await load();
+    }
   };
 
   const handleExcel = () => {
@@ -186,7 +203,7 @@ export default function AdminMeetings() {
   };
 
   // ── 차단 슬롯 추가 ──
-  const handleAddBlock = () => {
+  const handleAddBlock = async () => {
     setBlockError('');
 
     // 검증 1: 특정 날짜일 때 날짜 필수
@@ -206,8 +223,8 @@ export default function AdminMeetings() {
       return;
     }
 
-    const slot: BlockedSlot = {
-      id: generateId(),
+    const draft: BlockedSlot = {
+      id: '',
       recurring: newRecurring,
       startTime: newStartTime,
       endTime: newEndTime,
@@ -216,32 +233,44 @@ export default function AdminMeetings() {
     };
 
     // 검증 4: 기존 예약과 충돌 확인
-    const conflicts = findConflictingReservations(slot, reservations);
+    const conflicts = findConflictingReservations(draft, reservations);
     if (conflicts.length > 0) {
       const names = conflicts.map(r => `${r.name}(${r.date} ${r.startTime})`).join(', ');
       setBlockError(`기존 예약과 충돌합니다: ${names}`);
       return;
     }
 
-    // 겹치는 슬롯 병합
-    const next = mergeIntoSlots(blocked, slot);
-    setBlockedSlots(next);
-    setBlockedState(next);
-    window.dispatchEvent(new Event('storage'));
-
-    setNewDate('');
-    setNewReason('');
-    setNewStartTime('09:00');
-    setNewEndTime('10:00');
-    setBlockMsg('차단 슬롯이 저장되었습니다.');
-    setTimeout(() => setBlockMsg(''), 3000);
+    try {
+      const res = await adminFetch('/api/admin/blocked-slots', {
+        method: 'POST',
+        body: JSON.stringify(draft),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setBlockError(data?.error || '저장에 실패했습니다.');
+        return;
+      }
+      setNewDate('');
+      setNewReason('');
+      setNewStartTime('09:00');
+      setNewEndTime('10:00');
+      setBlockMsg('차단 슬롯이 저장되었습니다.');
+      setTimeout(() => setBlockMsg(''), 3000);
+      await load();
+    } catch (e) {
+      if (e instanceof AdminAuthError) setBlockError('관리자 세션이 만료되었습니다.');
+      else setBlockError('서버 연결 실패');
+    }
   };
 
-  const handleDeleteBlock = (id: string) => {
-    const next = blocked.filter(b => b.id !== id);
-    setBlockedSlots(next);
-    setBlockedState(next);
-    window.dispatchEvent(new Event('storage'));
+  const handleDeleteBlock = async (id: string) => {
+    try {
+      const res = await adminFetch(`/api/admin/blocked-slots/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error(await res.text());
+      await load();
+    } catch {
+      // ignore
+    }
   };
 
   const dowLabel = (d: number) => DOW_OPTIONS.find(o => o.value === d)?.label ?? String(d);

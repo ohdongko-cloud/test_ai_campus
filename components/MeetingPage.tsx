@@ -3,9 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import { Reservation } from '../lib/types';
 import {
-  getReservations, setReservations, getWeekDates, generateTimeSlots,
-  getNextSlot, generateId, formatDate, formatDateTime, getUserInfo,
-  getBlockedSlots, maskName,
+  getWeekDates, generateTimeSlots,
+  getNextSlot, formatDate, getUserInfo,
+  maskName,
 } from '../lib/utils';
 import { BlockedSlot } from '../lib/types';
 
@@ -38,16 +38,38 @@ export default function MeetingPage() {
     setWeekDates(getWeekDates(weekOffset));
   }, [weekOffset]);
 
-  const loadAll = () => {
-    setReservationsState(getReservations());
-    setBlockedSlotsState(getBlockedSlots());
+  const loadAll = async () => {
+    try {
+      const [rRes, bRes] = await Promise.all([
+        fetch('/api/reservations'),
+        fetch('/api/blocked-slots'),
+      ]);
+      if (rRes.ok) {
+        const rows = await rRes.json();
+        // 공개 API는 마스킹된 name만 반환 → Reservation 타입 일부 필드만 채움
+        setReservationsState(rows.map((r: { id: string; date: string; startTime: string; endTime: string; status: string; maskedName: string }) => ({
+          id: r.id,
+          name: r.maskedName,
+          role: '',
+          taskSummary: '',
+          inquiry: '',
+          email: '',
+          phone: '',
+          date: r.date,
+          startTime: r.startTime,
+          endTime: r.endTime,
+          registeredAt: '',
+          status: r.status,
+        }) as Reservation));
+      }
+      if (bRes.ok) setBlockedSlotsState(await bRes.json());
+    } catch {
+      // ignore
+    }
   };
 
   useEffect(() => {
     loadAll();
-    const handler = () => loadAll();
-    window.addEventListener('storage', handler);
-    return () => window.removeEventListener('storage', handler);
   }, []);
 
   useEffect(() => {
@@ -163,40 +185,46 @@ export default function MeetingPage() {
   const isFormValid = () =>
     formName && formRole && formTask && formInquiry && formEmail && formPhone && selected;
 
-  const handleReserve = () => {
+  const handleReserve = async () => {
     if (!isFormValid() || !selected) return;
     const endTime = selected.endTime === selected.startTime
       ? getNextSlot(selected.startTime)
       : getNextSlot(selected.endTime);
 
-    const newRes: Reservation = {
-      id: generateId(),
-      name: formName,
-      role: formRole,
-      taskSummary: formTask,
-      inquiry: formInquiry,
-      email: formEmail,
-      phone: formPhone,
-      date: selected.date,
-      startTime: selected.startTime,
-      endTime,
-      registeredAt: formatDateTime(new Date()),
-      status: 'pending',
-    };
-    const updated = [...reservations, newRes];
-    setReservations(updated);
-    setReservationsState(updated);
+    try {
+      const res = await fetch('/api/reservations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formName, role: formRole,
+          taskSummary: formTask, inquiry: formInquiry,
+          email: formEmail, phone: formPhone,
+          date: selected.date,
+          startTime: selected.startTime,
+          endTime,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setSuccessMsg(data?.error || '예약 등록에 실패했습니다.');
+        setTimeout(() => setSuccessMsg(''), 4000);
+        return;
+      }
 
-    const dateObj = new Date(selected.date + 'T00:00:00');
-    const month = dateObj.getMonth() + 1;
-    const day = dateObj.getDate();
-    setSuccessMsg(`예약이 완료되었습니다 — ${formName}님의 ${month}/${day} ${selected.startTime} 미팅이 등록되었습니다`);
-    setTimeout(() => setSuccessMsg(''), 4000);
+      const dateObj = new Date(selected.date + 'T00:00:00');
+      const month = dateObj.getMonth() + 1;
+      const day = dateObj.getDate();
+      setSuccessMsg(`예약이 완료되었습니다 — ${formName}님의 ${month}/${day} ${selected.startTime} 미팅이 등록되었습니다`);
+      setTimeout(() => setSuccessMsg(''), 4000);
 
-    setSelected(null);
-    setFormTask('');
-    setFormInquiry('');
-    window.dispatchEvent(new Event('storage'));
+      setSelected(null);
+      setFormTask('');
+      setFormInquiry('');
+      await loadAll();
+    } catch {
+      setSuccessMsg('서버 연결에 실패했습니다.');
+      setTimeout(() => setSuccessMsg(''), 4000);
+    }
   };
 
   const handleCancel = () => {
