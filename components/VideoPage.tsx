@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { Video, VideoLevel, VideoStats, VideoComment } from '../lib/types';
-import { getVideos, setVideos, extractVideoId, getVideoLevels, getSessionId } from '../lib/utils';
+import { extractVideoId, getSessionId } from '../lib/utils';
 
 function youtubeThumb(youtubeUrl: string): string | null {
   const id = extractVideoId(youtubeUrl);
@@ -147,16 +147,21 @@ export default function VideoPage() {
     }
   };
 
-  const load = () => {
-    setVideosState(getVideos());
-    setLevels(getVideoLevels());
+  const load = async () => {
+    try {
+      const [vRes, lRes] = await Promise.all([
+        fetch('/api/videos'),
+        fetch('/api/video-levels'),
+      ]);
+      if (vRes.ok) setVideosState(await vRes.json());
+      if (lRes.ok) setLevels(await lRes.json());
+    } catch {
+      // 네트워크 실패 시 빈 상태 유지
+    }
   };
 
   useEffect(() => {
     load();
-    const handler = () => load();
-    window.addEventListener('storage', handler);
-    return () => window.removeEventListener('storage', handler);
   }, []);
 
   const levelNames = levels.map(l => l.name);
@@ -174,13 +179,15 @@ export default function VideoPage() {
   videos.forEach(v => { levelCounts[v.level] = (levelCounts[v.level] || 0) + 1; });
 
   const handleWatch = (video: Video) => {
+    // optimistic 시청수 +1, 서버에는 view 증가 요청 (fail-and-forget)
     const updated = videos.map(v =>
       v.id === video.id ? { ...v, viewCount: v.viewCount + 1 } : v
     );
-    setVideos(updated);
     setVideosState(updated);
     setSelectedVideo({ ...video, viewCount: video.viewCount + 1 });
     setOpenStageIdx(null);
+    fetch(`/api/videos/${encodeURIComponent(video.id)}/view`, { method: 'POST' })
+      .catch(() => { /* ignore */ });
   };
 
   // ── 댓글 ──

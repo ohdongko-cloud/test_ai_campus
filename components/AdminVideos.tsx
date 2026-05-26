@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { Video, VideoLevel, VideoStage } from '../lib/types';
-import { getVideos, setVideos, extractVideoId, generateId, getVideoLevels, setVideoLevels } from '../lib/utils';
+import { extractVideoId, generateId } from '../lib/utils';
+import { adminFetch, AdminAuthError } from '../lib/admin-client';
 
 const iStyle = {
   width: '100%', border: '1.5px solid #E2E8F0', borderRadius: 6,
@@ -156,89 +157,186 @@ export default function AdminVideos() {
   const [newLvName, setNewLvName] = useState('');
   const [newLvDesc, setNewLvDesc] = useState('');
 
-  const load = () => {
-    const vids = getVideos();
-    const lvls = getVideoLevels();
-    setVideosState(vids);
-    setLevelsState(lvls);
-    if (!selLevel && lvls.length > 0) setSelLevel(lvls[0].name);
+  const load = async () => {
+    try {
+      const [vRes, lRes] = await Promise.all([
+        fetch('/api/videos'),
+        fetch('/api/video-levels'),
+      ]);
+      const vids = vRes.ok ? await vRes.json() : [];
+      const lvls = lRes.ok ? await lRes.json() : [];
+      setVideosState(vids);
+      setLevelsState(lvls);
+      if (!selLevel && lvls.length > 0) setSelLevel(lvls[0].name);
+    } catch {
+      // 네트워크 실패 시 빈 상태
+    }
   };
 
   useEffect(() => {
     load();
-    const h = () => load();
-    window.addEventListener('storage', h);
-    return () => window.removeEventListener('storage', h);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const flash = (t: string) => { setMsg(t); setTimeout(() => setMsg(''), 3000); };
-  const persist = (next: Video[]) => { setVideos(next); setVideosState(next); window.dispatchEvent(new Event('storage')); };
-  const persistLvl = (next: VideoLevel[]) => { setVideoLevels(next); setLevelsState(next); window.dispatchEvent(new Event('storage')); };
+
+  // 어드민 호출 공통 에러 처리
+  const handleAdminError = async (e: unknown, fallback: string) => {
+    if (e instanceof AdminAuthError) {
+      flash('관리자 세션이 만료되었습니다. 다시 로그인해주세요.');
+    } else {
+      flash(fallback);
+    }
+  };
 
   // ── Video ops ──
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!title || !youtubeUrl) return;
-    const v: Video = {
-      id: generateId(), title, level: selLevel || levels[0]?.name || '기초',
-      description: desc, youtubeUrl, viewCount: 0,
-      stages: newStages.filter(s => s.title.trim()),
-      order: videos.length,
-    };
-    persist([...videos, v]);
-    flash('영상이 추가되었습니다.');
-    setTitle(''); setYoutubeUrl(''); setDesc('');
-    setSelLevel(levels[0]?.name || '기초'); setNewStages([]);
+    try {
+      const res = await adminFetch('/api/admin/videos', {
+        method: 'POST',
+        body: JSON.stringify({
+          id: generateId(),
+          title,
+          level: selLevel || levels[0]?.name || '기초',
+          description: desc,
+          youtubeUrl,
+          stages: newStages.filter(s => s.title.trim()),
+          order: videos.length,
+        }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      flash('영상이 추가되었습니다.');
+      setTitle(''); setYoutubeUrl(''); setDesc('');
+      setSelLevel(levels[0]?.name || '기초'); setNewStages([]);
+      await load();
+    } catch (e) {
+      handleAdminError(e, '영상 추가에 실패했습니다.');
+    }
   };
 
-  const handleDelete = (id: string) => {
-    persist(videos.filter(v => v.id !== id));
-    setConfirmDeleteId(null);
+  const handleDelete = async (id: string) => {
+    try {
+      const res = await adminFetch(`/api/admin/videos/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error(await res.text());
+      setConfirmDeleteId(null);
+      await load();
+    } catch (e) {
+      handleAdminError(e, '영상 삭제에 실패했습니다.');
+    }
   };
 
-  const moveVideo = (idx: number, dir: -1 | 1) => {
+  const moveVideo = async (idx: number, dir: -1 | 1) => {
     const ni = idx + dir;
     if (ni < 0 || ni >= videos.length) return;
     const next = [...videos]; [next[idx], next[ni]] = [next[ni], next[idx]];
-    persist(next);
+    // optimistic
+    setVideosState(next);
+    try {
+      const res = await adminFetch('/api/admin/videos/reorder', {
+        method: 'POST',
+        body: JSON.stringify({ ids: next.map(v => v.id) }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+    } catch (e) {
+      handleAdminError(e, '순서 변경에 실패했습니다.');
+      await load(); // 롤백
+    }
   };
 
-  const handleLevelChange = (id: string, lv: string) =>
-    persist(videos.map(v => v.id === id ? { ...v, level: lv } : v));
-
-  const handleSaveVideo = (id: string, newTitle: string, newUrl: string) => {
-    persist(videos.map(v => v.id === id ? { ...v, title: newTitle, youtubeUrl: newUrl } : v));
-    setEditVideoId(null);
-    flash('영상 정보가 수정되었습니다.');
+  const handleLevelChange = async (id: string, lv: string) => {
+    setVideosState(vs => vs.map(v => v.id === id ? { ...v, level: lv } : v));
+    try {
+      const res = await adminFetch(`/api/admin/videos/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ level: lv }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+    } catch (e) {
+      handleAdminError(e, '레벨 변경에 실패했습니다.');
+      await load();
+    }
   };
 
-  const updateVideoStages = (id: string, stages: VideoStage[]) =>
-    persist(videos.map(v => v.id === id ? { ...v, stages } : v));
+  const handleSaveVideo = async (id: string, newTitle: string, newUrl: string) => {
+    try {
+      const res = await adminFetch(`/api/admin/videos/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ title: newTitle, youtubeUrl: newUrl }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      setEditVideoId(null);
+      flash('영상 정보가 수정되었습니다.');
+      await load();
+    } catch (e) {
+      handleAdminError(e, '저장에 실패했습니다.');
+    }
+  };
+
+  const updateVideoStages = async (id: string, stages: VideoStage[]) => {
+    try {
+      const res = await adminFetch(`/api/admin/videos/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ stages }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      await load();
+    } catch (e) {
+      handleAdminError(e, '스테이지 저장에 실패했습니다.');
+    }
+  };
 
   // ── Level ops ──
-  const handleAddLevel = () => {
+  const handleAddLevel = async () => {
     if (!newLvName.trim()) return;
-    const lv: VideoLevel = { id: generateId(), name: newLvName.trim(), description: newLvDesc.trim() };
-    persistLvl([...levels, lv]);
-    setNewLvName(''); setNewLvDesc('');
-    flash('레벨이 추가되었습니다.');
+    try {
+      const res = await adminFetch('/api/admin/video-levels', {
+        method: 'POST',
+        body: JSON.stringify({ name: newLvName.trim(), description: newLvDesc.trim() }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error || '레벨 추가 실패');
+      }
+      setNewLvName(''); setNewLvDesc('');
+      flash('레벨이 추가되었습니다.');
+      await load();
+    } catch (e) {
+      handleAdminError(e, e instanceof Error ? e.message : '레벨 추가에 실패했습니다.');
+    }
   };
 
-  const handleDeleteLevel = (lvId: string) => {
+  const handleDeleteLevel = async (lvId: string) => {
     if (levels.length <= 1) { flash('레벨은 최소 1개 이상 있어야 합니다.'); return; }
-    const del = levels.find(l => l.id === lvId);
     const fallback = levels.find(l => l.id !== lvId)?.name || '기초';
-    const updVids = videos.map(v => v.level === del?.name ? { ...v, level: fallback } : v);
-    persist(updVids);
-    persistLvl(levels.filter(l => l.id !== lvId));
-    flash(`레벨 삭제됨. 해당 레벨 영상은 "${fallback}"으로 이동됩니다.`);
+    try {
+      const res = await adminFetch(
+        `/api/admin/video-levels/${encodeURIComponent(lvId)}?fallback=${encodeURIComponent(fallback)}`,
+        { method: 'DELETE' });
+      if (!res.ok) throw new Error(await res.text());
+      flash(`레벨 삭제됨. 해당 영상은 "${fallback}"으로 이동.`);
+      await load();
+    } catch (e) {
+      handleAdminError(e, '레벨 삭제에 실패했습니다.');
+    }
   };
 
-  const handleSaveLevel = (lvId: string, name: string, desc: string) => {
-    const oldName = levels.find(l => l.id === lvId)?.name;
-    persistLvl(levels.map(l => l.id === lvId ? { ...l, name, description: desc } : l));
-    if (oldName && oldName !== name) persist(videos.map(v => v.level === oldName ? { ...v, level: name } : v));
-    setEditLevelId(null);
-    flash('레벨이 수정되었습니다.');
+  const handleSaveLevel = async (lvId: string, name: string, desc: string) => {
+    try {
+      const res = await adminFetch(`/api/admin/video-levels/${encodeURIComponent(lvId)}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ name, description: desc }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error || '레벨 수정 실패');
+      }
+      setEditLevelId(null);
+      flash('레벨이 수정되었습니다.');
+      await load();
+    } catch (e) {
+      handleAdminError(e, e instanceof Error ? e.message : '레벨 수정에 실패했습니다.');
+    }
   };
 
   // ── Stage helpers for add form ──
