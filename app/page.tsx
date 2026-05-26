@@ -172,9 +172,9 @@ export default function Page() {
               background: 'var(--color-primary)',
               display: 'grid', placeItems: 'center',
               color: '#fff', fontFamily: 'var(--font-eng)', fontWeight: 700,
-              fontSize: 14, letterSpacing: '-0.02em', flexShrink: 0,
+              fontSize: 10, letterSpacing: '-0.04em', flexShrink: 0,
             }}>
-              AC
+              Eland
             </div>
             <div style={{
               fontWeight: 700, fontSize: 16, letterSpacing: '-0.01em',
