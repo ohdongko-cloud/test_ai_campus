@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { TabType } from '../lib/types';
-import { addClickLog, getNoaUrl, getReservations, getServices, getWeekDates } from '../lib/utils';
+import { addClickLog, getWeekDates } from '../lib/utils';
 import ChatroomPopup from './ChatroomPopup';
 
 interface Props {
@@ -368,18 +368,24 @@ export default function MainPage({ onNavigate }: Props) {
   const [shareCount, setShareCount] = useState<number | null>(null);
 
   useEffect(() => {
-    // 1. 이번 주 예약 가능 슬롯 (localStorage 기반)
+    // 1. 이번 주 예약 가능 슬롯 (DB)
     const weekDates = getWeekDates();
     const weekStart = weekDates[0].toISOString().slice(0, 10);
     const weekEnd   = weekDates[4].toISOString().slice(0, 10);
-    const reserved  = getReservations().filter(
-      r => r.date >= weekStart && r.date <= weekEnd && r.status !== 'cancelled'
-    );
-    const TOTAL = 18 * 5; // 08:00~17:00, 30분 슬롯, 월~금
-    setAvailableSlots(Math.max(0, TOTAL - reserved.length));
+    fetch('/api/reservations')
+      .then(r => r.ok ? r.json() : [])
+      .then((rows: { date: string; status: string }[]) => {
+        const reserved = rows.filter(r => r.date >= weekStart && r.date <= weekEnd && r.status !== 'cancelled');
+        const TOTAL = 18 * 5;
+        setAvailableSlots(Math.max(0, TOTAL - reserved.length));
+      })
+      .catch(() => {});
 
-    // 2. 공유 서비스 수 (localStorage 기반)
-    setShareCount(getServices().length);
+    // 2. 공유 서비스 수 (DB)
+    fetch('/api/services')
+      .then(r => r.ok ? r.json() : [])
+      .then((rows: unknown[]) => setShareCount(rows.length))
+      .catch(() => {});
 
     // 3. 게시판 통계 (DB API)
     fetch('/api/stats')
@@ -402,10 +408,20 @@ export default function MainPage({ onNavigate }: Props) {
     setTimeout(() => onNavigate(tab), 120);
   };
 
-  const handleNoa = () => {
+  const handleNoa = async () => {
     addClickLog('NOA');
     showToast('NOA를 새 탭에서 여는 중…');
-    window.open(getNoaUrl(), '_blank', 'noopener,noreferrer');
+    // NOA URL을 DB에서 매번 조회 (캐시 없음, 횟수 적음)
+    try {
+      const res = await fetch('/api/settings?keys=noa_url');
+      if (res.ok) {
+        const s = await res.json();
+        const url = typeof s.noa_url === 'string' && s.noa_url ? s.noa_url : 'https://noa.eland.com';
+        window.open(url, '_blank', 'noopener,noreferrer');
+        return;
+      }
+    } catch { /* ignore */ }
+    window.open('https://noa.eland.com', '_blank', 'noopener,noreferrer');
   };
 
   const handleCommunity = () => {

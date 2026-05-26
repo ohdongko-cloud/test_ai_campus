@@ -2,25 +2,30 @@
 
 import { useState, useEffect } from 'react';
 import { SharedService } from '../lib/types';
-import { getServices, setServices } from '../lib/utils';
+import { adminFetch } from '../lib/admin-client';
 
 export default function AdminServices() {
   const [services, setServicesState] = useState<SharedService[]>([]);
 
-  const load = () => setServicesState(getServices());
+  const load = async () => {
+    try {
+      const res = await fetch('/api/services');
+      if (res.ok) setServicesState(await res.json());
+    } catch { /* ignore */ }
+  };
 
   useEffect(() => {
     load();
-    const handler = () => load();
-    window.addEventListener('storage', handler);
-    return () => window.removeEventListener('storage', handler);
   }, []);
 
-  const handleDelete = (id: string) => {
-    const updated = services.filter(s => s.id !== id);
-    setServices(updated);
-    setServicesState(updated);
-    window.dispatchEvent(new Event('storage'));
+  const handleDelete = async (id: string) => {
+    setServicesState(ss => ss.filter(s => s.id !== id));
+    try {
+      const res = await adminFetch(`/api/admin/services/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error();
+    } catch {
+      await load();
+    }
   };
 
   return (

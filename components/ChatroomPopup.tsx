@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { getChatroomPassword, getChatroomRules, getChatroomUrl } from '../lib/utils';
 
 interface Props {
   onClose: () => void;
@@ -15,9 +14,18 @@ export default function ChatroomPopup({ onClose }: Props) {
   const [showPw, setShowPw] = useState(false);
 
   useEffect(() => {
-    setPassword(getChatroomPassword());
-    setRules(getChatroomRules());
-    setUrl(getChatroomUrl());
+    (async () => {
+      try {
+        const res = await fetch('/api/settings?keys=chatroom_url,chatroom_password,chatroom_rules');
+        if (!res.ok) return;
+        const s = await res.json();
+        if (typeof s.chatroom_password === 'string') setPassword(s.chatroom_password);
+        if (typeof s.chatroom_rules === 'string') setRules(s.chatroom_rules);
+        if (typeof s.chatroom_url === 'string') setUrl(s.chatroom_url || 'https://open.kakao.com');
+      } catch {
+        setUrl('https://open.kakao.com');
+      }
+    })();
   }, []);
 
   const handleCopy = () => {

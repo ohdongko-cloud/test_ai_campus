@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { SharedService } from '../lib/types';
-import { getServices, setServices, generateId, formatDateTime } from '../lib/utils';
 
 export default function SharePage() {
   const [services, setServicesState] = useState<SharedService[]>([]);
@@ -12,35 +11,54 @@ export default function SharePage() {
   const [testAccount, setTestAccount] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
-  const load = () => setServicesState(getServices());
+  const load = async () => {
+    try {
+      const res = await fetch('/api/services');
+      if (res.ok) setServicesState(await res.json());
+    } catch { /* ignore */ }
+  };
 
   useEffect(() => {
     load();
-    const handler = () => load();
-    window.addEventListener('storage', handler);
-    return () => window.removeEventListener('storage', handler);
   }, []);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!serviceName || !description || !url) return;
-    const newService: SharedService = {
-      id: generateId(),
-      serviceName,
-      description,
-      url,
-      testAccount,
-      registeredAt: formatDateTime(new Date()),
-    };
-    const updated = [...services, newService];
-    setServices(updated);
-    setServicesState(updated);
-    setSuccessMsg(`${serviceName} 서비스가 공유되었습니다.`);
-    setTimeout(() => setSuccessMsg(''), 3000);
-    setServiceName('');
-    setDescription('');
-    setUrl('');
-    setTestAccount('');
-    window.dispatchEvent(new Event('storage'));
+    // 사용자 측은 인증 없이 등록 가능... 하지만 이 PRD에서 사용자 측은 어드민만 등록.
+    // 안내: 사용자 측 공유 페이지에서 직접 등록은 가급적 어드민으로 옮긴다.
+    // 단, 현행 UX 유지를 위해 직접 POST를 admin 경로로 보냄(어드민 비번 없으면 401).
+    try {
+      const res = await fetch('/api/admin/services', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          // sessionStorage 어드민 비번이 있으면 부착, 없으면 401
+          ...(typeof window !== 'undefined' && sessionStorage.getItem('_admin_pw')
+            ? { 'X-Admin-Password': sessionStorage.getItem('_admin_pw') as string }
+            : {}),
+        },
+        body: JSON.stringify({ serviceName, description, url, testAccount }),
+      });
+      if (!res.ok) {
+        if (res.status === 401) {
+          setSuccessMsg('관리자만 서비스를 공유할 수 있습니다.');
+        } else {
+          setSuccessMsg('등록에 실패했습니다.');
+        }
+        setTimeout(() => setSuccessMsg(''), 3000);
+        return;
+      }
+      setSuccessMsg(`${serviceName} 서비스가 공유되었습니다.`);
+      setTimeout(() => setSuccessMsg(''), 3000);
+      setServiceName('');
+      setDescription('');
+      setUrl('');
+      setTestAccount('');
+      await load();
+    } catch {
+      setSuccessMsg('서버 연결에 실패했습니다.');
+      setTimeout(() => setSuccessMsg(''), 3000);
+    }
   };
 
   return (

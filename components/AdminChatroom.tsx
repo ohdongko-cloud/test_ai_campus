@@ -1,11 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import {
-  getChatroomUrl, setChatroomUrl,
-  getChatroomPassword, setChatroomPassword,
-  getChatroomRules, setChatroomRules,
-} from '../lib/utils';
+import { adminFetch } from '../lib/admin-client';
 
 export default function AdminChatroom() {
   const [url, setUrl] = useState('');
@@ -14,9 +10,17 @@ export default function AdminChatroom() {
   const [successMsg, setSuccessMsg] = useState('');
 
   useEffect(() => {
-    setUrl(getChatroomUrl());
-    setPassword(getChatroomPassword());
-    setRules(getChatroomRules());
+    (async () => {
+      try {
+        const res = await fetch('/api/settings?keys=chatroom_url,chatroom_password,chatroom_rules');
+        if (res.ok) {
+          const s = await res.json();
+          if (typeof s.chatroom_url === 'string') setUrl(s.chatroom_url);
+          if (typeof s.chatroom_password === 'string') setPassword(s.chatroom_password);
+          if (typeof s.chatroom_rules === 'string') setRules(s.chatroom_rules);
+        }
+      } catch { /* ignore */ }
+    })();
   }, []);
 
   const showSuccess = (msg: string) => {
@@ -24,23 +28,25 @@ export default function AdminChatroom() {
     setTimeout(() => setSuccessMsg(''), 3000);
   };
 
-  const handleSaveUrl = () => {
-    setChatroomUrl(url);
-    window.dispatchEvent(new Event('storage'));
-    showSuccess('오픈채팅방 링크가 저장되었습니다.');
+  const saveKey = async (key: string, value: string, okMsg: string) => {
+    try {
+      const res = await adminFetch('/api/admin/settings', {
+        method: 'PATCH',
+        body: JSON.stringify({ key, value }),
+      });
+      if (!res.ok) {
+        showSuccess('저장에 실패했습니다.');
+        return;
+      }
+      showSuccess(okMsg);
+    } catch {
+      showSuccess('저장에 실패했습니다.');
+    }
   };
 
-  const handleSavePassword = () => {
-    setChatroomPassword(password);
-    window.dispatchEvent(new Event('storage'));
-    showSuccess('입장 비밀번호가 저장되었습니다.');
-  };
-
-  const handleSaveRules = () => {
-    setChatroomRules(rules);
-    window.dispatchEvent(new Event('storage'));
-    showSuccess('이용 규칙이 저장되었습니다.');
-  };
+  const handleSaveUrl = () => saveKey('chatroom_url', url, '오픈채팅방 링크가 저장되었습니다.');
+  const handleSavePassword = () => saveKey('chatroom_password', password, '입장 비밀번호가 저장되었습니다.');
+  const handleSaveRules = () => saveKey('chatroom_rules', rules, '이용 규칙이 저장되었습니다.');
 
   const inputStyle: React.CSSProperties = {
     width: '100%', border: '1.5px solid #E2E8F0', borderRadius: 6,

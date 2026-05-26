@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { GuideGroup, GuideServiceItem, TabType } from '../lib/types';
-import { getGuideGroups, setGuideGroups } from '../lib/utils';
+import { adminFetch } from '../lib/admin-client';
 
 interface Props {
   isAdmin?: boolean;
@@ -431,10 +431,17 @@ export default function GuidePage({ isAdmin = false, onNavigate }: Props) {
   }, []);
 
   useEffect(() => {
-    const load = () => { const g = getGuideGroups(); setGroupsState(g); setSavedGroups(g); };
+    const load = async () => {
+      try {
+        const res = await fetch('/api/guide');
+        if (res.ok) {
+          const g = await res.json();
+          setGroupsState(g);
+          setSavedGroups(g);
+        }
+      } catch { /* ignore */ }
+    };
     load();
-    window.addEventListener('storage', load);
-    return () => window.removeEventListener('storage', load);
   }, []);
 
   // Toggle body class for CSS-driven edit-mode styles
@@ -460,12 +467,22 @@ export default function GuidePage({ isAdmin = false, onNavigate }: Props) {
   // Editing actions
   const startEditing = () => { setSavedGroups(groups); setIsEditing(true); showToast('편집 모드 시작 — 카드를 수정하거나 새 카드를 추가하세요'); };
   const cancelEditing = () => { setGroupsState(savedGroups); setIsEditing(false); };
-  const saveEditing = () => {
-    setGuideGroups(groups);
-    setSavedGroups(groups);
-    setIsEditing(false);
-    showToast('변경사항이 저장되었습니다');
-    window.dispatchEvent(new Event('storage'));
+  const saveEditing = async () => {
+    try {
+      const res = await adminFetch('/api/admin/guide', {
+        method: 'PUT',
+        body: JSON.stringify(groups),
+      });
+      if (!res.ok) {
+        showToast('저장에 실패했습니다 — 관리자 로그인을 확인하세요');
+        return;
+      }
+      setSavedGroups(groups);
+      setIsEditing(false);
+      showToast('변경사항이 저장되었습니다');
+    } catch {
+      showToast('저장에 실패했습니다');
+    }
   };
 
   const handleSaveModal = (data: {

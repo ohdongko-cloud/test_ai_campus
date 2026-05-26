@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { GuideGroup, GuideServiceItem } from '../lib/types';
-import { getGuideGroups, setGuideGroups, getNoaUrl, setNoaUrl, generateId } from '../lib/utils';
+import { generateId } from '../lib/utils';
+import { adminFetch } from '../lib/admin-client';
 
 const EMPTY_ITEM = (): GuideServiceItem => ({
   id: generateId(), name: '', description: '', cost: '', url: '', recommended: false,
@@ -19,20 +20,42 @@ export default function AdminGuide() {
   const [savedMsg, setSavedMsg] = useState('');
 
   useEffect(() => {
-    setGroupsState(getGuideGroups());
-    setNoaUrlState(getNoaUrl());
+    (async () => {
+      try {
+        const [gRes, sRes] = await Promise.all([
+          fetch('/api/guide'),
+          fetch('/api/settings?keys=noa_url'),
+        ]);
+        if (gRes.ok) setGroupsState(await gRes.json());
+        if (sRes.ok) {
+          const s = await sRes.json();
+          setNoaUrlState(typeof s.noa_url === 'string' ? s.noa_url : '');
+        }
+      } catch { /* ignore */ }
+    })();
   }, []);
 
-  const save = (next: GuideGroup[]) => {
-    setGuideGroups(next);
+  const save = async (next: GuideGroup[]) => {
     setGroupsState(next);
-    window.dispatchEvent(new Event('storage'));
-    setSavedMsg('저장되었습니다.');
-    setTimeout(() => setSavedMsg(''), 2000);
+    try {
+      const res = await adminFetch('/api/admin/guide', {
+        method: 'PUT',
+        body: JSON.stringify(next),
+      });
+      if (!res.ok) {
+        setSavedMsg('저장에 실패했습니다.');
+        setTimeout(() => setSavedMsg(''), 2000);
+        return;
+      }
+      setSavedMsg('저장되었습니다.');
+      setTimeout(() => setSavedMsg(''), 2000);
+    } catch {
+      setSavedMsg('저장에 실패했습니다.');
+      setTimeout(() => setSavedMsg(''), 2000);
+    }
   };
 
-  const saveNoa = () => {
-    // URL 검증: http(s):// 로 시작해야 함
+  const saveNoa = async () => {
     try {
       const u = new URL(noaUrl);
       if (u.protocol !== 'https:' && u.protocol !== 'http:') throw new Error();
@@ -41,10 +64,22 @@ export default function AdminGuide() {
       setTimeout(() => setSavedMsg(''), 3000);
       return;
     }
-    setNoaUrl(noaUrl);
-    window.dispatchEvent(new Event('storage'));
-    setSavedMsg('NOA URL이 저장되었습니다.');
-    setTimeout(() => setSavedMsg(''), 2000);
+    try {
+      const res = await adminFetch('/api/admin/settings', {
+        method: 'PATCH',
+        body: JSON.stringify({ key: 'noa_url', value: noaUrl }),
+      });
+      if (!res.ok) {
+        setSavedMsg('저장에 실패했습니다.');
+        setTimeout(() => setSavedMsg(''), 2000);
+        return;
+      }
+      setSavedMsg('NOA URL이 저장되었습니다.');
+      setTimeout(() => setSavedMsg(''), 2000);
+    } catch {
+      setSavedMsg('저장에 실패했습니다.');
+      setTimeout(() => setSavedMsg(''), 2000);
+    }
   };
 
   // 그룹 추가
