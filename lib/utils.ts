@@ -15,7 +15,19 @@ export const KEYS = {
   GUIDE_GROUPS: 'axtf_guide_groups',
   NOA_URL: 'axtf_noa_url',
   VIDEO_LEVELS: 'axtf_video_levels',
+  SESSION_ID: '_board_session', // 좋아요/댓글 세션 ID (게시판과 공유)
 };
+
+// 게시판/영상에서 공통 사용하는 세션 ID. 첫 호출 시 UUID 발급해 localStorage 저장.
+export function getSessionId(): string {
+  if (typeof window === 'undefined') return '';
+  let id = localStorage.getItem(KEYS.SESSION_ID);
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem(KEYS.SESSION_ID, id);
+  }
+  return id;
+}
 
 const DEFAULT_VIDEO_LEVELS: VideoLevel[] = [
   { id: 'basic',        name: '기초', description: '기초 개념과 입문 수준의 강의' },

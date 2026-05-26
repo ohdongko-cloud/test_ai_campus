@@ -117,3 +117,20 @@ export interface Comment {
   created_at: string;
   updated_at: string;
 }
+
+// 영상 좋아요/댓글 (DB)
+export interface VideoStats {
+  video_id: string;
+  likes_count: number;
+  comments_count: number;
+  liked?: boolean;
+}
+
+export interface VideoComment {
+  id: string;
+  video_id: string;
+  content: string;
+  is_deleted: boolean;
+  created_at: string;
+  updated_at: string;
+}

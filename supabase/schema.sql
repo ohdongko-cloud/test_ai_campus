@@ -75,3 +75,45 @@ CREATE TRIGGER comments_updated_at
 
 CREATE TRIGGER users_updated_at
   BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- ─────────────────────────────────────────────────────────────
+-- 영상 좋아요 / 댓글 (videos 자체는 localStorage 기반이므로 FK 없음)
+-- ─────────────────────────────────────────────────────────────
+
+-- video_stats: 영상별 카운트 캐시
+CREATE TABLE IF NOT EXISTS video_stats (
+  video_id        TEXT PRIMARY KEY,
+  likes_count     INTEGER NOT NULL DEFAULT 0,
+  comments_count  INTEGER NOT NULL DEFAULT 0,
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TRIGGER video_stats_updated_at
+  BEFORE UPDATE ON video_stats FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- video_likes: 세션당 1회 (UNIQUE 제약)
+CREATE TABLE IF NOT EXISTS video_likes (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  video_id    TEXT NOT NULL,
+  session_id  TEXT NOT NULL,
+  liked_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(video_id, session_id)
+);
+
+CREATE INDEX IF NOT EXISTS video_likes_video_idx ON video_likes (video_id);
+
+-- video_comments: 비번 기반 익명 댓글 (게시판 패턴)
+CREATE TABLE IF NOT EXISTS video_comments (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  video_id      TEXT NOT NULL,
+  content       TEXT NOT NULL,
+  password_hash TEXT,
+  is_deleted    BOOLEAN NOT NULL DEFAULT false,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS video_comments_video_idx ON video_comments (video_id, created_at);
+
+CREATE TRIGGER video_comments_updated_at
+  BEFORE UPDATE ON video_comments FOR EACH ROW EXECUTE FUNCTION set_updated_at();
