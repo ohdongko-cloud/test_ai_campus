@@ -287,6 +287,155 @@ export default function VideoPage() {
     ...levelNames.map(name => ({ id: name, count: levelCounts[name] || 0 })),
   ];
 
+  // ── 카드 렌더 헬퍼 ── (level grouping과 단일 그리드에서 공용)
+  const renderVideoCard = (v: Video, idx: number, paletteIdx: number) => {
+    const badge = getBadgeStyle(v.level, levels);
+    const palette = CARD_PALETTES[paletteIdx % CARD_PALETTES.length];
+    const isHover = hoverCard === v.id;
+    const thumb = youtubeThumb(v.youtubeUrl);
+    const useFallback = !thumb || thumbFailed[v.id];
+    const s = getStats(v.id);
+    void idx;
+    return (
+      <div
+        key={v.id}
+        onMouseEnter={() => setHoverCard(v.id)}
+        onMouseLeave={() => setHoverCard(null)}
+        onClick={() => handleWatch(v)}
+        style={{
+          background: T.surface, border: `1px solid ${isHover ? T.primary : T.border}`,
+          borderRadius: T.r2, overflow: 'hidden',
+          boxShadow: isHover ? T.shadowMd : T.shadowSm,
+          transform: isHover ? 'translateY(-2px)' : 'translateY(0)',
+          transition: 'all .18s', cursor: 'pointer',
+        }}
+      >
+        {/* 썸네일 */}
+        <div style={{
+          aspectRatio: '16/9',
+          background: palette.bg,
+          backgroundImage: useFallback
+            ? `repeating-linear-gradient(135deg, transparent 0 12px, ${palette.fg}11 12px 13px)`
+            : undefined,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          position: 'relative', overflow: 'hidden',
+        }}>
+          {!useFallback && (
+            <img
+              src={thumb}
+              alt={v.title}
+              onError={() => setThumbFailed(m => ({ ...m, [v.id]: true }))}
+              style={{
+                position: 'absolute', inset: 0,
+                width: '100%', height: '100%',
+                objectFit: 'cover',
+                transform: isHover ? 'scale(1.04)' : 'scale(1)',
+                transition: 'transform .25s ease',
+              }}
+            />
+          )}
+          <div style={{
+            position: 'relative', zIndex: 1,
+            width: 52, height: 52, borderRadius: '50%',
+            background: 'rgba(255,255,255,0.95)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.18)',
+          }}>
+            <svg width="20" height="20" viewBox="0 0 24 24">
+              <path d="M9 7l9 5-9 5V7z" fill={T.primary}/>
+            </svg>
+          </div>
+        </div>
+
+        {/* 카드 본문 */}
+        <div style={{ padding: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', height: 20,
+              padding: '0 8px', fontSize: 11, background: badge.bg, color: badge.fg,
+              borderRadius: 999, fontWeight: 600, whiteSpace: 'nowrap',
+            }}>{v.level}</span>
+            <span style={{ fontSize: 11, color: T.textMuted }}>
+              조회 {v.viewCount.toLocaleString()}
+            </span>
+            {v.stages && v.stages.length > 0 && (
+              <span style={{
+                fontSize: 10, color: T.primary,
+                background: T.primaryLight, padding: '1px 6px',
+                borderRadius: 999, fontWeight: 600,
+              }}>
+                {v.stages.length}단계
+              </span>
+            )}
+          </div>
+          <div style={{
+            fontSize: 15, fontWeight: 700, color: T.text,
+            letterSpacing: '-0.02em', marginBottom: 6, lineHeight: 1.4,
+            fontFamily: T.fontKo,
+          }}>{v.title}</div>
+          <p style={{
+            margin: 0, fontSize: 13, color: T.textMuted, lineHeight: 1.5,
+            display: '-webkit-box', WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical' as const, overflow: 'hidden',
+          }}>{v.description}</p>
+
+          {/* 좋아요 / 댓글 인디케이터 */}
+          <div style={{
+            marginTop: 14, paddingTop: 12, borderTop: `1px dashed ${T.border}`,
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            gap: 8,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <button
+                type="button"
+                onClick={e => { e.stopPropagation(); handleToggleLike(v.id); }}
+                disabled={!!likeBusy[v.id]}
+                aria-pressed={!!s.liked}
+                aria-label={s.liked ? '좋아요 취소' : '좋아요'}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                  padding: '4px 10px', borderRadius: 999, cursor: 'pointer',
+                  background: s.liked ? T.dangerBg : T.surface,
+                  border: `1px solid ${s.liked ? '#FBCBD2' : T.border}`,
+                  color: s.liked ? T.danger : T.textBody,
+                  fontSize: 12, fontWeight: 600, fontFamily: T.fontKo,
+                  transition: 'all .15s',
+                  opacity: likeBusy[v.id] ? 0.6 : 1,
+                }}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24"
+                  fill={s.liked ? T.danger : 'none'}
+                  stroke={s.liked ? T.danger : T.textMuted}
+                  strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                </svg>
+                {s.likes_count}
+              </button>
+              <div
+                aria-label={`댓글 ${s.comments_count}개`}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                  color: T.textMuted, fontSize: 12, fontWeight: 600,
+                  fontFamily: T.fontKo,
+                }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                </svg>
+                {s.comments_count}
+              </div>
+            </div>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: T.primary }}>
+              시청하기
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={T.primary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 12h14M13 6l6 6-6 6"/>
+              </svg>
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div style={{ maxWidth: 1280, margin: '0 auto', padding: '32px 24px 64px', fontFamily: T.fontKo }}>
       {/* 페이지 헤더 */}
@@ -395,165 +544,54 @@ export default function VideoPage() {
               <div style={{ fontSize: 14, fontWeight: 600, color: T.text, marginBottom: 6 }}>검색 결과가 없습니다</div>
               <p style={{ margin: 0, fontSize: 13, color: T.textMuted }}>다른 키워드로 검색하거나 필터를 조정해보세요.</p>
             </div>
+          ) : levelFilter === '전체' ? (
+            // 전체 필터: 레벨별 섹션으로 분리
+            <div>
+              {levels.map(lv => {
+                const items = filtered.filter(v => v.level === lv.name);
+                if (items.length === 0) return null;
+                const badge = getBadgeStyle(lv.name, levels);
+                return (
+                  <div key={lv.id} style={{ marginBottom: 36 }}>
+                    {/* 레벨 헤더 + 구분선 */}
+                    <div style={{
+                      display: 'flex', alignItems: 'center', gap: 12,
+                      marginBottom: 16, paddingBottom: 12,
+                      borderBottom: `1.5px dashed ${T.border}`,
+                    }}>
+                      <span style={{
+                        display: 'inline-flex', alignItems: 'center', height: 24,
+                        padding: '0 10px', fontSize: 12, fontWeight: 700,
+                        background: badge.bg, color: badge.fg,
+                        borderRadius: 999,
+                      }}>{lv.name}</span>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: T.text }}>
+                        {items.length}편
+                      </span>
+                      <span style={{ flex: 1, fontSize: 12, color: T.textMuted, marginLeft: 6 }}>
+                        {lv.description}
+                      </span>
+                    </div>
+                    {/* 해당 레벨 카드 그리드 */}
+                    <div style={{
+                      display: 'grid', gap: 16,
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+                    }}>
+                      {items.map((v, vidx) => {
+                        const idx = filtered.indexOf(v);
+                        return renderVideoCard(v, idx, vidx);
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           ) : (
             <div style={{
               display: 'grid', gap: 16,
               gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
             }}>
-              {filtered.map((v, idx) => {
-                const badge = getBadgeStyle(v.level, levels);
-                const palette = CARD_PALETTES[idx % CARD_PALETTES.length];
-                const isHover = hoverCard === v.id;
-                return (
-                  <div
-                    key={v.id}
-                    onMouseEnter={() => setHoverCard(v.id)}
-                    onMouseLeave={() => setHoverCard(null)}
-                    onClick={() => handleWatch(v)}
-                    style={{
-                      background: T.surface, border: `1px solid ${isHover ? T.primary : T.border}`,
-                      borderRadius: T.r2, overflow: 'hidden',
-                      boxShadow: isHover ? T.shadowMd : T.shadowSm,
-                      transform: isHover ? 'translateY(-2px)' : 'translateY(0)',
-                      transition: 'all .18s', cursor: 'pointer',
-                    }}
-                  >
-                    {/* 썸네일 */}
-                    {(() => {
-                      const thumb = youtubeThumb(v.youtubeUrl);
-                      const useFallback = !thumb || thumbFailed[v.id];
-                      return (
-                        <div style={{
-                          aspectRatio: '16/9',
-                          background: palette.bg,
-                          backgroundImage: useFallback
-                            ? `repeating-linear-gradient(135deg, transparent 0 12px, ${palette.fg}11 12px 13px)`
-                            : undefined,
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          position: 'relative', overflow: 'hidden',
-                        }}>
-                          {!useFallback && (
-                            <img
-                              src={thumb}
-                              alt={v.title}
-                              onError={() => setThumbFailed(m => ({ ...m, [v.id]: true }))}
-                              style={{
-                                position: 'absolute', inset: 0,
-                                width: '100%', height: '100%',
-                                objectFit: 'cover',
-                                transform: isHover ? 'scale(1.04)' : 'scale(1)',
-                                transition: 'transform .25s ease',
-                              }}
-                            />
-                          )}
-                          <div style={{
-                            position: 'relative', zIndex: 1,
-                            width: 52, height: 52, borderRadius: '50%',
-                            background: 'rgba(255,255,255,0.95)',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            boxShadow: '0 4px 12px rgba(0,0,0,0.18)',
-                          }}>
-                            <svg width="20" height="20" viewBox="0 0 24 24">
-                              <path d="M9 7l9 5-9 5V7z" fill={T.primary}/>
-                            </svg>
-                          </div>
-                        </div>
-                      );
-                    })()}
-
-                    {/* 카드 본문 */}
-                    <div style={{ padding: 16 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                        <span style={{
-                          display: 'inline-flex', alignItems: 'center', height: 20,
-                          padding: '0 8px', fontSize: 11, background: badge.bg, color: badge.fg,
-                          borderRadius: 999, fontWeight: 600, whiteSpace: 'nowrap',
-                        }}>{v.level}</span>
-                        <span style={{ fontSize: 11, color: T.textMuted }}>
-                          조회 {v.viewCount.toLocaleString()}
-                        </span>
-                        {v.stages && v.stages.length > 0 && (
-                          <span style={{
-                            fontSize: 10, color: T.primary,
-                            background: T.primaryLight, padding: '1px 6px',
-                            borderRadius: 999, fontWeight: 600,
-                          }}>
-                            {v.stages.length}단계
-                          </span>
-                        )}
-                      </div>
-                      <div style={{
-                        fontSize: 15, fontWeight: 700, color: T.text,
-                        letterSpacing: '-0.02em', marginBottom: 6, lineHeight: 1.4,
-                        fontFamily: T.fontKo,
-                      }}>{v.title}</div>
-                      <p style={{
-                        margin: 0, fontSize: 13, color: T.textMuted, lineHeight: 1.5,
-                        display: '-webkit-box', WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical' as const, overflow: 'hidden',
-                      }}>{v.description}</p>
-
-                      {/* 좋아요 / 댓글 인디케이터 */}
-                      {(() => {
-                        const s = getStats(v.id);
-                        return (
-                          <div style={{
-                            marginTop: 14, paddingTop: 12, borderTop: `1px dashed ${T.border}`,
-                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                            gap: 8,
-                          }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                              <button
-                                type="button"
-                                onClick={e => { e.stopPropagation(); handleToggleLike(v.id); }}
-                                disabled={!!likeBusy[v.id]}
-                                aria-pressed={!!s.liked}
-                                aria-label={s.liked ? '좋아요 취소' : '좋아요'}
-                                style={{
-                                  display: 'inline-flex', alignItems: 'center', gap: 5,
-                                  padding: '4px 10px', borderRadius: 999, cursor: 'pointer',
-                                  background: s.liked ? T.dangerBg : T.surface,
-                                  border: `1px solid ${s.liked ? '#FBCBD2' : T.border}`,
-                                  color: s.liked ? T.danger : T.textBody,
-                                  fontSize: 12, fontWeight: 600, fontFamily: T.fontKo,
-                                  transition: 'all .15s',
-                                  opacity: likeBusy[v.id] ? 0.6 : 1,
-                                }}
-                              >
-                                <svg width="13" height="13" viewBox="0 0 24 24"
-                                  fill={s.liked ? T.danger : 'none'}
-                                  stroke={s.liked ? T.danger : T.textMuted}
-                                  strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-                                </svg>
-                                {s.likes_count}
-                              </button>
-                              <div
-                                aria-label={`댓글 ${s.comments_count}개`}
-                                style={{
-                                  display: 'inline-flex', alignItems: 'center', gap: 5,
-                                  color: T.textMuted, fontSize: 12, fontWeight: 600,
-                                  fontFamily: T.fontKo,
-                                }}>
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                                </svg>
-                                {s.comments_count}
-                              </div>
-                            </div>
-                            <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: T.primary }}>
-                              시청하기
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={T.primary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M5 12h14M13 6l6 6-6 6"/>
-                              </svg>
-                            </span>
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  </div>
-                );
-              })}
+              {filtered.map((v, idx) => renderVideoCard(v, idx, idx))}
             </div>
           )}
         </div>

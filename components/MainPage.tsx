@@ -523,9 +523,31 @@ export default function MainPage({ onNavigate }: Props) {
                 icon={<GuideIcon />}
                 title="필수 도구 둘러보기"
                 desc="프로젝트에 필요한 핵심 서비스와 도구를 한 페이지에 정리했습니다."
-                meta="7 categories · 24 services"
+                meta="10 categories · 28 services"
                 metaRight={<Badge variant="new">업데이트</Badge>}
                 onClick={() => handleNav('guide', '필수 도구 둘러보기')}
+              />
+              <ActionCard
+                icon={<GuideIcon />}
+                title="Claude Code 다운로드"
+                desc="Anthropic Sonnet 4.5 기반 터미널 코딩 에이전트. 멀티파일 리팩토링·디버깅 강력."
+                meta="공식 사이트"
+                metaRight={<Badge variant="secondary">유료</Badge>}
+                onClick={() => {
+                  addClickLog('Claude Code 다운로드');
+                  window.open('https://claude.com/ko/download', '_blank', 'noopener,noreferrer');
+                }}
+              />
+              <ActionCard
+                icon={<GuideIcon />}
+                title="Codex 다운로드"
+                desc="OpenAI GPT-5 기반 코딩 에이전트. 빠른 작업·웹 검색·멀티모달 통합."
+                meta="공식 사이트"
+                metaRight={<Badge variant="secondary">유료</Badge>}
+                onClick={() => {
+                  addClickLog('Codex 다운로드');
+                  window.open('https://chatgpt.com/ko-KR/codex', '_blank', 'noopener,noreferrer');
+                }}
               />
             </div>
           </section>
