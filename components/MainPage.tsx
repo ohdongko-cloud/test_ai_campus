@@ -536,7 +536,7 @@ export default function MainPage({ onNavigate }: Props) {
                 onClick={() => handleNav('guide', '필수 도구 둘러보기')}
               />
               <ActionCard
-                icon={<LogoIcon src="https://cdn.simpleicons.org/claude/C15F3C" alt="Claude" />}
+                icon={<LogoIcon src="https://www.google.com/s2/favicons?domain=claude.com&sz=128" alt="Claude" />}
                 title="Claude Code 다운로드"
                 desc="터미널에서 AI가 같이 코딩. 여러 파일 한 번에 수정 강력."
                 meta="공식 사이트"
@@ -547,7 +547,7 @@ export default function MainPage({ onNavigate }: Props) {
                 }}
               />
               <ActionCard
-                icon={<LogoIcon src="https://cdn.simpleicons.org/openai/000000" alt="OpenAI" />}
+                icon={<LogoIcon src="https://www.google.com/s2/favicons?domain=chatgpt.com&sz=128" alt="OpenAI" />}
                 title="Codex 다운로드"
                 desc="OpenAI의 코딩 전용 AI. ChatGPT 가입자는 바로 사용."
                 meta="공식 사이트"
