@@ -6,6 +6,7 @@ import { setUserSessionCookie } from '../../../lib/session';
 import { containsReplacementChar } from '../../../lib/text-validation';
 import { checkRateLimit, getClientIp, tooManyRequests } from '../../../lib/ratelimit';
 import { logAuth } from '../../../lib/audit';
+import { reportError } from '../../../lib/error-report';
 
 // POST /api/users — 신규 계정 생성 (이메일 인증 후 signup_token 필수)
 export async function POST(req: NextRequest) {
@@ -77,7 +78,8 @@ export async function POST(req: NextRequest) {
       organizationName: u.organization_name,
       position: u.position,
     }, { status: 201 });
-  } catch {
+  } catch (e) {
+    reportError(e, { route: 'users.signup', detail: { email } });
     return NextResponse.json({ error: '서버 오류가 발생했습니다.' }, { status: 500 });
   }
 }

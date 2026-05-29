@@ -4,6 +4,7 @@ import { verifyPassword, hashPassword } from '../../../../lib/password';
 import { setUserSessionCookie } from '../../../../lib/session';
 import { checkRateLimit, getClientIp, tooManyRequests } from '../../../../lib/ratelimit';
 import { logAuth } from '../../../../lib/audit';
+import { reportError } from '../../../../lib/error-report';
 
 // POST /api/users/login  body: { email, password, rememberMe? }
 export async function POST(req: NextRequest) {
@@ -62,7 +63,8 @@ export async function POST(req: NextRequest) {
       organizationName: u.organization_name,
       position: u.position,
     });
-  } catch {
+  } catch (e) {
+    reportError(e, { route: 'users/login' });
     return NextResponse.json({ error: '서버 오류가 발생했습니다.' }, { status: 500 });
   }
 }
