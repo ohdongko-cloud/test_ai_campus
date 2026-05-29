@@ -10,6 +10,7 @@ import AdminServices from './AdminServices';
 import AdminBoardStats from './AdminBoardStats';
 import AdminGuide from './AdminGuide';
 import AdminImport from './AdminImport';
+import AdminLogs from './AdminLogs';
 
 interface Props {
   onExit: () => void;
@@ -28,6 +29,7 @@ const TABS: TabInfo[] = [
   { key: 'services', label: '서비스 공유 관리' },
   { key: 'board', label: '게시판 관리' },
   { key: 'guide', label: '가이드 관리' },
+  { key: 'logs', label: '로그' },
 ];
 
 export default function AdminDashboard({ onExit }: Props) {
@@ -43,6 +45,7 @@ export default function AdminDashboard({ onExit }: Props) {
       case 'services': return <AdminServices />;
       case 'board':    return <AdminBoardStats />;
       case 'guide':    return <AdminGuide />;
+      case 'logs':     return <AdminLogs />;
       default: return null;
     }
   };

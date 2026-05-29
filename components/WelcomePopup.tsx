@@ -14,538 +14,408 @@ const T = {
   fontKo: '"Noto Sans KR", "Inter", system-ui, sans-serif',
 };
 
-type Step = 'email' | 'signup' | 'login';
+type Step = 'email' | 'verify' | 'signup' | 'login';
 
 interface Props { onClose: () => void; }
 
-// ── 아이콘 맵 ──
-const ICONS: Record<string, JSX.Element> = {
-  user:      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c.5-3.5 3.5-6 7-6s6.5 2.5 7 6"/></svg>,
-  building:  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="3" width="14" height="18" rx="1"/><path d="M9 7h2M13 7h2M9 11h2M13 11h2M10 21v-3h4v3"/></svg>,
-  briefcase: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a2 2 0 012-2h2a2 2 0 012 2v2M3 12h18"/></svg>,
-  mail:      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3.5 7l8.5 6 8.5-6"/></svg>,
-  lock:      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg>,
-  eye:       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>,
-  eyeOff:    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24M1 1l22 22"/></svg>,
+const inputStyle: React.CSSProperties = {
+  width: '100%', height: 42, padding: '0 14px',
+  border: `1.5px solid ${T.border}`, borderRadius: T.r,
+  fontSize: 14, color: T.text, fontFamily: T.fontKo,
+  outline: 'none', background: T.surface, boxSizing: 'border-box',
 };
 
-// ── 단일 입력 필드 컴포넌트 ──
-function Field({
-  label, required, placeholder, type = 'text', iconKey,
-  value, onChange, error, disabled, showToggle, onToggle,
-}: {
-  label: string; required?: boolean; placeholder: string; type?: string;
-  iconKey: string; value: string; onChange?: (v: string) => void;
-  error?: string; disabled?: boolean; showToggle?: boolean; onToggle?: () => void;
-}) {
-  const [focus, setFocus] = useState(false);
-  const hasError = !!error;
-  return (
-    <div style={{ width: '100%', fontFamily: T.fontKo }}>
-      <div style={{ fontSize: 12, fontWeight: 600, color: T.text, marginBottom: 5 }}>
-        {label}
-        {required && <span style={{ color: T.secondary, marginLeft: 3 }}>*</span>}
-      </div>
-      <div style={{ position: 'relative' }}>
-        <div style={{
-          position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)',
-          color: hasError ? T.danger : (focus ? T.primary : T.textMuted), pointerEvents: 'none',
-        }}>
-          {ICONS[iconKey]}
-        </div>
-        <input
-          type={type} value={value}
-          placeholder={placeholder}
-          disabled={disabled}
-          onChange={e => onChange?.(e.target.value)}
-          onFocus={() => setFocus(true)}
-          onBlur={() => setFocus(false)}
-          style={{
-            width: '100%', height: 40, paddingLeft: 34,
-            paddingRight: showToggle ? 44 : 12,
-            border: `1.5px solid ${hasError ? T.danger : (focus ? T.primary : T.border)}`,
-            borderRadius: T.r,
-            background: disabled ? '#F8FAFC' : T.surface,
-            fontSize: 13.5, fontFamily: T.fontKo, color: disabled ? T.textMuted : T.text,
-            outline: 'none',
-            boxShadow: focus && !disabled ? `0 0 0 3px ${hasError ? T.dangerBg : T.primaryLight}` : 'none',
-            transition: 'all .15s', boxSizing: 'border-box' as const,
-            cursor: disabled ? 'default' : 'text',
-          }}
-        />
-        {showToggle && (
-          <button
-            type="button"
-            onClick={onToggle}
-            style={{
-              position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
-              background: 'none', border: 'none', cursor: 'pointer',
-              color: T.textMuted, padding: 2, display: 'flex', alignItems: 'center',
-            }}
-          >
-            {type === 'password' ? ICONS.eye : ICONS.eyeOff}
-          </button>
-        )}
-      </div>
-      {hasError && (
-        <p style={{ margin: '4px 0 0', fontSize: 11, color: T.danger, fontWeight: 500 }}>{error}</p>
-      )}
-    </div>
-  );
-}
+const labelStyle: React.CSSProperties = {
+  display: 'block', fontSize: 12, fontWeight: 600, color: T.text, marginBottom: 6,
+};
 
-// ── 진행 단계 표시 ──
-function StepDots({ step }: { step: Step }) {
-  const dots = [
-    { key: 'email', label: '이메일' },
-    { key: 'form', label: step === 'signup' ? '회원가입' : '로그인' },
-  ];
-  const active = step === 'email' ? 0 : 1;
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 16 }}>
-      {dots.map((d, i) => (
-        <div key={d.key} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <div style={{
-            width: i <= active ? 20 : 8, height: 8, borderRadius: 999,
-            background: i <= active ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.3)',
-            transition: 'all .3s',
-          }} />
-          {i < dots.length - 1 && (
-            <div style={{ width: 16, height: 1, background: 'rgba(255,255,255,0.35)' }} />
-          )}
-        </div>
-      ))}
-      <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', marginLeft: 4 }}>
-        {active + 1} / {dots.length}
-      </span>
-    </div>
-  );
+const errorStyle: React.CSSProperties = {
+  fontSize: 12, color: T.danger, marginTop: 6, fontWeight: 500,
+};
+
+const primaryBtn: React.CSSProperties = {
+  width: '100%', height: 44, border: 'none', borderRadius: T.r,
+  background: T.primary, color: '#fff', fontSize: 14, fontWeight: 600,
+  cursor: 'pointer', fontFamily: T.fontKo,
+};
+
+const ghostBtn: React.CSSProperties = {
+  width: '100%', height: 44, border: `1.5px solid ${T.border}`, borderRadius: T.r,
+  background: T.surface, color: T.text, fontSize: 14, fontWeight: 500,
+  cursor: 'pointer', fontFamily: T.fontKo,
+};
+
+function isValidEldEmail(email: string): boolean {
+  return /^[a-z0-9._%+-]+@eland\.co\.kr$/i.test(email);
 }
 
 export default function WelcomePopup({ onClose }: Props) {
   const [step, setStep] = useState<Step>('email');
-  const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
 
-  // Step 1
-  const [emailInput, setEmailInput] = useState('');
-  const [emailError, setEmailError] = useState('');
+  // 공통
+  const [email, setEmail] = useState('');
 
-  // Step 2a — 회원가입
-  const [name, setName] = useState('');
+  // 인증 코드
+  const [code, setCode] = useState('');
+  const [signupToken, setSignupToken] = useState('');
+
+  // 가입 폼
+  const [nickname, setNickname] = useState('');
   const [corporationName, setCorporationName] = useState('');
   const [organizationName, setOrganizationName] = useState('');
   const [position, setPosition] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPw, setShowPw] = useState(false);
-  const [signupErrors, setSignupErrors] = useState<Record<string, string>>({});
+  const [pw, setPw] = useState('');
+  const [pwConfirm, setPwConfirm] = useState('');
 
-  // Step 2b — 로그인
-  const [loginPassword, setLoginPassword] = useState('');
-  const [loginError, setLoginError] = useState('');
-  const [showLoginPw, setShowLoginPw] = useState(false);
+  // 로그인 폼
+  const [loginPw, setLoginPw] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
 
-  // ── 이메일 체크 ──
+  const resetError = () => setError('');
+
+  // Step 1: 이메일 입력 → 인증 코드 요청 (or 로그인 분기)
   const handleEmailNext = async () => {
-    const trimmed = emailInput.trim().toLowerCase();
-    if (!trimmed) { setEmailError('이메일을 입력해주세요.'); return; }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
-      setEmailError('올바른 이메일 형식을 입력해주세요.');
+    resetError();
+    const e = email.toLowerCase().trim();
+    if (!isValidEldEmail(e)) {
+      setError('@eland.co.kr 이메일만 사용할 수 있습니다.');
       return;
     }
-    setEmailError('');
-    setLoading(true);
+    setEmail(e);
+    setBusy(true);
     try {
-      const res = await fetch(`/api/users/exists?email=${encodeURIComponent(trimmed)}`);
-      const data = await res.json();
-      if (data.exists) {
+      // 이미 가입된 회원인지 확인
+      const existsRes = await fetch(`/api/users/exists?email=${encodeURIComponent(e)}`);
+      const existsData = await existsRes.json().catch(() => ({}));
+      if (existsData?.exists) {
         setStep('login');
-      } else {
-        setStep('signup');
+        return;
       }
+      // 인증 코드 발송
+      const res = await fetch('/api/users/signup-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: e }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data?.error || '인증 메일 발송에 실패했습니다.');
+        return;
+      }
+      if (data?.alreadyMember) {
+        setStep('login');
+        return;
+      }
+      setStep('verify');
     } catch {
-      setEmailError('네트워크 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+      setError('서버에 연결할 수 없습니다.');
     } finally {
-      setLoading(false);
+      setBusy(false);
     }
   };
 
-  // ── 회원가입 제출 ──
-  const handleSignup = async () => {
-    const errs: Record<string, string> = {};
-    if (!name.trim()) errs.name = '이름을 입력해주세요.';
-    if (!corporationName.trim()) errs.corporationName = '법인명을 입력해주세요.';
-    if (!organizationName.trim()) errs.organizationName = '조직명을 입력해주세요.';
-    if (!position.trim()) errs.position = '직무를 입력해주세요.';
-    if (!password.trim()) errs.password = '사번을 입력해주세요.';
-    setSignupErrors(errs);
-    if (Object.keys(errs).length > 0) return;
+  // Step 2: 인증 코드 입력 → 검증
+  const handleVerify = async () => {
+    resetError();
+    const c = code.trim();
+    if (!/^\d{6}$/.test(c)) {
+      setError('6자리 숫자 코드를 입력해주세요.');
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await fetch('/api/users/signup-verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code: c }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.signupToken) {
+        setError(data?.error || '인증에 실패했습니다.');
+        return;
+      }
+      setSignupToken(data.signupToken);
+      setStep('signup');
+    } catch {
+      setError('서버에 연결할 수 없습니다.');
+    } finally {
+      setBusy(false);
+    }
+  };
 
-    setLoading(true);
+  const handleResendCode = async () => {
+    resetError();
+    setBusy(true);
+    try {
+      const res = await fetch('/api/users/signup-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data?.error || '재발송에 실패했습니다.');
+        return;
+      }
+      setError('새 인증 코드를 발송했습니다.');
+    } catch {
+      setError('서버에 연결할 수 없습니다.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Step 3: 회원가입 완료
+  const handleSignup = async () => {
+    resetError();
+    if (!nickname.trim()) return setError('닉네임을 입력해주세요.');
+    if (!corporationName.trim()) return setError('법인을 입력해주세요.');
+    if (!organizationName.trim()) return setError('부서(팀)을 입력해주세요.');
+    if (!position.trim()) return setError('직무를 입력해주세요.');
+    if (!/^[A-Za-z0-9]{4,12}$/.test(pw)) return setError('비밀번호는 4~12자 영문/숫자로 입력해주세요.');
+    if (pw !== pwConfirm) return setError('비밀번호가 일치하지 않습니다.');
+
+    setBusy(true);
     try {
       const res = await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: name.trim(),
+          signupToken,
+          nickname: nickname.trim(),
           corporationName: corporationName.trim(),
           organizationName: organizationName.trim(),
           position: position.trim(),
-          email: emailInput.trim().toLowerCase(),
-          password,
+          password: pw,
+          passwordConfirm: pwConfirm,
         }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        if (res.status === 409) {
-          setEmailError('이미 등록된 이메일입니다.');
-          setStep('email');
-        } else {
-          setSignupErrors({ _: data.error || '오류가 발생했습니다.' });
-        }
+        setError(data?.error || '가입에 실패했습니다.');
         return;
       }
-      // 성공: localStorage 저장 후 메인 화면으로
+      // 로컬에도 사용자 정보 저장 (클라이언트 표시용)
       setUserInfo({
         visited: true,
-        name: data.name,
-        org: data.organization_name,
+        name: data.nickname,
+        org: data.organizationName,
         role: data.position,
         email: data.email,
-        corporationName: data.corporation_name,
-        organizationName: data.organization_name,
+        corporationName: data.corporationName,
+        organizationName: data.organizationName,
         position: data.position,
         userId: data.id,
-        employeeId: password.trim(),
       });
       onClose();
     } catch {
-      setSignupErrors({ _: '네트워크 오류가 발생했습니다. 잠시 후 다시 시도해주세요.' });
+      setError('서버에 연결할 수 없습니다.');
     } finally {
-      setLoading(false);
+      setBusy(false);
     }
   };
 
-  // ── 로그인 제출 ──
+  // 로그인
   const handleLogin = async () => {
-    if (!loginPassword) { setLoginError('비밀번호를 입력해주세요.'); return; }
-    setLoginError('');
-    setLoading(true);
+    resetError();
+    if (!loginPw) return setError('비밀번호를 입력해주세요.');
+    setBusy(true);
     try {
       const res = await fetch('/api/users/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: emailInput.trim().toLowerCase(), password: loginPassword }),
+        body: JSON.stringify({ email, password: loginPw, rememberMe }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setLoginError(data.error || '비밀번호가 올바르지 않습니다.');
+        setError(data?.error || '로그인에 실패했습니다.');
         return;
       }
       setUserInfo({
         visited: true,
-        name: data.name,
-        org: data.organization_name,
+        name: data.nickname,
+        org: data.organizationName,
         role: data.position,
         email: data.email,
-        corporationName: data.corporation_name,
-        organizationName: data.organization_name,
+        corporationName: data.corporationName,
+        organizationName: data.organizationName,
         position: data.position,
         userId: data.id,
-        employeeId: loginPassword.trim(),
       });
       onClose();
     } catch {
-      setLoginError('네트워크 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+      setError('서버에 연결할 수 없습니다.');
     } finally {
-      setLoading(false);
+      setBusy(false);
     }
   };
 
   const goBack = () => {
-    setStep('email');
-    setLoginPassword('');
-    setLoginError('');
-    setSignupErrors({});
-    setPassword('');
+    resetError();
+    if (step === 'verify') { setStep('email'); setCode(''); }
+    else if (step === 'signup') { setStep('verify'); }
+    else if (step === 'login') { setStep('email'); setLoginPw(''); }
   };
 
-  // ── 헤더 텍스트 ──
-  const headerTitle = step === 'email'
-    ? '이랜드리테일 AI 캠퍼스에\n오신 것을 환영합니다'
-    : step === 'signup'
-    ? '신규 계정 만들기'
-    : '다시 오셨군요!';
-
-  const headerSub = step === 'email'
-    ? '이메일을 입력하면 로그인 또는 회원가입 화면으로 이동합니다.'
-    : step === 'signup'
-    ? '정보를 입력하고 AI 캠퍼스 여정을 시작하세요.'
-    : `${emailInput} 계정으로 로그인합니다.`;
-
-  const badgeLabel = step === 'email' ? 'Welcome' : step === 'signup' ? '신규 가입' : '로그인';
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
-      style={{ background: 'rgba(15,30,51,0.60)', backdropFilter: 'blur(5px)', padding: 16 }}
-      // 배경 클릭으로 닫기 불가 — 반드시 로그인/가입 완료 필요
-    >
-      <div
-        onClick={e => e.stopPropagation()}
-        style={{
-          background: T.surface, borderRadius: T.r3,
-          boxShadow: T.shadowLg,
-          width: '100%', maxWidth: 520,
-          overflow: 'hidden', fontFamily: T.fontKo,
-          maxHeight: 'calc(100vh - 32px)', display: 'flex', flexDirection: 'column',
-        }}
-      >
-        {/* ── 그라데이션 헤더 ── */}
-        <div style={{
-          background: `linear-gradient(135deg, ${T.primary} 0%, ${T.primaryDark} 100%)`,
-          padding: '28px 32px 24px', color: '#fff', position: 'relative', overflow: 'hidden', flexShrink: 0,
-        }}>
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 1000,
+      background: 'rgba(15,30,51,0.55)', backdropFilter: 'blur(4px)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+      fontFamily: T.fontKo,
+    }}>
+      <div style={{
+        background: T.surface, borderRadius: T.r3, padding: 28,
+        width: '100%', maxWidth: 420, maxHeight: 'calc(100vh - 32px)',
+        overflowY: 'auto', boxShadow: T.shadowLg,
+      }}>
+        {/* 헤더 */}
+        <div style={{ textAlign: 'center', marginBottom: 24 }}>
           <div style={{
-            position: 'absolute', top: -40, right: -40,
-            width: 200, height: 200, borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(255,145,77,0.35) 0%, transparent 70%)',
-            pointerEvents: 'none',
-          }} />
-          <div style={{
-            display: 'inline-flex', alignItems: 'center', gap: 6,
-            padding: '4px 10px', borderRadius: 999,
-            background: 'rgba(255,255,255,0.18)',
-            fontSize: 11, fontWeight: 600, letterSpacing: '0.06em',
-            textTransform: 'uppercase' as const, marginBottom: 12,
-            position: 'relative',
-          }}>
-            {step === 'email' && (
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 3l1.6 4.4L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.6L12 3z"/>
-              </svg>
-            )}
-            {badgeLabel}
-          </div>
-          <h2 style={{
-            margin: 0, fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em',
-            position: 'relative', lineHeight: 1.35, whiteSpace: 'pre-line',
-          }}>
-            {headerTitle}
+            width: 56, height: 56, borderRadius: 16, margin: '0 auto 12px',
+            background: 'linear-gradient(135deg, #1647A8 0%, #0A1530 100%)',
+            color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 14, fontWeight: 700, letterSpacing: '-0.04em',
+          }}>Eland</div>
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: T.text }}>
+            {step === 'email' && '이랜드 AI 캠퍼스에 오신 것을 환영합니다'}
+            {step === 'verify' && '인증 코드 입력'}
+            {step === 'signup' && '회원 정보 입력'}
+            {step === 'login' && '로그인'}
           </h2>
-          <p style={{ margin: '8px 0 0', fontSize: 13, opacity: 0.85, position: 'relative', lineHeight: 1.55 }}>
-            {headerSub}
+          <p style={{ margin: '6px 0 0', fontSize: 13, color: T.textMuted, lineHeight: 1.5 }}>
+            {step === 'email' && '사내 메일 주소(@eland.co.kr)로 시작하세요'}
+            {step === 'verify' && (<>
+              <strong style={{ color: T.text }}>{email}</strong>로 전송된 6자리 코드를 입력하세요
+            </>)}
+            {step === 'signup' && '닉네임과 소속 정보를 입력해주세요'}
+            {step === 'login' && (<>{email} 비밀번호를 입력해주세요</>)}
           </p>
-          <StepDots step={step} />
         </div>
 
-        {/* ── 폼 영역 ── */}
-        <div style={{ padding: '24px 32px 28px', overflowY: 'auto', flex: 1 }}>
+        {error && (
+          <div style={{
+            background: T.dangerBg, border: `1px solid #FBCBD2`, borderRadius: T.r,
+            padding: '10px 12px', marginBottom: 14, fontSize: 13, color: T.danger, lineHeight: 1.5,
+          }}>
+            {error}
+          </div>
+        )}
 
-          {/* ─ STEP 1: 이메일 입력 ─ */}
-          {step === 'email' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <Field
-                label="이메일" required placeholder="you@eland.co.kr"
-                type="email" iconKey="mail"
-                value={emailInput} onChange={v => { setEmailInput(v); setEmailError(''); }}
-                error={emailError}
-              />
-              <button
-                onClick={handleEmailNext}
-                disabled={loading}
-                style={{
-                  height: 44, borderRadius: T.r, border: 'none',
-                  background: loading ? '#93AACC' : T.primary,
-                  color: '#fff', fontSize: 14, fontWeight: 600,
-                  cursor: loading ? 'not-allowed' : 'pointer',
-                  fontFamily: T.fontKo,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                  transition: 'background .15s',
-                }}
-                onMouseEnter={e => { if (!loading) e.currentTarget.style.background = T.primaryDark; }}
-                onMouseLeave={e => { if (!loading) e.currentTarget.style.background = T.primary; }}
-              >
-                {loading ? (
-                  <>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 1s linear infinite' }}>
-                      <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
-                    </svg>
-                    확인 중...
-                  </>
-                ) : (
-                  <>
-                    다음
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M5 12h14M13 6l6 6-6 6"/>
-                    </svg>
-                  </>
-                )}
+        {/* Step: email */}
+        {step === 'email' && (
+          <>
+            <label style={labelStyle}>이메일 *</label>
+            <input type="email" value={email}
+              placeholder="hong.gd@eland.co.kr"
+              onChange={e => setEmail(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && !busy && handleEmailNext()}
+              style={inputStyle} autoFocus />
+            <button onClick={handleEmailNext} disabled={busy}
+              style={{ ...primaryBtn, marginTop: 16, opacity: busy ? 0.6 : 1 }}>
+              {busy ? '확인 중...' : '다음'}
+            </button>
+          </>
+        )}
+
+        {/* Step: verify */}
+        {step === 'verify' && (
+          <>
+            <label style={labelStyle}>인증 코드 (6자리) *</label>
+            <input type="text" inputMode="numeric" maxLength={6}
+              value={code}
+              placeholder="123456"
+              onChange={e => setCode(e.target.value.replace(/\D/g, ''))}
+              onKeyDown={e => e.key === 'Enter' && !busy && handleVerify()}
+              style={{ ...inputStyle, fontSize: 18, letterSpacing: 4, textAlign: 'center', fontWeight: 600 }} autoFocus />
+            <p style={{ margin: '8px 0 0', fontSize: 12, color: T.textFaint }}>
+              코드가 안 왔다면 스팸함도 확인하시고, 10분 후에는 만료됩니다.
+            </p>
+            <button onClick={handleVerify} disabled={busy}
+              style={{ ...primaryBtn, marginTop: 16, opacity: busy ? 0.6 : 1 }}>
+              {busy ? '확인 중...' : '인증하기'}
+            </button>
+            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+              <button onClick={goBack} disabled={busy} style={{ ...ghostBtn, height: 36, fontSize: 12 }}>
+                이메일 변경
               </button>
-              <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+              <button onClick={handleResendCode} disabled={busy} style={{ ...ghostBtn, height: 36, fontSize: 12 }}>
+                코드 재발송
+              </button>
             </div>
-          )}
+          </>
+        )}
 
-          {/* ─ STEP 2a: 회원가입 ─ */}
-          {step === 'signup' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
-              {signupErrors._ && (
-                <div style={{
-                  padding: '10px 14px', borderRadius: T.r,
-                  background: T.dangerBg, color: T.danger, fontSize: 13, fontWeight: 500,
-                }}>
-                  {signupErrors._}
-                </div>
+        {/* Step: signup */}
+        {step === 'signup' && (
+          <>
+            <div style={{ marginBottom: 12 }}>
+              <label style={labelStyle}>닉네임 *</label>
+              <input value={nickname} onChange={e => setNickname(e.target.value)}
+                placeholder="예: 김캠퍼스" style={inputStyle} maxLength={20} />
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={labelStyle}>법인 *</label>
+              <input value={corporationName} onChange={e => setCorporationName(e.target.value)}
+                placeholder="예: 이랜드리테일" style={inputStyle} maxLength={40} />
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={labelStyle}>부서(팀) *</label>
+              <input value={organizationName} onChange={e => setOrganizationName(e.target.value)}
+                placeholder="예: AI 기획팀" style={inputStyle} maxLength={40} />
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={labelStyle}>직무 *</label>
+              <input value={position} onChange={e => setPosition(e.target.value)}
+                placeholder="예: 사원 / 대리 / 과장" style={inputStyle} maxLength={40} />
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={labelStyle}>간편 비밀번호 (4~12자, 영문/숫자) *</label>
+              <input type="password" value={pw} onChange={e => setPw(e.target.value)}
+                placeholder="예: 1234" style={inputStyle} maxLength={12} />
+            </div>
+            <div style={{ marginBottom: 6 }}>
+              <label style={labelStyle}>비밀번호 확인 *</label>
+              <input type="password" value={pwConfirm} onChange={e => setPwConfirm(e.target.value)}
+                placeholder="비밀번호를 다시 입력하세요" style={inputStyle} maxLength={12}
+                onKeyDown={e => e.key === 'Enter' && !busy && handleSignup()} />
+              {pwConfirm && pw !== pwConfirm && (
+                <p style={errorStyle}>비밀번호가 일치하지 않습니다.</p>
               )}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <Field label="이름" required placeholder="홍길동"
-                  iconKey="user" value={name} onChange={setName} error={signupErrors.name} />
-                <Field label="법인명" required placeholder="(주)이랜드리테일"
-                  iconKey="building" value={corporationName} onChange={setCorporationName} error={signupErrors.corporationName} />
-              </div>
-              <Field label="조직명 (브랜드/점포/팀명)" required placeholder="예: 스파오 홍대점, 마케팅팀"
-                iconKey="building" value={organizationName} onChange={setOrganizationName} error={signupErrors.organizationName} />
-              <Field label="직무" required placeholder="예: AI 기획, 콘텐츠 담당"
-                iconKey="briefcase" value={position} onChange={setPosition} error={signupErrors.position} />
-              <Field label="이메일" required placeholder=""
-                iconKey="mail" value={emailInput} disabled />
-              <Field
-                label="사번 (직원번호)" required
-                placeholder="사번을 입력하세요 (예: E12345)"
-                type={showPw ? 'text' : 'password'} iconKey="lock"
-                value={password} onChange={setPassword} error={signupErrors.password}
-                showToggle onToggle={() => setShowPw(v => !v)}
-              />
-
-              {/* 연락처 안내 */}
-              <p style={{ margin: 0, fontSize: 11, color: T.textFaint, textAlign: 'center' }}>
-                문의사항:{' '}
-                <a href="mailto:oh_dongha01@eland.co.kr" style={{ color: T.textMuted, textDecoration: 'none' }}>
-                  oh_dongha01@eland.co.kr
-                </a>
-              </p>
-
-              <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
-                <button
-                  onClick={goBack}
-                  style={{
-                    height: 44, flex: '0 0 auto', padding: '0 18px', borderRadius: T.r,
-                    border: `1.5px solid ${T.border}`, background: 'transparent',
-                    color: T.textMuted, fontSize: 13, fontWeight: 500,
-                    cursor: 'pointer', fontFamily: T.fontKo,
-                    display: 'flex', alignItems: 'center', gap: 5,
-                  }}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M19 12H5M12 19l-7-7 7-7"/>
-                  </svg>
-                  이전
-                </button>
-                <button
-                  onClick={handleSignup}
-                  disabled={loading}
-                  style={{
-                    height: 44, flex: 1, borderRadius: T.r, border: 'none',
-                    background: loading ? '#93AACC' : T.primary,
-                    color: '#fff', fontSize: 14, fontWeight: 600,
-                    cursor: loading ? 'not-allowed' : 'pointer',
-                    fontFamily: T.fontKo,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                    transition: 'background .15s',
-                  }}
-                  onMouseEnter={e => { if (!loading) e.currentTarget.style.background = T.primaryDark; }}
-                  onMouseLeave={e => { if (!loading) e.currentTarget.style.background = T.primary; }}
-                >
-                  {loading ? '처리 중...' : (
-                    <>
-                      시작하기
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M5 12h14M13 6l6 6-6 6"/>
-                      </svg>
-                    </>
-                  )}
-                </button>
-              </div>
             </div>
-          )}
+            <button onClick={handleSignup} disabled={busy}
+              style={{ ...primaryBtn, marginTop: 16, opacity: busy ? 0.6 : 1 }}>
+              {busy ? '가입 처리 중...' : '가입 완료'}
+            </button>
+          </>
+        )}
 
-          {/* ─ STEP 2b: 로그인 ─ */}
-          {step === 'login' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <Field label="이메일" placeholder="" iconKey="mail" value={emailInput} disabled />
-              <Field
-                label="사번 (직원번호)" required placeholder="사번을 입력하세요 (예: E12345)"
-                type={showLoginPw ? 'text' : 'password'} iconKey="lock"
-                value={loginPassword} onChange={v => { setLoginPassword(v); setLoginError(''); }}
-                error={loginError}
-                showToggle onToggle={() => setShowLoginPw(v => !v)}
-              />
-
-              {/* 사번 분실 안내 */}
-              <div style={{
-                padding: '10px 14px', borderRadius: T.r,
-                background: '#FFFBEB', border: '1px solid #FDE68A',
-                display: 'flex', alignItems: 'flex-start', gap: 8,
-              }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#92400E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}>
-                  <circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>
-                </svg>
-                <span style={{ fontSize: 12, color: '#92400E', lineHeight: 1.55 }}>
-                  사번을 잊으셨습니까?{' '}
-                  <a
-                    href="mailto:oh_dongha01@eland.co.kr"
-                    style={{ color: T.primary, fontWeight: 600, textDecoration: 'underline' }}
-                  >
-                    oh_dongha01@eland.co.kr
-                  </a>
-                  로 문의하세요.
-                </span>
-              </div>
-
-              <div style={{ display: 'flex', gap: 10, marginTop: 2 }}>
-                <button
-                  onClick={goBack}
-                  style={{
-                    height: 44, flex: '0 0 auto', padding: '0 18px', borderRadius: T.r,
-                    border: `1.5px solid ${T.border}`, background: 'transparent',
-                    color: T.textMuted, fontSize: 13, fontWeight: 500,
-                    cursor: 'pointer', fontFamily: T.fontKo,
-                    display: 'flex', alignItems: 'center', gap: 5,
-                  }}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M19 12H5M12 19l-7-7 7-7"/>
-                  </svg>
-                  이전
-                </button>
-                <button
-                  onClick={handleLogin}
-                  disabled={loading}
-                  style={{
-                    height: 44, flex: 1, borderRadius: T.r, border: 'none',
-                    background: loading ? '#93AACC' : T.primary,
-                    color: '#fff', fontSize: 14, fontWeight: 600,
-                    cursor: loading ? 'not-allowed' : 'pointer',
-                    fontFamily: T.fontKo,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                    transition: 'background .15s',
-                  }}
-                  onMouseEnter={e => { if (!loading) e.currentTarget.style.background = T.primaryDark; }}
-                  onMouseLeave={e => { if (!loading) e.currentTarget.style.background = T.primary; }}
-                  onKeyDown={e => { if (e.key === 'Enter') handleLogin(); }}
-                >
-                  {loading ? '로그인 중...' : (
-                    <>
-                      시작하기
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M5 12h14M13 6l6 6-6 6"/>
-                      </svg>
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
+        {/* Step: login */}
+        {step === 'login' && (
+          <>
+            <label style={labelStyle}>간편 비밀번호 *</label>
+            <input type="password" value={loginPw}
+              placeholder="비밀번호 입력"
+              onChange={e => setLoginPw(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && !busy && handleLogin()}
+              style={inputStyle} maxLength={12} autoFocus />
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 14, cursor: 'pointer' }}>
+              <input type="checkbox" checked={rememberMe} onChange={e => setRememberMe(e.target.checked)}
+                style={{ width: 16, height: 16, accentColor: T.primary }} />
+              <span style={{ fontSize: 13, color: T.textMuted }}>로그인 유지 (30일)</span>
+            </label>
+            <button onClick={handleLogin} disabled={busy}
+              style={{ ...primaryBtn, marginTop: 16, opacity: busy ? 0.6 : 1 }}>
+              {busy ? '로그인 중...' : '로그인'}
+            </button>
+            <button onClick={goBack} disabled={busy}
+              style={{ ...ghostBtn, marginTop: 8, height: 36, fontSize: 12 }}>
+              다른 이메일로 시도
+            </button>
+          </>
+        )}
       </div>
     </div>
   );

@@ -47,9 +47,9 @@ export default function MeetingPage() {
       if (rRes.ok) {
         const rows = await rRes.json();
         // 공개 API는 마스킹된 name만 반환 → Reservation 타입 일부 필드만 채움
-        setReservationsState(rows.map((r: { id: string; date: string; startTime: string; endTime: string; status: string; maskedName: string }) => ({
+        setReservationsState(rows.map((r: { id: string; date: string; startTime: string; endTime: string; status: string }) => ({
           id: r.id,
-          name: r.maskedName,
+          name: '',
           role: '',
           taskSummary: '',
           inquiry: '',
