@@ -33,7 +33,19 @@ export async function verifyPassword(plain: string, stored: string): Promise<{ m
   return { matched: candidate === stored, isLegacy: true };
 }
 
-/** 간편 비번 정책 검증 (4~12자 영숫자) */
+/**
+ * 비번 정책 검증 — 8~16자, 영문/숫자/특수문자 각 1개 이상.
+ * (함수명은 호환성을 위해 그대로 유지)
+ */
 export function isValidSimplePassword(p: string): boolean {
-  return typeof p === 'string' && /^[A-Za-z0-9]{4,12}$/.test(p);
+  if (typeof p !== 'string') return false;
+  if (p.length < 8 || p.length > 16) return false;
+  if (!/[A-Za-z]/.test(p)) return false;
+  if (!/\d/.test(p)) return false;
+  // 특수문자: 키보드에서 흔히 쓰이는 ASCII 특수문자
+  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>/?]/.test(p)) return false;
+  return true;
 }
+
+export const PASSWORD_POLICY_MESSAGE =
+  '비밀번호는 8~16자로 영문/숫자/특수문자를 각 1개 이상 포함해야 합니다.';

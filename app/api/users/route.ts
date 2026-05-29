@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '../../../lib/db';
 import { verifySignupToken } from '../../../lib/jwt';
-import { hashPassword, isValidSimplePassword } from '../../../lib/password';
+import { hashPassword, isValidSimplePassword, PASSWORD_POLICY_MESSAGE } from '../../../lib/password';
 import { setUserSessionCookie } from '../../../lib/session';
 import { containsReplacementChar } from '../../../lib/text-validation';
 import { checkRateLimit, getClientIp, tooManyRequests } from '../../../lib/ratelimit';
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: '비밀번호가 일치하지 않습니다.' }, { status: 400 });
   }
   if (!isValidSimplePassword(password)) {
-    return NextResponse.json({ error: '비밀번호는 4~12자 영문/숫자로 입력해주세요.' }, { status: 400 });
+    return NextResponse.json({ error: PASSWORD_POLICY_MESSAGE }, { status: 400 });
   }
   for (const v of [nickname, corporationName, organizationName, position]) {
     if (containsReplacementChar(String(v))) {

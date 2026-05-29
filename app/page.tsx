@@ -60,9 +60,16 @@ export default function Page() {
     setShowPw(false);
   };
 
-  const handleWelcomeClose = () => {
+  const handleWelcomeClose = (target?: 'home' | 'videos') => {
     setShowWelcome(false);
     setUserInfo(getUserInfo());
+    if (target === 'videos') {
+      setActiveTab('videos');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else if (target === 'home') {
+      setActiveTab('home');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   const handleLogout = async () => {

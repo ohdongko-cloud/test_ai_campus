@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { setUserInfo } from '../lib/utils';
 import { isAllowedSignupEmail, DOMAIN_REJECT_MESSAGE } from '../lib/email-allowlist';
+import { isValidSimplePassword, PASSWORD_POLICY_MESSAGE } from '../lib/password';
 
 const T = {
   primary: '#004A99', primaryDark: '#003A78', primaryLight: '#E6EEF7',
@@ -15,9 +16,9 @@ const T = {
   fontKo: '"Noto Sans KR", "Inter", system-ui, sans-serif',
 };
 
-type Step = 'email' | 'verify' | 'signup' | 'login';
+type Step = 'email' | 'verify' | 'signup' | 'login' | 'welcome';
 
-interface Props { onClose: () => void; }
+interface Props { onClose: (target?: 'home' | 'videos') => void; }
 
 const inputStyle: React.CSSProperties = {
   width: '100%', height: 42, padding: '0 14px',
@@ -221,9 +222,9 @@ export default function WelcomePopup({ onClose }: Props) {
     resetError();
     if (!nickname.trim()) return setError('닉네임을 입력해주세요.');
     if (!corporationName.trim()) return setError('법인을 입력해주세요.');
-    if (!organizationName.trim()) return setError('부서(팀)을 입력해주세요.');
+    if (!organizationName.trim()) return setError('부서(브랜드/팀)을 입력해주세요.');
     if (!position.trim()) return setError('직무를 입력해주세요.');
-    if (!/^[A-Za-z0-9]{4,12}$/.test(pw)) return setError('비밀번호는 4~12자 영문/숫자로 입력해주세요.');
+    if (!isValidSimplePassword(pw)) return setError(PASSWORD_POLICY_MESSAGE);
     if (pw !== pwConfirm) return setError('비밀번호가 일치하지 않습니다.');
 
     setBusy(true);
@@ -258,7 +259,8 @@ export default function WelcomePopup({ onClose }: Props) {
         position: data.position,
         userId: data.id,
       });
-      onClose();
+      // 가입 성공 → 환영 화면으로 전환 (홈/영상 분기 선택)
+      setStep('welcome');
     } catch {
       setError('서버에 연결할 수 없습니다.');
     } finally {
@@ -333,6 +335,7 @@ export default function WelcomePopup({ onClose }: Props) {
             {step === 'verify' && '인증 코드 입력'}
             {step === 'signup' && '회원 정보 입력'}
             {step === 'login' && '로그인'}
+            {step === 'welcome' && (<>환영합니다, <span style={{ color: T.primary }}>{nickname}</span>님!</>)}
           </h2>
           <p style={{ margin: '6px 0 0', fontSize: 13, color: T.textMuted, lineHeight: 1.5 }}>
             {step === 'email' && '사내 메일 주소(@eland.co.kr)로 시작하세요'}
@@ -341,6 +344,7 @@ export default function WelcomePopup({ onClose }: Props) {
             </>)}
             {step === 'signup' && '닉네임과 소속 정보를 입력해주세요'}
             {step === 'login' && (<>{email} 비밀번호를 입력해주세요</>)}
+            {step === 'welcome' && '지금 바로 AI 학습을 시작해보세요.'}
           </p>
         </div>
 
@@ -411,18 +415,22 @@ export default function WelcomePopup({ onClose }: Props) {
                 placeholder="예: 이랜드리테일" style={inputStyle} maxLength={40} />
             </div>
             <div style={{ marginBottom: 12 }}>
-              <label style={labelStyle}>부서(팀) *</label>
+              <label style={labelStyle}>부서(브랜드/팀) *</label>
               <input value={organizationName} onChange={e => setOrganizationName(e.target.value)}
-                placeholder="예: AI 기획팀" style={inputStyle} maxLength={40} />
+                placeholder="예: 뉴발란스 상품기획팀" style={inputStyle} maxLength={40} />
             </div>
             <div style={{ marginBottom: 12 }}>
               <label style={labelStyle}>직무 *</label>
               <input value={position} onChange={e => setPosition(e.target.value)}
-                placeholder="예: 사원 / 대리 / 과장" style={inputStyle} maxLength={40} />
+                placeholder="예: 상품기획, 생산, OO OO점 점장, 지점 인사팀"
+                style={inputStyle} maxLength={40} />
             </div>
-            <div style={{ marginBottom: 12 }}>
-              <label style={labelStyle}>간편 비밀번호 (4~12자, 영문/숫자) *</label>
-              <PasswordField value={pw} onChange={setPw} placeholder="예: 1234" />
+            <div style={{ marginBottom: 4 }}>
+              <label style={labelStyle}>비밀번호 *</label>
+              <PasswordField value={pw} onChange={setPw} placeholder="예: Eland@2026" maxLength={16} />
+              <p style={{ margin: '6px 0 12px', fontSize: 11, color: T.textMuted, lineHeight: 1.5 }}>
+                8~16자, 영문 / 숫자 / 특수문자를 각 1개 이상 포함해주세요.
+              </p>
             </div>
             <div style={{ marginBottom: 6 }}>
               <label style={labelStyle}>비밀번호 확인 *</label>
@@ -430,6 +438,7 @@ export default function WelcomePopup({ onClose }: Props) {
                 value={pwConfirm}
                 onChange={setPwConfirm}
                 placeholder="비밀번호를 다시 입력하세요"
+                maxLength={16}
                 onEnter={() => !busy && handleSignup()}
               />
               {pwConfirm && pw !== pwConfirm && (
@@ -466,6 +475,30 @@ export default function WelcomePopup({ onClose }: Props) {
             <button onClick={goBack} disabled={busy}
               style={{ ...ghostBtn, marginTop: 8, height: 36, fontSize: 12 }}>
               다른 이메일로 시도
+            </button>
+          </>
+        )}
+
+        {/* Step: welcome (가입 직후 분기) */}
+        {step === 'welcome' && (
+          <>
+            <div style={{
+              background: T.primaryLight, border: `1px solid ${T.border}`,
+              borderRadius: T.r2, padding: 18, marginBottom: 14, textAlign: 'center',
+            }}>
+              <div style={{ fontSize: 36, marginBottom: 6 }}>🎉</div>
+              <p style={{ margin: 0, fontSize: 13, color: T.text, lineHeight: 1.6 }}>
+                회원가입이 완료되었습니다.<br/>
+                무엇부터 시작할까요?
+              </p>
+            </div>
+            <button onClick={() => onClose('videos')}
+              style={{ ...primaryBtn, marginBottom: 8 }}>
+              AI 학습 시작하기
+            </button>
+            <button onClick={() => onClose('home')}
+              style={ghostBtn}>
+              홈에서 둘러보기
             </button>
           </>
         )}
