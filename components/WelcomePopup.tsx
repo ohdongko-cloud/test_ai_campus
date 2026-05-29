@@ -25,6 +25,58 @@ const inputStyle: React.CSSProperties = {
   outline: 'none', background: T.surface, boxSizing: 'border-box',
 };
 
+// 비밀번호 입력 + 눈 아이콘 토글
+function PasswordField({
+  value, onChange, placeholder, maxLength = 12, autoFocus, onEnter,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  maxLength?: number;
+  autoFocus?: boolean;
+  onEnter?: () => void;
+}) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <div style={{ position: 'relative' }}>
+      <input
+        type={visible ? 'text' : 'password'}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        maxLength={maxLength}
+        autoFocus={autoFocus}
+        onKeyDown={e => e.key === 'Enter' && onEnter && onEnter()}
+        style={{ ...inputStyle, paddingRight: 44 }}
+      />
+      <button
+        type="button"
+        onClick={() => setVisible(v => !v)}
+        aria-label={visible ? '비밀번호 숨기기' : '비밀번호 보기'}
+        style={{
+          position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
+          width: 32, height: 32, border: 'none', background: 'transparent',
+          cursor: 'pointer', color: T.textMuted, padding: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}
+      >
+        {visible ? (
+          // eye-off
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24M1 1l22 22"/>
+          </svg>
+        ) : (
+          // eye
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+        )}
+      </button>
+    </div>
+  );
+}
+
 const labelStyle: React.CSSProperties = {
   display: 'block', fontSize: 12, fontWeight: 600, color: T.text, marginBottom: 6,
 };
@@ -373,14 +425,16 @@ export default function WelcomePopup({ onClose }: Props) {
             </div>
             <div style={{ marginBottom: 12 }}>
               <label style={labelStyle}>간편 비밀번호 (4~12자, 영문/숫자) *</label>
-              <input type="password" value={pw} onChange={e => setPw(e.target.value)}
-                placeholder="예: 1234" style={inputStyle} maxLength={12} />
+              <PasswordField value={pw} onChange={setPw} placeholder="예: 1234" />
             </div>
             <div style={{ marginBottom: 6 }}>
               <label style={labelStyle}>비밀번호 확인 *</label>
-              <input type="password" value={pwConfirm} onChange={e => setPwConfirm(e.target.value)}
-                placeholder="비밀번호를 다시 입력하세요" style={inputStyle} maxLength={12}
-                onKeyDown={e => e.key === 'Enter' && !busy && handleSignup()} />
+              <PasswordField
+                value={pwConfirm}
+                onChange={setPwConfirm}
+                placeholder="비밀번호를 다시 입력하세요"
+                onEnter={() => !busy && handleSignup()}
+              />
               {pwConfirm && pw !== pwConfirm && (
                 <p style={errorStyle}>비밀번호가 일치하지 않습니다.</p>
               )}
@@ -396,11 +450,13 @@ export default function WelcomePopup({ onClose }: Props) {
         {step === 'login' && (
           <>
             <label style={labelStyle}>간편 비밀번호 *</label>
-            <input type="password" value={loginPw}
+            <PasswordField
+              value={loginPw}
+              onChange={setLoginPw}
               placeholder="비밀번호 입력"
-              onChange={e => setLoginPw(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && !busy && handleLogin()}
-              style={inputStyle} maxLength={12} autoFocus />
+              autoFocus
+              onEnter={() => !busy && handleLogin()}
+            />
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 14, cursor: 'pointer' }}>
               <input type="checkbox" checked={rememberMe} onChange={e => setRememberMe(e.target.checked)}
                 style={{ width: 16, height: 16, accentColor: T.primary }} />
