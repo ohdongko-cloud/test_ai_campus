@@ -1,50 +1,48 @@
-// 클라이언트 측 어드민 비번 핸들링 + 어드민 API 호출 래퍼.
-//
-// - 로그인 시 `setAdminPassword(pw)` 로 sessionStorage에 저장.
-// - 모든 `/api/admin/*` 호출은 `adminFetch(...)` 로 가서 자동으로
-//   `X-Admin-Password` 헤더를 부착.
-// - 401 응답 시 자동으로 비번을 비우고 호출자에게 throw.
-
-const KEY = '_admin_pw';
-
-export function getAdminPassword(): string {
-  if (typeof window === 'undefined') return '';
-  try { return sessionStorage.getItem(KEY) || ''; } catch { return ''; }
-}
-
-export function setAdminPassword(pw: string): void {
-  if (typeof window === 'undefined') return;
-  try { sessionStorage.setItem(KEY, pw); } catch { /* ignore */ }
-}
-
-export function clearAdminPassword(): void {
-  if (typeof window === 'undefined') return;
-  try { sessionStorage.removeItem(KEY); } catch { /* ignore */ }
-}
-
-export function isAdminAuthenticated(): boolean {
-  return !!getAdminPassword();
-}
+// 클라이언트 측 어드민 호출 래퍼.
+// 인증은 httpOnly 쿠키(admin_session)로 처리되므로 비번을 클라이언트에 보관하지 않는다.
 
 export class AdminAuthError extends Error {
   constructor() { super('관리자 인증이 필요합니다.'); this.name = 'AdminAuthError'; }
 }
 
+/** 로그인 — POST /api/admin/login */
+export async function adminLogin(password: string): Promise<{ ok: boolean; error?: string }> {
+  const res = await fetch('/api/admin/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password }),
+    credentials: 'include',
+  });
+  if (res.ok) return { ok: true };
+  if (res.status === 429) return { ok: false, error: '로그인 시도가 너무 잦습니다. 잠시 후 다시 시도해주세요.' };
+  const data = await res.json().catch(() => ({}));
+  return { ok: false, error: data?.error || '로그인에 실패했습니다.' };
+}
+
+/** 로그아웃 — POST /api/admin/logout */
+export async function adminLogout(): Promise<void> {
+  try {
+    await fetch('/api/admin/logout', { method: 'POST', credentials: 'include' });
+  } catch { /* ignore */ }
+}
+
+/** 세션 확인 — POST /api/admin/ping */
+export async function isAdminAuthenticated(): Promise<boolean> {
+  try {
+    const res = await fetch('/api/admin/ping', { method: 'POST', credentials: 'include' });
+    return res.ok;
+  } catch { return false; }
+}
+
 /**
- * 어드민 API 호출. `X-Admin-Password` 헤더를 자동 부착.
- * 401 응답 시 sessionStorage 비번을 지우고 `AdminAuthError` throw.
+ * 어드민 API 호출. 쿠키 자동 포함. 401 시 AdminAuthError throw.
  */
 export async function adminFetch(input: string, init: RequestInit = {}): Promise<Response> {
-  const pw = getAdminPassword();
   const headers = new Headers(init.headers);
-  if (pw) headers.set('X-Admin-Password', pw);
   if (init.body && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
   }
-  const res = await fetch(input, { ...init, headers });
-  if (res.status === 401) {
-    clearAdminPassword();
-    throw new AdminAuthError();
-  }
+  const res = await fetch(input, { ...init, headers, credentials: 'include' });
+  if (res.status === 401) throw new AdminAuthError();
   return res;
 }
