@@ -10,6 +10,7 @@ export default function SharePage() {
   const [url, setUrl] = useState('');
   const [testAccount, setTestAccount] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
 
   const load = async () => {
     try {
@@ -18,34 +19,42 @@ export default function SharePage() {
     } catch { /* ignore */ }
   };
 
+  // 로그인 상태 확인 — 비로그인 시 폼 비활성화 안내
+  useEffect(() => {
+    fetch('/api/users/me', { credentials: 'include' })
+      .then(r => r.ok ? r.json() : { user: null })
+      .then(d => setIsLoggedIn(!!d?.user))
+      .catch(() => setIsLoggedIn(false));
+  }, []);
+
   useEffect(() => {
     load();
   }, []);
 
   const handleSubmit = async () => {
     if (!serviceName || !description || !url) return;
-    // 사용자 측은 인증 없이 등록 가능... 하지만 이 PRD에서 사용자 측은 어드민만 등록.
-    // 안내: 사용자 측 공유 페이지에서 직접 등록은 가급적 어드민으로 옮긴다.
-    // 단, 현행 UX 유지를 위해 직접 POST를 admin 경로로 보냄(어드민 비번 없으면 401).
+    if (!isLoggedIn) {
+      setSuccessMsg('서비스 공유는 로그인 후 이용 가능합니다.');
+      setTimeout(() => setSuccessMsg(''), 3000);
+      return;
+    }
     try {
-      const res = await fetch('/api/admin/services', {
+      const res = await fetch('/api/services', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          // sessionStorage 어드민 비번이 있으면 부착, 없으면 401
-          ...(typeof window !== 'undefined' && sessionStorage.getItem('_admin_pw')
-            ? { 'X-Admin-Password': sessionStorage.getItem('_admin_pw') as string }
-            : {}),
-        },
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ serviceName, description, url, testAccount }),
       });
       if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
         if (res.status === 401) {
-          setSuccessMsg('관리자만 서비스를 공유할 수 있습니다.');
+          setSuccessMsg('로그인이 필요합니다. 로그인 후 다시 시도해주세요.');
+        } else if (res.status === 429) {
+          setSuccessMsg(data?.error || '잠시 후 다시 시도해주세요.');
         } else {
-          setSuccessMsg('등록에 실패했습니다.');
+          setSuccessMsg(data?.error || '등록에 실패했습니다.');
         }
-        setTimeout(() => setSuccessMsg(''), 3000);
+        setTimeout(() => setSuccessMsg(''), 4000);
         return;
       }
       setSuccessMsg(`${serviceName} 서비스가 공유되었습니다.`);
@@ -65,10 +74,26 @@ export default function SharePage() {
     <div className="max-w-5xl mx-auto px-4 py-10">
       <h1 className="text-2xl font-bold text-gray-900 mb-3">AI 서비스 공유하기</h1>
 
-      {/* 준비 중 안내 */}
-      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
-        <p className="text-sm text-gray-600">서비스 공유 게시판은 준비 중입니다. 곧 오픈됩니다.</p>
+      {/* 공유 안내 — 회원 누구나 등록 가능 */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+        <p className="text-sm text-blue-900 font-medium">
+          🎉 내가 만든 AI 서비스를 동료들에게 자랑해보세요!
+        </p>
+        <p className="text-xs text-blue-700 mt-1">
+          회원 누구나 자유롭게 등록할 수 있습니다. 회사 기밀이나 외부 공개 불가 정보는 등록하지 말아주세요.
+        </p>
       </div>
+
+      {isLoggedIn === false && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+          <p className="text-sm text-amber-900 font-medium">
+            🔒 서비스 공유는 <strong>로그인 후</strong> 이용할 수 있습니다.
+          </p>
+          <p className="text-xs text-amber-700 mt-1">
+            상단 메뉴를 통해 로그인하거나 회원가입 후 다시 시도해주세요.
+          </p>
+        </div>
+      )}
 
       {successMsg && (
         <div className="mb-4 bg-green-50 border border-green-200 text-green-800 rounded p-3 text-sm">
@@ -107,14 +132,15 @@ export default function SharePage() {
         </div>
         <button
           onClick={handleSubmit}
-          disabled={!serviceName || !description || !url}
+          disabled={!serviceName || !description || !url || !isLoggedIn}
           className={`mt-5 px-5 py-2 rounded text-sm font-medium transition-colors ${
-            serviceName && description && url
+            serviceName && description && url && isLoggedIn
               ? 'bg-black text-white hover:bg-gray-800'
               : 'bg-gray-300 text-gray-500 cursor-not-allowed'
           }`}
+          title={!isLoggedIn ? '로그인 후 이용 가능합니다' : undefined}
         >
-          공유하기
+          {isLoggedIn === false ? '로그인 후 공유 가능' : '공유하기'}
         </button>
       </div>
 
