@@ -4,17 +4,13 @@ import { checkRateLimit, getClientIp, tooManyRequests } from '../../../../lib/ra
 import { sendVerificationEmail } from '../../../../lib/email';
 import { logAuth } from '../../../../lib/audit';
 import { reportError } from '../../../../lib/error-report';
+import { isAllowedSignupEmail, DOMAIN_REJECT_MESSAGE } from '../../../../lib/email-allowlist';
 
-const ALLOWED_DOMAIN = '@eland.co.kr';
 const CODE_TTL_MIN = 10;
 
 async function sha256(text: string) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-function isValidEldEmail(email: string): boolean {
-  return /^[a-z0-9._%+-]+@eland\.co\.kr$/i.test(email);
 }
 
 // POST /api/users/signup-request  body: { email }
@@ -28,8 +24,8 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json().catch(() => ({}));
   const email = String(body?.email || '').trim().toLowerCase();
-  if (!isValidEldEmail(email)) {
-    return NextResponse.json({ error: '@eland.co.kr 이메일만 사용할 수 있습니다.' }, { status: 400 });
+  if (!isAllowedSignupEmail(email)) {
+    return NextResponse.json({ error: DOMAIN_REJECT_MESSAGE }, { status: 400 });
   }
 
   // 이메일 단위 제한

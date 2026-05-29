@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { setUserInfo } from '../lib/utils';
+import { isAllowedSignupEmail, DOMAIN_REJECT_MESSAGE } from '../lib/email-allowlist';
 
 const T = {
   primary: '#004A99', primaryDark: '#003A78', primaryLight: '#E6EEF7',
@@ -97,10 +98,6 @@ const ghostBtn: React.CSSProperties = {
   cursor: 'pointer', fontFamily: T.fontKo,
 };
 
-function isValidEldEmail(email: string): boolean {
-  return /^[a-z0-9._%+-]+@eland\.co\.kr$/i.test(email);
-}
-
 export default function WelcomePopup({ onClose }: Props) {
   const [step, setStep] = useState<Step>('email');
   const [busy, setBusy] = useState(false);
@@ -131,8 +128,8 @@ export default function WelcomePopup({ onClose }: Props) {
   const handleEmailNext = async () => {
     resetError();
     const e = email.toLowerCase().trim();
-    if (!isValidEldEmail(e)) {
-      setError('@eland.co.kr 이메일만 사용할 수 있습니다.');
+    if (!isAllowedSignupEmail(e)) {
+      setError(DOMAIN_REJECT_MESSAGE);
       return;
     }
     setEmail(e);
