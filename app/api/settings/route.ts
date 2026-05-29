@@ -6,6 +6,7 @@ const PUBLIC_KEYS = new Set([
   'chatroom_password',
   'chatroom_rules',
   'noa_url',
+  'android_app_url',
 ]);
 
 // GET /api/settings?keys=chatroom_url,noa_url

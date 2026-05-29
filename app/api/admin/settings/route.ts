@@ -7,6 +7,7 @@ const ALLOWED_KEYS = new Set([
   'chatroom_password',
   'chatroom_rules',
   'noa_url',
+  'android_app_url',
 ]);
 
 // PATCH /api/admin/settings  body: { key, value }

@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Video, VideoLevel, VideoStats, VideoComment } from '../lib/types';
 import { extractVideoId, getSessionId } from '../lib/utils';
+import { enableSecureScreen, disableSecureScreen } from '../lib/secureScreen';
 
 function youtubeThumb(youtubeUrl: string): string | null {
   const id = extractVideoId(youtubeUrl);
@@ -83,6 +84,13 @@ export default function VideoPage() {
     if (!selectedVideo) return;
     const id = setInterval(() => setWmPosToggle(v => v === 0 ? 1 : 0), 30_000);
     return () => clearInterval(id);
+  }, [selectedVideo]);
+
+  // 안드로이드 앱: 영상 재생 중 스크린샷/녹화 차단 (FLAG_SECURE)
+  useEffect(() => {
+    if (!selectedVideo) return;
+    enableSecureScreen();
+    return () => { disableSecureScreen(); };
   }, [selectedVideo]);
 
   // 우클릭/단축키 차단 (모달 내부)

@@ -7,17 +7,19 @@ export default function AdminChatroom() {
   const [url, setUrl] = useState('');
   const [password, setPassword] = useState('');
   const [rules, setRules] = useState('');
+  const [androidUrl, setAndroidUrl] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch('/api/settings?keys=chatroom_url,chatroom_password,chatroom_rules');
+        const res = await fetch('/api/settings?keys=chatroom_url,chatroom_password,chatroom_rules,android_app_url');
         if (res.ok) {
           const s = await res.json();
           if (typeof s.chatroom_url === 'string') setUrl(s.chatroom_url);
           if (typeof s.chatroom_password === 'string') setPassword(s.chatroom_password);
           if (typeof s.chatroom_rules === 'string') setRules(s.chatroom_rules);
+          if (typeof s.android_app_url === 'string') setAndroidUrl(s.android_app_url);
         }
       } catch { /* ignore */ }
     })();
@@ -47,6 +49,7 @@ export default function AdminChatroom() {
   const handleSaveUrl = () => saveKey('chatroom_url', url, '오픈채팅방 링크가 저장되었습니다.');
   const handleSavePassword = () => saveKey('chatroom_password', password, '입장 비밀번호가 저장되었습니다.');
   const handleSaveRules = () => saveKey('chatroom_rules', rules, '이용 규칙이 저장되었습니다.');
+  const handleSaveAndroid = () => saveKey('android_app_url', androidUrl, '안드로이드 앱 URL이 저장되었습니다.');
 
   const inputStyle: React.CSSProperties = {
     width: '100%', border: '1.5px solid #E2E8F0', borderRadius: 6,
@@ -81,6 +84,35 @@ export default function AdminChatroom() {
           </p>
           <button
             onClick={handleSaveUrl}
+            className="bg-black text-white px-5 py-2 rounded text-sm font-medium hover:bg-gray-800 transition-colors"
+          >
+            저장
+          </button>
+        </div>
+      </div>
+
+      {/* 안드로이드 앱 URL */}
+      <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+        <h3 className="text-base font-semibold text-gray-800 mb-4">안드로이드 앱 다운로드 URL</h3>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              AI 캠퍼스 안드로이드 앱 링크
+            </label>
+            <input
+              type="url"
+              value={androidUrl}
+              onChange={e => setAndroidUrl(e.target.value)}
+              placeholder="https://play.google.com/store/apps/details?id=... 또는 APK URL"
+              style={inputStyle}
+            />
+          </div>
+          <p className="text-xs text-gray-400">
+            우측 하단 플로팅 버튼 &quot;안드로이드 앱&quot; 클릭 시 이 URL로 새 탭이 열립니다.
+            비워두면 버튼이 표시되지 않습니다.
+          </p>
+          <button
+            onClick={handleSaveAndroid}
             className="bg-black text-white px-5 py-2 rounded text-sm font-medium hover:bg-gray-800 transition-colors"
           >
             저장

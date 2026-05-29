@@ -1,4 +1,5 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
+import SwRegister from "../components/SwRegister";
 import "./globals.css";
 
 const SITE_URL =
@@ -6,11 +7,24 @@ const SITE_URL =
 const TITLE = "이랜드리테일 AI 캠퍼스";
 const DESCRIPTION = "이랜드리테일 AI 교육 허브 — 학습, 제작, 질문, 공유";
 
+export const viewport: Viewport = {
+  themeColor: "#1647A8",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
+
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: { default: TITLE, template: `%s | ${TITLE}` },
   description: DESCRIPTION,
   applicationName: TITLE,
+  appleWebApp: {
+    capable: true,
+    title: "AI 캠퍼스",
+    statusBarStyle: "default",
+  },
+  manifest: "/manifest.webmanifest",
   keywords: [
     "이랜드리테일",
     "AI 캠퍼스",
@@ -18,7 +32,6 @@ export const metadata: Metadata = {
     "이랜드 AI",
     "사내 AI 학습",
   ],
-  themeColor: "#1647A8",
   openGraph: {
     type: "website",
     locale: "ko_KR",
@@ -58,6 +71,7 @@ export default function RootLayout({
         textRendering: "optimizeLegibility",
       } as React.CSSProperties}>
         {children}
+        <SwRegister />
       </body>
     </html>
   );

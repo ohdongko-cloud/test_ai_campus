@@ -11,7 +11,7 @@ import BoardPage from '../components/BoardPage';
 import SharePage from '../components/SharePage';
 import AdminDashboard from '../components/AdminDashboard';
 import GuidePage from '../components/GuidePage';
-import KakaoFAB from '../components/KakaoFAB';
+import FloatingActions from '../components/FloatingActions';
 import { adminLogin, adminLogout, isAdminAuthenticated } from '../lib/admin-client';
 
 const TAB_LABELS: { key: TabType; label: string }[] = [
@@ -438,8 +438,8 @@ export default function Page() {
         </div>
       </footer>
 
-      {/* 오픈 채팅방 진입 FAB (모든 탭에서 우측 하단 고정) */}
-      <KakaoFAB />
+      {/* 우측 하단 플로팅 액션 (안드로이드 앱 + 카톡 오픈채팅방) */}
+      <FloatingActions />
     </div>
   );
 }

@@ -32,3 +32,18 @@ yarn-error.log*
 next-env.d.ts
 
 .vercel
+
+# android (capacitor)
+android/.gradle/
+android/.idea/
+android/local.properties
+android/build/
+android/app/build/
+android/captures/
+android/app/release/
+android/app/debug/
+
+# android signing — 절대 커밋 금지
+android/keystore.properties
+*.jks
+*.keystore
