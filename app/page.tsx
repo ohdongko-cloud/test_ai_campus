@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { TabType } from '../lib/types';
-import { getUserInfo, UserInfo } from '../lib/utils';
+import { getUserInfo, clearUserInfo, UserInfo } from '../lib/utils';
 import WelcomePopup from '../components/WelcomePopup';
 import MainPage from '../components/MainPage';
 import VideoPage from '../components/VideoPage';
@@ -63,6 +63,18 @@ export default function Page() {
   const handleWelcomeClose = () => {
     setShowWelcome(false);
     setUserInfo(getUserInfo());
+  };
+
+  const handleLogout = async () => {
+    // 서버 세션 쿠키 삭제 (실패해도 클라이언트 정리 진행)
+    try {
+      await fetch('/api/users/logout', { method: 'POST', credentials: 'include' });
+    } catch { /* ignore */ }
+    clearUserInfo();
+    setUserInfo(null);
+    setActiveTab('home');
+    setMobileNav(false);
+    setShowWelcome(true);
   };
 
   const navigateTo = (tab: TabType) => {
@@ -244,6 +256,30 @@ export default function Page() {
               </span>
             </div>
 
+            {/* Logout button (로그인 상태일 때만) */}
+            {userInfo && (
+              <button
+                onClick={handleLogout}
+                style={{
+                  padding: '8px 14px', borderRadius: 8,
+                  border: '1px solid var(--color-line)', background: 'var(--color-surface)',
+                  color: 'var(--color-ink-3)', fontSize: 13.5, fontWeight: 500, cursor: 'pointer',
+                  transition: 'border-color 120ms ease, color 120ms ease',
+                  fontFamily: 'var(--font-sans)',
+                }}
+                onMouseEnter={e => {
+                  (e.currentTarget as HTMLElement).style.borderColor = 'var(--color-ink-2)';
+                  (e.currentTarget as HTMLElement).style.color = 'var(--color-ink-2)';
+                }}
+                onMouseLeave={e => {
+                  (e.currentTarget as HTMLElement).style.borderColor = 'var(--color-line)';
+                  (e.currentTarget as HTMLElement).style.color = 'var(--color-ink-3)';
+                }}
+              >
+                로그아웃
+              </button>
+            )}
+
             {/* Admin button */}
             <button
               onClick={() => setShowAdminLogin(true)}
@@ -301,6 +337,22 @@ export default function Page() {
                 {t.label}
               </button>
             ))}
+            {userInfo && (
+              <button
+                onClick={handleLogout}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  width: '100%', padding: '12px 14px', borderRadius: 8,
+                  background: 'transparent', color: 'var(--color-ink-3)',
+                  border: 'none', cursor: 'pointer', textAlign: 'left',
+                  fontSize: 14, fontWeight: 500,
+                  borderTop: '1px solid var(--color-line)', marginTop: 4,
+                  fontFamily: 'var(--font-sans)',
+                }}
+              >
+                로그아웃
+              </button>
+            )}
             <button
               onClick={() => { setMobileNav(false); setShowAdminLogin(true); }}
               style={{
@@ -309,7 +361,7 @@ export default function Page() {
                 background: 'transparent', color: 'var(--color-ink-3)',
                 border: 'none', cursor: 'pointer', textAlign: 'left',
                 fontSize: 14, fontWeight: 500,
-                borderTop: '1px solid var(--color-line)', marginTop: 4,
+                borderTop: userInfo ? 'none' : '1px solid var(--color-line)', marginTop: userInfo ? 0 : 4,
                 fontFamily: 'var(--font-sans)',
               }}
             >

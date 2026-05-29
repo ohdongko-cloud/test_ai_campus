@@ -301,6 +301,11 @@ export function setUserInfo(info: UserInfo): void {
   localStorage.setItem(KEYS.VISITED, JSON.stringify(info));
 }
 
+export function clearUserInfo(): void {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem(KEYS.VISITED);
+}
+
 export function getClickLog(): ClickLog[] {
   try {
     const raw = localStorage.getItem(KEYS.CLICK_LOG);
