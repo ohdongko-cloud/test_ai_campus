@@ -11,6 +11,7 @@ import BoardPage from '../components/BoardPage';
 import SharePage from '../components/SharePage';
 import AdminDashboard from '../components/AdminDashboard';
 import GuidePage from '../components/GuidePage';
+import KakaoFAB from '../components/KakaoFAB';
 import { adminLogin, adminLogout, isAdminAuthenticated } from '../lib/admin-client';
 
 const TAB_LABELS: { key: TabType; label: string }[] = [
@@ -92,7 +93,32 @@ export default function Page() {
     setShowWelcome(true);
   };
 
+  // ── Hash 라우팅: 탭 클릭 시 URL hash 갱신 + 브라우저 뒤로/앞으로 동기화 ──
+  const VALID_TABS: TabType[] = ['home', 'videos', 'meeting', 'board', 'share', 'guide'];
+  const tabFromHash = (h: string): TabType => {
+    const t = (h || '').replace(/^#/, '') as TabType;
+    return VALID_TABS.includes(t) ? t : 'home';
+  };
+
+  // 초기 진입 시 URL hash 반영
+  useEffect(() => {
+    const initial = tabFromHash(window.location.hash);
+    if (initial !== 'home') setActiveTab(initial);
+    const onPop = () => {
+      setActiveTab(tabFromHash(window.location.hash));
+      window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const navigateTo = (tab: TabType) => {
+    if (tab !== activeTab) {
+      const newHash = tab === 'home' ? ' ' : '#' + tab;
+      // pushState로 history 등록 → 뒤로가기 동작
+      window.history.pushState(null, '', newHash === ' ' ? window.location.pathname : newHash);
+    }
     setActiveTab(tab);
     setMobileNav(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -412,6 +438,8 @@ export default function Page() {
         </div>
       </footer>
 
+      {/* 오픈 채팅방 진입 FAB (모든 탭에서 우측 하단 고정) */}
+      <KakaoFAB />
     </div>
   );
 }

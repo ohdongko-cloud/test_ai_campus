@@ -478,8 +478,7 @@ export default function GuidePage({ isAdmin = false, onNavigate }: Props) {
   }, [isEditing]);
 
   // Stats
-  const totalServices = groups.reduce((s, g) => s + g.items.length, 0);
-  const totalRecommended = groups.reduce((s, g) => s + g.items.filter(i => i.recommended).length, 0);
+  // 통계 stats 블록 제거됨 — TOC strip만 유지.
 
   // TOC scroll
   const scrollToGroup = (id: string) => {
@@ -627,41 +626,16 @@ export default function GuidePage({ isAdmin = false, onNavigate }: Props) {
           </div>
         </div>
 
-        {/* ── Stats + TOC strip ── */}
+        {/* ── TOC strip (카테고리 빠른 점프) ── */}
         <div className="ac-strip" style={{
-          display: 'grid', gridTemplateColumns: '1fr auto', gap: 24,
-          alignItems: 'center',
           background: 'var(--color-surface)',
           border: '1px solid var(--color-line)',
-          borderRadius: 12, padding: '18px 22px',
+          borderRadius: 12, padding: '14px 18px',
           marginBottom: 32,
         }}>
-          {/* Stats */}
-          <div className="ac-stats" style={{ display: 'flex', gap: 28 }}>
-            {[
-              { value: String(groups.length), unit: '', label: '카테고리', color: 'var(--color-primary)' },
-              { value: String(totalServices), unit: '', label: '필수·추천 서비스', color: 'var(--color-ink)' },
-              { value: String(totalRecommended), unit: '', label: '사내 추천', color: 'var(--color-secondary)' },
-              { value: '2026.05', unit: '기준', label: '마지막 업데이트', color: 'var(--color-ink)' },
-            ].map(({ value, unit, label, color }) => (
-              <div key={label}>
-                <div style={{
-                  fontFamily: 'var(--font-eng)', fontWeight: 700, fontSize: 22,
-                  letterSpacing: '-0.02em', color,
-                  display: 'flex', alignItems: 'baseline', gap: 2,
-                }}>
-                  {value}
-                  {unit && <span style={{ fontSize: 12, color: 'var(--color-ink-3)', fontWeight: 500, marginLeft: 4 }}>{unit}</span>}
-                </div>
-                <div style={{ fontSize: 12, color: 'var(--color-ink-3)', marginTop: 2 }}>{label}</div>
-              </div>
-            ))}
-          </div>
-
-          {/* TOC chips */}
           <nav className="ac-toc" style={{
             display: 'flex', flexWrap: 'wrap', gap: 6,
-            justifyContent: 'flex-end', maxWidth: '60%',
+            justifyContent: 'flex-start',
           }}>
             {groups.map((g, i) => (
               <button key={g.id}

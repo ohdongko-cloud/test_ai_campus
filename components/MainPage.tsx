@@ -575,14 +575,6 @@ export default function MainPage({ onNavigate }: Props) {
                 onClick={() => handleNav('meeting', '멘토링 예약')}
               />
               <ActionCard
-                icon={<CommunityIcon />}
-                title="AI 오픈채팅방 참여"
-                desc="실무 AI 적용 고민과 꿀팁을 서로 나누세요."
-                meta={<><LiveDot />342 online</>}
-                metaRight="12 channels"
-                onClick={handleCommunity}
-              />
-              <ActionCard
                 icon={<BoardIcon />}
                 title="익명 Q&A 게시판"
                 desc="강의 내용 및 구현 중 어려운 내용 등 궁금한 사항은 익명 Q&A 게시판에 남겨주세요."
