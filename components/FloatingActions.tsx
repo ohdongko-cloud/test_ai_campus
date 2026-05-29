@@ -1,8 +1,9 @@
 "use client";
 
 // 우측 하단 플로팅 액션 버튼 모음.
-//   - 위: 안드로이드 앱 다운로드 (URL 미설정 시 숨김)
-//   - 아래: 카카오톡 오픈채팅방 입장 (항상 표시)
+//   - 최상단: 미팅요청 (onNavigate prop 시 노출, 내부 #meeting 탭으로 이동)
+//   - 중간:   안드로이드 앱 다운로드 (URL 미설정 시 숨김)
+//   - 하단:   카카오톡 오픈채팅방 입장 (항상 표시)
 //
 // URL은 app_settings 의 chatroom_url / android_app_url 키.
 
@@ -10,6 +11,8 @@ import { useEffect, useState } from 'react';
 import { addClickLog } from '../lib/utils';
 
 const FALLBACK_CHATROOM = 'https://open.kakao.com/';
+
+type NavigableTab = 'meeting';
 
 interface FabProps {
   label: string;
@@ -60,7 +63,11 @@ function FabButton({ label, ariaLabel, bg, icon, onClick }: FabProps) {
   );
 }
 
-export default function FloatingActions() {
+interface Props {
+  onNavigate?: (tab: NavigableTab) => void;
+}
+
+export default function FloatingActions({ onNavigate }: Props = {}) {
   const [chatroomUrl, setChatroomUrl] = useState<string>(FALLBACK_CHATROOM);
   const [androidUrl, setAndroidUrl] = useState<string>('');
 
@@ -87,6 +94,33 @@ export default function FloatingActions() {
       }}
       className="ffa-wrap"
     >
+      {/* 미팅요청 — 멘토링 예약 페이지로 이동 (onNavigate prop 있을 때만) */}
+      {onNavigate && (
+        <FabButton
+          label="미팅요청"
+          ariaLabel="멘토링 예약 페이지로 이동"
+          bg="#FF914D"
+          icon={
+            // 트렌디한 캘린더 + 체크마크 SVG (예약 확정 메타포)
+            <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+              {/* 캘린더 본체 */}
+              <rect x="5" y="8" width="22" height="19" rx="3" stroke="#fff" strokeWidth="2" fill="none" />
+              {/* 상단 헤더 라인 */}
+              <line x1="5" y1="13" x2="27" y2="13" stroke="#fff" strokeWidth="2" />
+              {/* 상단 걸이 2개 */}
+              <line x1="11" y1="5" x2="11" y2="10" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" />
+              <line x1="21" y1="5" x2="21" y2="10" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" />
+              {/* 본체 안 체크마크 */}
+              <path d="M11 20l3.5 3 6.5-6.5" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+            </svg>
+          }
+          onClick={() => {
+            addClickLog('미팅요청 FAB');
+            onNavigate('meeting');
+          }}
+        />
+      )}
+
       {/* 안드로이드 앱 — URL 설정된 경우만 표시 */}
       {androidUrl && (
         <FabButton

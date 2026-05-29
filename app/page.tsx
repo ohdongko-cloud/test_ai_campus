@@ -438,8 +438,8 @@ export default function Page() {
         </div>
       </footer>
 
-      {/* 우측 하단 플로팅 액션 (안드로이드 앱 + 카톡 오픈채팅방) */}
-      <FloatingActions />
+      {/* 우측 하단 플로팅 액션 (미팅요청 + 안드로이드 앱 + 카톡 오픈채팅방) */}
+      <FloatingActions onNavigate={navigateTo} />
     </div>
   );
 }
