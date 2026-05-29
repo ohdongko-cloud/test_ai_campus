@@ -7,7 +7,7 @@ export async function GET() {
     const rows = await sql`
       SELECT id, date::text AS date, day_of_week, start_time, end_time, reason, recurring
       FROM blocked_slots`;
-    return NextResponse.json(rows.map(r => ({
+    const res = NextResponse.json(rows.map(r => ({
       id: r.id,
       date: r.date || undefined,
       dayOfWeek: r.day_of_week ?? undefined,
@@ -16,7 +16,9 @@ export async function GET() {
       reason: r.reason ?? undefined,
       recurring: r.recurring,
     })));
-  } catch (e) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    res.headers.set('Cache-Control', 'public, s-maxage=120, stale-while-revalidate=300');
+    return res;
+  } catch {
+    return NextResponse.json({ error: '서버 오류가 발생했습니다.' }, { status: 500 });
   }
 }

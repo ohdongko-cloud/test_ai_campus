@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '../../../../../lib/db';
+import { checkRateLimit, getClientIp, tooManyRequests } from '../../../../../lib/ratelimit';
 
 // POST /api/videos/[id]/like  body: { sessionId, action: 'like'|'unlike' }
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -7,6 +8,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { sessionId, action } = await req.json();
   if (!sessionId) return NextResponse.json({ error: 'sessionId 필요' }, { status: 400 });
   if (!id) return NextResponse.json({ error: 'video id 필요' }, { status: 400 });
+
+  const ip = getClientIp(req);
+  const rl = await checkRateLimit('video-like', `${sessionId}:${ip}`, 5, '5 s');
+  if (!rl.success) return tooManyRequests();
 
   try {
     if (action === 'unlike') {

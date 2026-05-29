@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '../../../../../lib/db';
 import { containsReplacementChar } from '../../../../../lib/text-validation';
+import { checkRateLimit, getClientIp, tooManyRequests } from '../../../../../lib/ratelimit';
 
 async function sha256(text: string) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// 동일 세션의 연속 POST 방어 (in-memory, 단일 인스턴스 가정)
-const lastPostAt = new Map<string, number>();
-const COOLDOWN_MS = 3000;
+// (구) in-memory 쿨다운 제거 — Upstash 기반 checkRateLimit 으로 대체.
 
 // GET /api/videos/[id]/comments
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -41,15 +40,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: '지원하지 않는 문자가 포함되어 있습니다. UTF-8 한글로 다시 작성해주세요.' }, { status: 400 });
   }
 
-  // 간단한 cooldown rate limit (세션 + IP)
-  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
-  const key = `${sessionId || 'anon'}:${ip}`;
-  const now = Date.now();
-  const last = lastPostAt.get(key) || 0;
-  if (now - last < COOLDOWN_MS) {
-    return NextResponse.json({ error: '잠시 후 다시 시도해주세요.' }, { status: 429 });
-  }
-  lastPostAt.set(key, now);
+  const ip = getClientIp(req);
+  const rl = await checkRateLimit('video-comment', `${sessionId || 'anon'}:${ip}`, 1, '10 s');
+  if (!rl.success) return tooManyRequests('잠시 후 다시 시도해주세요.');
 
   const password_hash = password ? await sha256(String(password)) : null;
   try {

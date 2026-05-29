@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '../../../lib/db';
 import { containsReplacementChar } from '../../../lib/text-validation';
+import { checkRateLimit, getClientIp, tooManyRequests } from '../../../lib/ratelimit';
 
 async function sha256(text: string) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
@@ -35,6 +36,10 @@ export async function GET(req: NextRequest) {
 
 // POST /api/posts
 export async function POST(req: NextRequest) {
+  const ip = getClientIp(req);
+  const rl = await checkRateLimit('post-create', ip, 1, '30 s');
+  if (!rl.success) return tooManyRequests();
+
   const { title, content, password, link } = await req.json();
   if (!title?.trim() || !content?.trim()) {
     return NextResponse.json({ error: '제목과 내용은 필수입니다.' }, { status: 400 });

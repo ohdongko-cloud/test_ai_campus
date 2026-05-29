@@ -8,12 +8,14 @@ export async function GET() {
       SELECT id, name, description, order_idx
       FROM video_levels
       ORDER BY order_idx ASC, name ASC`;
-    return NextResponse.json(rows.map(r => ({
+    const res = NextResponse.json(rows.map(r => ({
       id: r.id,
       name: r.name,
       description: r.description,
     })));
-  } catch (e) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    res.headers.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
+    return res;
+  } catch {
+    return NextResponse.json({ error: '서버 오류가 발생했습니다.' }, { status: 500 });
   }
 }

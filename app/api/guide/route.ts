@@ -18,7 +18,7 @@ export async function GET() {
       (grouped[it.group_id] ||= []).push(it);
     }
 
-    return NextResponse.json(groups.map(g => ({
+    const res = NextResponse.json(groups.map(g => ({
       id: g.id,
       name: g.name,
       description: g.description,
@@ -31,7 +31,9 @@ export async function GET() {
         recommended: it.recommended,
       })),
     })));
-  } catch (e) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    res.headers.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
+    return res;
+  } catch {
+    return NextResponse.json({ error: '서버 오류가 발생했습니다.' }, { status: 500 });
   }
 }

@@ -8,7 +8,6 @@ export async function GET() {
       SELECT id, title, level, description, youtube_url, view_count, stages, order_idx
       FROM videos
       ORDER BY order_idx ASC, created_at ASC`;
-    // Map snake_case → camelCase (클라이언트의 Video 타입 유지)
     const out = rows.map(r => ({
       id: r.id,
       title: r.title,
@@ -19,8 +18,10 @@ export async function GET() {
       stages: r.stages || [],
       order: r.order_idx,
     }));
-    return NextResponse.json(out);
-  } catch (e) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    const res = NextResponse.json(out);
+    res.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
+    return res;
+  } catch {
+    return NextResponse.json({ error: '서버 오류가 발생했습니다.' }, { status: 500 });
   }
 }

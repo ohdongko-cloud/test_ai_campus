@@ -27,10 +27,12 @@ export async function GET() {
       WHERE is_deleted = false
         AND created_at > NOW() - INTERVAL '48 hours'
     `;
-    return NextResponse.json({
+    const res = NextResponse.json({
       postsThisWeek: weekRow?.count ?? 0,
       postsNew:      newRow?.count  ?? 0,
     });
+    res.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
+    return res;
   } catch {
     return NextResponse.json({ postsThisWeek: 0, postsNew: 0 });
   }
