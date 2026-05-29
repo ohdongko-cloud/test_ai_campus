@@ -3,6 +3,7 @@ import { sql } from '../../../../lib/db';
 import { checkRateLimit, getClientIp, tooManyRequests } from '../../../../lib/ratelimit';
 import { sendVerificationEmail } from '../../../../lib/email';
 import { logAuth } from '../../../../lib/audit';
+import { reportError } from '../../../../lib/error-report';
 
 const ALLOWED_DOMAIN = '@eland.co.kr';
 const CODE_TTL_MIN = 10;
@@ -53,9 +54,25 @@ export async function POST(req: NextRequest) {
 
   const send = await sendVerificationEmail(email, code);
   if (!send.ok) {
-    console.error('[signup-request] email send failed:', send.error);
-    await logAuth({ type: 'signup_request', email, success: false, req, detail: 'email-send-failed' });
-    return NextResponse.json({ error: '인증 메일 발송에 실패했습니다. 잠시 후 다시 시도해주세요.' }, { status: 500 });
+    // Vercel Functions 로그 + Sentry 모두에 자세한 정보 남기기
+    console.error('[signup-request] email send failed', {
+      to: email,
+      error: send.error,
+      from: process.env.EMAIL_FROM,
+      hasApiKey: !!process.env.RESEND_API_KEY,
+    });
+    reportError(new Error(`Resend send failed: ${send.error || 'unknown'}`), {
+      route: 'users/signup-request',
+      detail: { to: email, from: process.env.EMAIL_FROM, error: send.error },
+    });
+    await logAuth({
+      type: 'signup_request', email, success: false, req,
+      detail: `email-send-failed: ${(send.error || '').slice(0, 200)}`,
+    });
+    return NextResponse.json({
+      error: '인증 메일 발송에 실패했습니다. 잠시 후 다시 시도해주세요.',
+      // 운영자 디버그 힌트 — 어드민 로그에서 확인 가능
+    }, { status: 500 });
   }
 
   await logAuth({ type: 'signup_request', email, success: true, req });
