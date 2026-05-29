@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { GuideGroup, GuideServiceItem, TabType } from '../lib/types';
 import { adminFetch } from '../lib/admin-client';
+import { getServiceIcon } from '../lib/service-icons';
 
 interface Props {
   isAdmin?: boolean;
@@ -180,6 +181,39 @@ function ServiceModal({ title, data, onSave, onClose }: {
 }
 
 /* ── Service card ────────────────────────────────────────────── */
+// 서비스 로고 아이콘 — 로드 실패 시 monogram fallback
+function IconBadge({ id, monogram, toneBg, toneInk, toneBorder }: {
+  id: string; monogram: string;
+  toneBg: string; toneInk: string; toneBorder: string;
+}) {
+  const [failed, setFailed] = useState(false);
+  const url = getServiceIcon(id);
+  if (failed || !url) {
+    return (
+      <div style={{
+        width: 40, height: 40, borderRadius: 10, flexShrink: 0,
+        background: toneBg, color: toneInk, border: `1px solid ${toneBorder}`,
+        display: 'grid', placeItems: 'center',
+        fontFamily: 'var(--font-eng)', fontWeight: 700, fontSize: 14,
+      }}>{monogram}</div>
+    );
+  }
+  return (
+    <div style={{
+      width: 40, height: 40, borderRadius: 10, flexShrink: 0,
+      background: '#fff', border: '1px solid var(--color-line)',
+      display: 'grid', placeItems: 'center', overflow: 'hidden',
+    }}>
+      <img
+        src={url}
+        alt=""
+        onError={() => setFailed(true)}
+        style={{ width: 28, height: 28, objectFit: 'contain' }}
+      />
+    </div>
+  );
+}
+
 function ServiceCard({ item, index, isEditing, onEdit, onDelete }: {
   item: GuideServiceItem;
   index: number;
@@ -229,16 +263,8 @@ function ServiceCard({ item, index, isEditing, onEdit, onDelete }: {
 
       {/* Header row */}
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-        {/* Monogram badge */}
-        <div style={{
-          width: 40, height: 40, borderRadius: 10, flexShrink: 0,
-          background: t.bg, color: t.ink, border: `1px solid ${t.border}`,
-          display: 'grid', placeItems: 'center',
-          fontFamily: 'var(--font-eng)', fontWeight: 700, fontSize: 14,
-          letterSpacing: '-0.01em',
-        }}>
-          {monogram}
-        </div>
+        {/* Icon badge (실제 로고) */}
+        <IconBadge id={item.id} monogram={monogram} toneBg={t.bg} toneInk={t.ink} toneBorder={t.border} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{
             fontSize: 15.5, fontWeight: 700, letterSpacing: '-0.01em',

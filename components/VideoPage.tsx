@@ -60,6 +60,51 @@ export default function VideoPage() {
   const [hoverCard, setHoverCard] = useState<string | null>(null);
   const [openStageIdx, setOpenStageIdx] = useState<number | null>(null);
   const [copiedStageIdx, setCopiedStageIdx] = useState<number | null>(null);
+
+  // ── 영상 보호용 워터마크 ──
+  const [watermarkEmail, setWatermarkEmail] = useState<string>('anon');
+  const [wmPosToggle, setWmPosToggle] = useState(0); // 0/1 — 30초마다 위치 swap
+  const [externalLinkBlocked, setExternalLinkBlocked] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/users/me', { credentials: 'include' })
+      .then(r => r.ok ? r.json() : { user: null })
+      .then(d => {
+        if (d?.user?.email) setWatermarkEmail(d.user.email);
+        else {
+          const sid = getSessionId();
+          setWatermarkEmail(`anon · ${sid.slice(-8)}`);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!selectedVideo) return;
+    const id = setInterval(() => setWmPosToggle(v => v === 0 ? 1 : 0), 30_000);
+    return () => clearInterval(id);
+  }, [selectedVideo]);
+
+  // 우클릭/단축키 차단 (모달 내부)
+  const blockContext = (e: React.MouseEvent) => { e.preventDefault(); };
+  const blockShortcuts = (e: React.KeyboardEvent) => {
+    if ((e.ctrlKey && (e.key === 's' || e.key === 'u' || e.key === 'c'))
+      || (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C'))
+      || e.key === 'F12') {
+      e.preventDefault();
+    }
+  };
+
+  const handleExternalLinkBlock = () => {
+    setExternalLinkBlocked(true);
+    setTimeout(() => setExternalLinkBlocked(false), 2000);
+  };
+
+  const nowLabel = () => {
+    const d = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
   const [statsMap, setStatsMap] = useState<Record<string, VideoStats>>({});
   const [thumbFailed, setThumbFailed] = useState<Record<string, true>>({});
   const [likeBusy, setLikeBusy] = useState<Record<string, true>>({});
@@ -616,16 +661,74 @@ export default function VideoPage() {
               overflow: 'hidden', display: 'flex', flexDirection: 'column',
             }}
           >
-            {/* 유튜브 플레이어 */}
-            <div style={{ aspectRatio: '16/9', background: '#000', flexShrink: 0 }}>
+            {/* 유튜브 플레이어 + 보호 레이어 */}
+            <div
+              style={{ aspectRatio: '16/9', background: '#000', flexShrink: 0, position: 'relative' }}
+              onContextMenu={blockContext}
+              onKeyDown={blockShortcuts}
+            >
               <iframe
                 width="100%" height="100%"
-                src={`https://www.youtube.com/embed/${extractVideoId(selectedVideo.youtubeUrl)}?autoplay=1&rel=0`}
+                src={`https://www.youtube.com/embed/${extractVideoId(selectedVideo.youtubeUrl)}?autoplay=1&rel=0&modestbranding=1&iv_load_policy=3&disablekb=1&playsinline=1`}
                 title={selectedVideo.title}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
                 style={{ display: 'block', border: 'none' }}
               />
+              {/* YouTube 우상단 '시청' 버튼 영역 클릭 차단 */}
+              <div
+                onClick={handleExternalLinkBlock}
+                style={{
+                  position: 'absolute', top: 0, right: 0,
+                  width: 90, height: 48, zIndex: 5,
+                  cursor: 'not-allowed',
+                }}
+                aria-hidden="true"
+              />
+              {/* YouTube 좌하단 로고 영역 클릭 차단 */}
+              <div
+                onClick={handleExternalLinkBlock}
+                style={{
+                  position: 'absolute', bottom: 0, left: 0,
+                  width: 110, height: 36, zIndex: 5,
+                  cursor: 'not-allowed',
+                }}
+                aria-hidden="true"
+              />
+              {/* 워터마크 — 4 모서리 중 2개씩 표시, 30초마다 swap */}
+              {[
+                wmPosToggle === 0 ? { top: 10, left: 12 }   : { top: 10, right: 12 },
+                wmPosToggle === 0 ? { bottom: 10, right: 12 } : { bottom: 10, left: 12 },
+              ].map((pos, i) => (
+                <div key={i} aria-hidden="true" style={{
+                  position: 'absolute', ...pos, zIndex: 4,
+                  pointerEvents: 'none',
+                  fontSize: 11, fontWeight: 600, fontFamily: 'sans-serif',
+                  color: 'rgba(255,255,255,0.55)',
+                  textShadow: '0 0 4px rgba(0,0,0,0.8)',
+                  letterSpacing: 0.3, userSelect: 'none',
+                }}>
+                  {watermarkEmail} · {nowLabel()}
+                </div>
+              ))}
+              {/* 외부 링크 차단 토스트 */}
+              {externalLinkBlocked && (
+                <div style={{
+                  position: 'absolute', bottom: 64, left: '50%', transform: 'translateX(-50%)',
+                  zIndex: 10, padding: '8px 14px', borderRadius: 6,
+                  background: 'rgba(216,54,76,0.95)', color: '#fff',
+                  fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap',
+                }}>
+                  외부 사이트로 이동할 수 없습니다.
+                </div>
+              )}
+            </div>
+            {/* 사내 한정 자료 안내 */}
+            <div style={{
+              padding: '8px 16px', background: '#FDF2F4', borderBottom: `1px solid ${T.border}`,
+              fontSize: 11, color: T.danger, fontWeight: 600, textAlign: 'center',
+            }}>
+              🔒 본 영상은 이랜드리테일 사내 한정 자료입니다. 외부 공유·녹화·캡처를 금지합니다.
             </div>
 
             {/* 영상 정보 */}
