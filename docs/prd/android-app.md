@@ -43,8 +43,9 @@
 | compileSdkVersion | 36 |
 | targetSdkVersion | 36 |
 | Capacitor 버전 | 7.x |
-| 배포 상태 | **빌드 준비** (Play Console 업로드 직전) |
+| 배포 상태 | **빌드 완료** (.aab 생성됨, Play Console 업로드 대기) |
 | 배포 트랙 | Closed Testing 예정 |
+| 산출물 | `android/app/build/outputs/bundle/release/app-release.aab` (≈2.87 MB) |
 
 ## 3. 앱 식별 정보
 

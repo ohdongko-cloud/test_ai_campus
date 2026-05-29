@@ -12,6 +12,10 @@ import SharePage from '../components/SharePage';
 import AdminDashboard from '../components/AdminDashboard';
 import GuidePage from '../components/GuidePage';
 import FloatingActions from '../components/FloatingActions';
+import LegalModal from '../components/LegalModal';
+import PrivacyContent from '../components/policy/PrivacyContent';
+import TermsContent from '../components/policy/TermsContent';
+import { addClickLog } from '../lib/utils';
 import { adminLogin, adminLogout, isAdminAuthenticated } from '../lib/admin-client';
 
 const TAB_LABELS: { key: TabType; label: string }[] = [
@@ -34,6 +38,17 @@ export default function Page() {
   const [mobileNav, setMobileNav] = useState(false);
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
   const [hasAdminAccess, setHasAdminAccess] = useState(false); // 권한 보유 (회원 기반)
+  const [policyModal, setPolicyModal] = useState<'privacy' | 'terms' | null>(null);
+
+  const handleAdminEntry = () => {
+    if (hasAdminAccess) setIsAdmin(true);
+    else setShowAdminLogin(true);
+  };
+
+  const handleAdminInquiry = () => {
+    addClickLog('관리자 문의');
+    window.open('https://open.kakao.com/o/ssiKWcTf', '_blank', 'noopener,noreferrer');
+  };
 
   useEffect(() => {
     const info = getUserInfo();
@@ -321,21 +336,7 @@ export default function Page() {
               </button>
             )}
 
-            {/* Admin button */}
-            <button
-              onClick={() => hasAdminAccess ? setIsAdmin(true) : setShowAdminLogin(true)}
-              style={{
-                padding: '8px 14px', borderRadius: 8,
-                border: '1px solid var(--color-line)', background: 'var(--color-surface)',
-                color: 'var(--color-ink-2)', fontSize: 13.5, fontWeight: 500, cursor: 'pointer',
-                transition: 'border-color 120ms ease',
-                fontFamily: 'var(--font-sans)',
-              }}
-              onMouseEnter={e => ((e.currentTarget as HTMLElement).style.borderColor = 'var(--color-ink-2)')}
-              onMouseLeave={e => ((e.currentTarget as HTMLElement).style.borderColor = 'var(--color-line)')}
-            >
-              관리자
-            </button>
+            {/* (관리자 버튼은 푸터로 이동) */}
 
             {/* Mobile hamburger */}
             <button
@@ -394,20 +395,7 @@ export default function Page() {
                 로그아웃
               </button>
             )}
-            <button
-              onClick={() => { setMobileNav(false); hasAdminAccess ? setIsAdmin(true) : setShowAdminLogin(true); }}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 10,
-                width: '100%', padding: '12px 14px', borderRadius: 8,
-                background: 'transparent', color: 'var(--color-ink-3)',
-                border: 'none', cursor: 'pointer', textAlign: 'left',
-                fontSize: 14, fontWeight: 500,
-                borderTop: userInfo ? 'none' : '1px solid var(--color-line)', marginTop: userInfo ? 0 : 4,
-                fontFamily: 'var(--font-sans)',
-              }}
-            >
-              관리자 모드
-            </button>
+            {/* (관리자 모드는 푸터로 이동) */}
           </div>
         )}
       </header>
@@ -426,17 +414,48 @@ export default function Page() {
           fontFamily: 'var(--font-eng)',
         }}>
           <span>© 2026 이랜드리테일 AI 캠퍼스 · Internal Portal</span>
-          <div style={{ display: 'flex', gap: 20 }}>
-            {['개인정보처리방침', '이용약관', '관리자 문의'].map(l => (
-              <button key={l}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--color-ink-3)', padding: 0, fontFamily: 'var(--font-sans)' }}
+          <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', alignItems: 'center' }}>
+            {([
+              { label: '개인정보처리방침', onClick: () => setPolicyModal('privacy') },
+              { label: '이용약관',          onClick: () => setPolicyModal('terms') },
+              { label: '관리자 문의',       onClick: handleAdminInquiry },
+              { label: '관리자 모드',       onClick: handleAdminEntry, color: 'var(--color-ink-2)' },
+            ] as { label: string; onClick: () => void; color?: string }[]).map(l => (
+              <button key={l.label}
+                onClick={l.onClick}
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  fontSize: 12, color: l.color || 'var(--color-ink-3)',
+                  padding: 0, fontFamily: 'var(--font-sans)',
+                  fontWeight: l.color ? 600 : 500,
+                }}
                 onMouseEnter={e => ((e.currentTarget as HTMLElement).style.color = 'var(--color-ink)')}
-                onMouseLeave={e => ((e.currentTarget as HTMLElement).style.color = 'var(--color-ink-3)')}
-              >{l}</button>
+                onMouseLeave={e => ((e.currentTarget as HTMLElement).style.color = l.color || 'var(--color-ink-3)')}
+              >{l.label}</button>
             ))}
           </div>
         </div>
       </footer>
+
+      {/* 정책 모달 */}
+      {policyModal === 'privacy' && (
+        <LegalModal
+          title="개인정보처리방침"
+          effectiveDate="2026.05.26"
+          onClose={() => setPolicyModal(null)}
+        >
+          <PrivacyContent />
+        </LegalModal>
+      )}
+      {policyModal === 'terms' && (
+        <LegalModal
+          title="이용약관"
+          effectiveDate="2026.05.26"
+          onClose={() => setPolicyModal(null)}
+        >
+          <TermsContent />
+        </LegalModal>
+      )}
 
       {/* 우측 하단 플로팅 액션 (미팅요청 + 안드로이드 앱 + 카톡 오픈채팅방) */}
       <FloatingActions onNavigate={navigateTo} />
