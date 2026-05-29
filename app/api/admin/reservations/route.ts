@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '../../../../lib/db';
-import { requireAdmin } from '../../../../lib/admin-auth';
+import { checkAdmin } from '../../../../lib/admin-auth';
 
 // GET /api/admin/reservations (전체 필드)
 export async function GET(req: NextRequest) {
-  const denied = await requireAdmin(req);
+  const denied = await checkAdmin(req, 'meetings');
   if (denied) return denied;
   try {
     const rows = await sql`

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '../../../../lib/db';
-import { requireAdmin } from '../../../../lib/admin-auth';
+import { checkAdmin } from '../../../../lib/admin-auth';
 import { containsReplacementChar } from '../../../../lib/text-validation';
 
 interface Stage { id: string; title: string; description: string }
@@ -50,7 +50,7 @@ function hasBrokenText(p: ImportPayload): string | null {
 }
 
 export async function POST(req: NextRequest) {
-  const denied = await requireAdmin(req);
+  const denied = await checkAdmin(req, 'import');
   if (denied) return denied;
 
   const payload = await req.json() as ImportPayload;

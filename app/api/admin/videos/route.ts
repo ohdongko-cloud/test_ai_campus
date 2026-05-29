@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '../../../../lib/db';
-import { requireAdmin } from '../../../../lib/admin-auth';
+import { checkAdmin } from '../../../../lib/admin-auth';
 import { assertCleanFields, BadTextError } from '../../../../lib/text-validation';
 
 // POST /api/admin/videos
 // body: { id?, title, level, description?, youtubeUrl, stages?, order_idx? }
 export async function POST(req: NextRequest) {
-  const denied = await requireAdmin(req);
+  const denied = await checkAdmin(req, 'videos');
   if (denied) return denied;
 
   const body = await req.json();

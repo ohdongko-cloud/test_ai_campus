@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '../../../../lib/db';
-import { requireAdmin } from '../../../../lib/admin-auth';
+import { checkAdmin } from '../../../../lib/admin-auth';
 
 // POST /api/admin/video-levels  body: { name, description? }
 export async function POST(req: NextRequest) {
-  const denied = await requireAdmin(req);
+  const denied = await checkAdmin(req, 'videos');
   if (denied) return denied;
 
   const { name, description } = await req.json();

@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '../../../../../lib/db';
-import { requireAdmin } from '../../../../../lib/admin-auth';
+import { checkAdmin } from '../../../../../lib/admin-auth';
 
 // DELETE /api/admin/services/[id]
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const denied = await requireAdmin(req);
+  const denied = await checkAdmin(req, 'services');
   if (denied) return denied;
   const { id } = await params;
   try {

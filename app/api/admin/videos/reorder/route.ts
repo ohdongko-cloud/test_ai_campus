@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '../../../../../lib/db';
-import { requireAdmin } from '../../../../../lib/admin-auth';
+import { checkAdmin } from '../../../../../lib/admin-auth';
 
 // POST /api/admin/videos/reorder  body: { ids: string[] }
 // ids 배열 순서대로 order_idx 0, 1, 2, ... 갱신
 export async function POST(req: NextRequest) {
-  const denied = await requireAdmin(req);
+  const denied = await checkAdmin(req, 'videos');
   if (denied) return denied;
 
   const { ids } = await req.json();

@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '../../../../lib/db';
-import { requireAdmin } from '../../../../lib/admin-auth';
+import { checkAdmin } from '../../../../lib/admin-auth';
 
 // GET /api/admin/logs?source=auth|audit|access&page=1&type=...
 export async function GET(req: NextRequest) {
-  const denied = await requireAdmin(req);
+  const denied = await checkAdmin(req, 'logs');
   if (denied) return denied;
 
   const { searchParams } = new URL(req.url);

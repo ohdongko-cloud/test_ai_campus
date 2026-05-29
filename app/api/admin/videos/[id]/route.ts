@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '../../../../../lib/db';
-import { requireAdmin } from '../../../../../lib/admin-auth';
+import { checkAdmin } from '../../../../../lib/admin-auth';
 
 // PATCH /api/admin/videos/[id]  body: { title?, level?, description?, youtubeUrl?, stages?, order? }
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const denied = await requireAdmin(req);
+  const denied = await checkAdmin(req, 'videos');
   if (denied) return denied;
 
   const { id } = await params;
@@ -39,7 +39,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
 // DELETE /api/admin/videos/[id]
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const denied = await requireAdmin(req);
+  const denied = await checkAdmin(req, 'videos');
   if (denied) return denied;
 
   const { id } = await params;

@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '../../../../lib/db';
-import { requireAdmin } from '../../../../lib/admin-auth';
+import { checkAdmin } from '../../../../lib/admin-auth';
 
 // POST /api/admin/blocked-slots  body: BlockedSlot
 export async function POST(req: NextRequest) {
-  const denied = await requireAdmin(req);
+  const denied = await checkAdmin(req, 'meetings');
   if (denied) return denied;
   const body = await req.json();
   if (!body.startTime) return NextResponse.json({ error: 'startTime 필수' }, { status: 400 });

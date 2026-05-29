@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '../../../../lib/db';
-import { requireAdmin } from '../../../../lib/admin-auth';
+import { checkAdmin } from '../../../../lib/admin-auth';
 
 const ALLOWED_KEYS = new Set([
   'chatroom_url',
@@ -11,7 +11,7 @@ const ALLOWED_KEYS = new Set([
 
 // PATCH /api/admin/settings  body: { key, value }
 export async function PATCH(req: NextRequest) {
-  const denied = await requireAdmin(req);
+  const denied = await checkAdmin(req, 'chatroom');
   if (denied) return denied;
 
   const { key, value } = await req.json();

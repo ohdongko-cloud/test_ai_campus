@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '../../../../lib/db';
-import { requireAdmin } from '../../../../lib/admin-auth';
+import { checkAdmin } from '../../../../lib/admin-auth';
 import { assertCleanFields, BadTextError } from '../../../../lib/text-validation';
 
 // POST /api/admin/services
 export async function POST(req: NextRequest) {
-  const denied = await requireAdmin(req);
+  const denied = await checkAdmin(req, 'services');
   if (denied) return denied;
   const body = await req.json();
   if (!body.serviceName || !body.url) return NextResponse.json({ error: 'serviceName/url 필수' }, { status: 400 });

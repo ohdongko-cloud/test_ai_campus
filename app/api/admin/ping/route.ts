@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { requireAdmin } from '../../../../lib/admin-auth';
+import { checkAdmin } from '../../../../lib/admin-auth';
 import { checkRateLimit, getClientIp, tooManyRequests } from '../../../../lib/ratelimit';
 
 // POST /api/admin/ping
@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
   const rl = await checkRateLimit('admin-ping', ip, 30, '1 m');
   if (!rl.success) return tooManyRequests();
 
-  const denied = await requireAdmin(req);
+  const denied = await checkAdmin(req);
   if (denied) return denied;
   return Response.json({ ok: true });
 }

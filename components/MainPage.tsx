@@ -563,7 +563,7 @@ export default function MainPage({ onNavigate }: Props) {
               <ActionCard
                 icon={<MentorIcon />}
                 title="멘토링 예약"
-                desc="AX팀과 1:1 미팅을 예약하세요. 30분 슬롯, 매주 화·목."
+                desc="AX팀의 1:1 집중 멘토링을 받아보세요."
                 meta="5 mentors"
                 metaRight={
                   availableSlots === null
@@ -576,8 +576,8 @@ export default function MainPage({ onNavigate }: Props) {
               />
               <ActionCard
                 icon={<CommunityIcon />}
-                title="AI 커뮤니티 참여"
-                desc="동료들과 질문과 팁을 실시간으로 나누세요. 채널별 오픈채팅 운영중."
+                title="AI 오픈채팅방 참여"
+                desc="실무 AI 적용 고민과 꿀팁을 서로 나누세요."
                 meta={<><LiveDot />342 online</>}
                 metaRight="12 channels"
                 onClick={handleCommunity}
@@ -585,7 +585,7 @@ export default function MainPage({ onNavigate }: Props) {
               <ActionCard
                 icon={<BoardIcon />}
                 title="익명 Q&A 게시판"
-                desc="익명으로 질문과 고민을 자유롭게 공유하세요. 부담 없이, 솔직하게."
+                desc="강의 내용 및 구현 중 어려운 내용 등 궁금한 사항은 익명 Q&A 게시판에 남겨주세요."
                 meta={boardStats !== null ? `${boardStats.postsThisWeek} posts this week` : '— posts this week'}
                 metaRight={
                   boardStats !== null && boardStats.postsNew > 0

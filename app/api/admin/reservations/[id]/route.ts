@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '../../../../../lib/db';
-import { requireAdmin } from '../../../../../lib/admin-auth';
+import { checkAdmin } from '../../../../../lib/admin-auth';
 
 // PATCH /api/admin/reservations/[id]  body: { status }
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const denied = await requireAdmin(req);
+  const denied = await checkAdmin(req, 'meetings');
   if (denied) return denied;
   const { id } = await params;
   const { status } = await req.json();
@@ -21,7 +21,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
 // DELETE /api/admin/reservations/[id]
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const denied = await requireAdmin(req);
+  const denied = await checkAdmin(req, 'meetings');
   if (denied) return denied;
   const { id } = await params;
   try {

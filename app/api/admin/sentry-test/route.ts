@@ -8,11 +8,11 @@
 //   2. Sentry 대시보드 → Issues 에 "Sentry test error" 가 30초 안에 나타나야 정상.
 
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAdmin } from '../../../../lib/admin-auth';
+import { checkAdmin } from '../../../../lib/admin-auth';
 import { reportError } from '../../../../lib/error-report';
 
 export async function POST(req: NextRequest) {
-  const denied = await requireAdmin(req);
+  const denied = await checkAdmin(req);
   if (denied) return denied;
 
   const err = new Error('Sentry test error — 정상적으로 노출되어야 합니다. 응답 200.');

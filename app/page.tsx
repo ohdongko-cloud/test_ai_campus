@@ -32,6 +32,7 @@ export default function Page() {
   const [showWelcome, setShowWelcome] = useState(false);
   const [mobileNav, setMobileNav] = useState(false);
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
+  const [hasAdminAccess, setHasAdminAccess] = useState(false); // 권한 보유 (회원 기반)
 
   useEffect(() => {
     const info = getUserInfo();
@@ -40,10 +41,17 @@ export default function Page() {
     } else {
       setUserInfo(info);
     }
-    // 같은 탭에서 새로고침해도 어드민 세션 유지
-    // 쿠키 기반 세션 확인 (같은 탭/다른 탭에서 새로고침해도 유지)
+    // 같은 탭에서 새로고침해도 어드민 세션 유지 (legacy admin_session 쿠키)
     (async () => {
       if (await isAdminAuthenticated()) setIsAdmin(true);
+    })();
+    // 회원 세션이면 /me로 권한 확인
+    (async () => {
+      try {
+        const res = await fetch('/api/users/me', { credentials: 'include' });
+        const data = await res.json().catch(() => ({}));
+        if (data?.user?.isAdmin) setHasAdminAccess(true);
+      } catch { /* ignore */ }
     })();
   }, []);
 
@@ -289,7 +297,7 @@ export default function Page() {
 
             {/* Admin button */}
             <button
-              onClick={() => setShowAdminLogin(true)}
+              onClick={() => hasAdminAccess ? setIsAdmin(true) : setShowAdminLogin(true)}
               style={{
                 padding: '8px 14px', borderRadius: 8,
                 border: '1px solid var(--color-line)', background: 'var(--color-surface)',
@@ -361,7 +369,7 @@ export default function Page() {
               </button>
             )}
             <button
-              onClick={() => { setMobileNav(false); setShowAdminLogin(true); }}
+              onClick={() => { setMobileNav(false); hasAdminAccess ? setIsAdmin(true) : setShowAdminLogin(true); }}
               style={{
                 display: 'flex', alignItems: 'center', gap: 10,
                 width: '100%', padding: '12px 14px', borderRadius: 8,

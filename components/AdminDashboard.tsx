@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AdminTabType } from '../lib/types';
 import AdminStats from './AdminStats';
 import AdminVideos from './AdminVideos';
@@ -11,6 +11,7 @@ import AdminBoardStats from './AdminBoardStats';
 import AdminGuide from './AdminGuide';
 import AdminImport from './AdminImport';
 import AdminLogs from './AdminLogs';
+import AdminUsersManage from './AdminUsersManage';
 
 interface Props {
   onExit: () => void;
@@ -19,22 +20,62 @@ interface Props {
 interface TabInfo {
   key: AdminTabType;
   label: string;
+  perm?: string; // permissions JSON key. 누락 = 항상 표시 (예: stats는 항상)
 }
 
 const TABS: TabInfo[] = [
-  { key: 'stats', label: '통계 현황' },
-  { key: 'videos', label: '영상 관리' },
-  { key: 'meetings', label: '미팅 관리' },
-  { key: 'chatroom', label: '오픈채팅방 관리' },
-  { key: 'services', label: '서비스 공유 관리' },
-  { key: 'board', label: '게시판 관리' },
-  { key: 'guide', label: '가이드 관리' },
-  { key: 'logs', label: '로그' },
+  { key: 'stats',    label: '통계 현황',         perm: 'stats' },
+  { key: 'videos',   label: '영상 관리',         perm: 'videos' },
+  { key: 'meetings', label: '미팅 관리',         perm: 'meetings' },
+  { key: 'chatroom', label: '오픈채팅방 관리',   perm: 'chatroom' },
+  { key: 'services', label: '서비스 공유 관리',  perm: 'services' },
+  { key: 'board',    label: '게시판 관리',       perm: 'board' },
+  { key: 'guide',    label: '가이드 관리',       perm: 'guide' },
+  { key: 'logs',     label: '로그',              perm: 'logs' },
+  { key: 'admins',   label: '관리자 관리',       perm: 'admins' }, // master 전용
 ];
+
+interface MeUser {
+  nickname: string;
+  email: string;
+  role: 'user' | 'admin' | 'master' | 'legacy';
+  isAdmin: boolean;
+  isMaster: boolean;
+  permissions: Record<string, boolean> | null;
+}
 
 export default function AdminDashboard({ onExit }: Props) {
   const [activeTab, setActiveTab] = useState<AdminTabType>('stats');
   const [showImport, setShowImport] = useState(false);
+  const [me, setMe] = useState<MeUser | null>(null);
+
+  useEffect(() => {
+    fetch('/api/users/me', { credentials: 'include' })
+      .then(r => r.ok ? r.json() : { user: null })
+      .then(d => setMe(d.user))
+      .catch(() => setMe(null));
+  }, []);
+
+  // 권한 보유 여부
+  const hasPermission = (perm?: string): boolean => {
+    if (!perm) return true;
+    // legacy/master 는 모든 권한 보유
+    if (!me || me.role === 'legacy' || me.role === 'master') return true;
+    if (me.role === 'admin') return !!me.permissions?.[perm];
+    return false;
+  };
+
+  // 보이는 탭만 필터
+  const visibleTabs = TABS.filter(t => hasPermission(t.perm));
+
+  // activeTab이 권한 없는 탭이면 첫 번째 가능한 탭으로 보정
+  useEffect(() => {
+    if (visibleTabs.length === 0) return;
+    if (!visibleTabs.some(t => t.key === activeTab)) {
+      setActiveTab(visibleTabs[0].key);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [me, activeTab]);
 
   const renderContent = () => {
     switch (activeTab) {
@@ -46,9 +87,15 @@ export default function AdminDashboard({ onExit }: Props) {
       case 'board':    return <AdminBoardStats />;
       case 'guide':    return <AdminGuide />;
       case 'logs':     return <AdminLogs />;
+      case 'admins':   return <AdminUsersManage />;
       default: return null;
     }
   };
+
+  const roleLabel = me?.role === 'master' ? '마스터'
+    : me?.role === 'legacy' ? '비상 모드'
+    : me?.role === 'admin'  ? '관리자'
+    : '';
 
   return (
     <div className="min-h-screen font-sans" style={{ background: '#F5F7FA', color: '#0F1E33' }}>
@@ -74,6 +121,17 @@ export default function AdminDashboard({ onExit }: Props) {
             </div>
             <div style={{ fontSize: 10, color: '#8A96A8', letterSpacing: '0.06em', marginTop: 2 }}>
               ADMIN DASHBOARD
+              {roleLabel && (
+                <span style={{
+                  marginLeft: 8, padding: '2px 6px', borderRadius: 4,
+                  background: me?.role === 'master' ? '#FEF3C7' : me?.role === 'legacy' ? '#FCE6EA' : '#E0F2FE',
+                  color:      me?.role === 'master' ? '#92400E' : me?.role === 'legacy' ? '#D8364C' : '#1E3A8A',
+                  fontSize: 9, fontWeight: 700, textTransform: 'none',
+                }}>
+                  {roleLabel}
+                  {me?.nickname && me.role !== 'legacy' ? ` · ${me.nickname}` : ''}
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -111,7 +169,7 @@ export default function AdminDashboard({ onExit }: Props) {
           borderRight: '1px solid #E8EDF5', paddingTop: 24, flexShrink: 0,
         }}>
           <nav style={{ padding: '0 12px', display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {TABS.map(tab => (
+            {visibleTabs.map(tab => (
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
@@ -136,7 +194,7 @@ export default function AdminDashboard({ onExit }: Props) {
             background: 'white', borderBottom: '1px solid #E8EDF5',
             display: 'flex', overflowX: 'auto', padding: '8px 16px', gap: 8,
           }}>
-            {TABS.map(tab => (
+            {visibleTabs.map(tab => (
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
