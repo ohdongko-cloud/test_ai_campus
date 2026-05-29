@@ -5,7 +5,7 @@ import { requireAdmin } from '../../../../../lib/admin-auth';
 // POST /api/admin/videos/reorder  body: { ids: string[] }
 // ids 배열 순서대로 order_idx 0, 1, 2, ... 갱신
 export async function POST(req: NextRequest) {
-  const denied = requireAdmin(req);
+  const denied = await requireAdmin(req);
   if (denied) return denied;
 
   const { ids } = await req.json();

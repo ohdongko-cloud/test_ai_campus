@@ -4,7 +4,7 @@ import { requireAdmin } from '../../../../lib/admin-auth';
 
 // GET /api/admin/reservations (전체 필드)
 export async function GET(req: NextRequest) {
-  const denied = requireAdmin(req);
+  const denied = await requireAdmin(req);
   if (denied) return denied;
   try {
     const rows = await sql`

@@ -4,7 +4,7 @@ import { requireAdmin } from '../../../../../lib/admin-auth';
 
 // PATCH /api/admin/video-levels/[id]  body: { name?, description? }
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const denied = requireAdmin(req);
+  const denied = await requireAdmin(req);
   if (denied) return denied;
 
   const { id } = await params;
@@ -41,7 +41,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 // DELETE /api/admin/video-levels/[id]?fallback=<name>
 // fallback 레벨로 해당 레벨 영상들을 이동시킨 뒤 삭제
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const denied = requireAdmin(req);
+  const denied = await requireAdmin(req);
   if (denied) return denied;
 
   const { id } = await params;

@@ -11,7 +11,7 @@ const ALLOWED_KEYS = new Set([
 
 // PATCH /api/admin/settings  body: { key, value }
 export async function PATCH(req: NextRequest) {
-  const denied = requireAdmin(req);
+  const denied = await requireAdmin(req);
   if (denied) return denied;
 
   const { key, value } = await req.json();

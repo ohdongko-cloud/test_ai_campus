@@ -6,7 +6,7 @@ import { assertCleanFields, BadTextError } from '../../../../lib/text-validation
 // POST /api/admin/videos
 // body: { id?, title, level, description?, youtubeUrl, stages?, order_idx? }
 export async function POST(req: NextRequest) {
-  const denied = requireAdmin(req);
+  const denied = await requireAdmin(req);
   if (denied) return denied;
 
   const body = await req.json();

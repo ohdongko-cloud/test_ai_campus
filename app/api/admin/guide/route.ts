@@ -5,7 +5,7 @@ import { requireAdmin } from '../../../../lib/admin-auth';
 // PUT /api/admin/guide  body: GuideGroup[]
 // 단순한 전체 교체 방식 — 가이드 트리는 작아서 일괄 교체가 안전.
 export async function PUT(req: NextRequest) {
-  const denied = requireAdmin(req);
+  const denied = await requireAdmin(req);
   if (denied) return denied;
 
   const groups = await req.json();

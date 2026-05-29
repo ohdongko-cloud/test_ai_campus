@@ -4,7 +4,7 @@ import { requireAdmin } from '../../../../lib/admin-auth';
 
 // POST /api/admin/video-levels  body: { name, description? }
 export async function POST(req: NextRequest) {
-  const denied = requireAdmin(req);
+  const denied = await requireAdmin(req);
   if (denied) return denied;
 
   const { name, description } = await req.json();

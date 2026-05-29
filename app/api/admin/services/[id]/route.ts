@@ -4,7 +4,7 @@ import { requireAdmin } from '../../../../../lib/admin-auth';
 
 // DELETE /api/admin/services/[id]
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const denied = requireAdmin(req);
+  const denied = await requireAdmin(req);
   if (denied) return denied;
   const { id } = await params;
   try {

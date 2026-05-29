@@ -4,7 +4,7 @@ import { requireAdmin } from '../../../../lib/admin-auth';
 
 // POST /api/admin/blocked-slots  body: BlockedSlot
 export async function POST(req: NextRequest) {
-  const denied = requireAdmin(req);
+  const denied = await requireAdmin(req);
   if (denied) return denied;
   const body = await req.json();
   if (!body.startTime) return NextResponse.json({ error: 'startTime 필수' }, { status: 400 });

@@ -5,7 +5,7 @@ import { assertCleanFields, BadTextError } from '../../../../lib/text-validation
 
 // POST /api/admin/services
 export async function POST(req: NextRequest) {
-  const denied = requireAdmin(req);
+  const denied = await requireAdmin(req);
   if (denied) return denied;
   const body = await req.json();
   if (!body.serviceName || !body.url) return NextResponse.json({ error: 'serviceName/url 필수' }, { status: 400 });
