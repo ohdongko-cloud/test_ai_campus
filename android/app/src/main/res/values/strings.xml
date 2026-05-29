@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Eland AI 캠퍼스</string>
+    <string name="title_activity_main">Eland AI 캠퍼스</string>
+    <string name="package_name">kr.co.eland.aicampus</string>
+    <string name="custom_url_scheme">kr.co.eland.aicampus</string>
+</resources>

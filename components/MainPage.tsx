@@ -32,6 +32,14 @@ const GuideIcon = () => (
     <path d="M7 8h1M7 11h1M7 14h1M16 8h1M16 11h1M16 14h1" />
   </svg>
 );
+// 실제 서비스 로고 이미지 — 정사각형 비율 contain
+const LogoIcon = ({ src, alt }: { src: string; alt: string }) => (
+  <img
+    src={src}
+    alt={alt}
+    style={{ width: 26, height: 26, objectFit: 'contain', display: 'block' }}
+  />
+);
 const MentorIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 22, height: 22 }}>
     <circle cx="9" cy="8" r="3.2" />
@@ -510,11 +518,11 @@ export default function MainPage({ onNavigate }: Props) {
               en="Build with the tools"
               desc="실제 도구를 직접 다뤄보며 만들기를 시작하세요. 사내 시스템과 필수 도구를 모두 모았습니다."
             />
-            <div className="ac-grid-2">
+            <div className="ac-grid-4">
               <ActionCard
                 icon={<NoaIcon />}
                 title="NOA로 바로 만들기"
-                desc="사내 AI 시스템 NOA를 바로 시작해보세요. 실제 업무에 즉시 적용할 수 있습니다."
+                desc="사내 AI 시스템 NOA를 시작해보세요. 실제 업무에 즉시 적용."
                 meta={<><LiveDot />운영중</>}
                 metaRight="새 탭 ↗"
                 onClick={handleNoa}
@@ -522,15 +530,15 @@ export default function MainPage({ onNavigate }: Props) {
               <ActionCard
                 icon={<GuideIcon />}
                 title="필수 도구 둘러보기"
-                desc="프로젝트에 필요한 핵심 서비스와 도구를 한 페이지에 정리했습니다."
-                meta="10 categories · 28 services"
+                desc="핵심 서비스·도구를 한 페이지에 정리했습니다."
+                meta="10 categories · 32 services"
                 metaRight={<Badge variant="new">업데이트</Badge>}
                 onClick={() => handleNav('guide', '필수 도구 둘러보기')}
               />
               <ActionCard
-                icon={<GuideIcon />}
+                icon={<LogoIcon src="https://cdn.simpleicons.org/claude/C15F3C" alt="Claude" />}
                 title="Claude Code 다운로드"
-                desc="Anthropic Sonnet 4.5 기반 터미널 코딩 에이전트. 멀티파일 리팩토링·디버깅 강력."
+                desc="터미널에서 AI가 같이 코딩. 여러 파일 한 번에 수정 강력."
                 meta="공식 사이트"
                 metaRight={<Badge variant="secondary">유료</Badge>}
                 onClick={() => {
@@ -539,9 +547,9 @@ export default function MainPage({ onNavigate }: Props) {
                 }}
               />
               <ActionCard
-                icon={<GuideIcon />}
+                icon={<LogoIcon src="https://cdn.simpleicons.org/openai/000000" alt="OpenAI" />}
                 title="Codex 다운로드"
-                desc="OpenAI GPT-5 기반 코딩 에이전트. 빠른 작업·웹 검색·멀티모달 통합."
+                desc="OpenAI의 코딩 전용 AI. ChatGPT 가입자는 바로 사용."
                 meta="공식 사이트"
                 metaRight={<Badge variant="secondary">유료</Badge>}
                 onClick={() => {

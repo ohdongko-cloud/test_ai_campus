@@ -158,9 +158,18 @@ body.ac-editing .ac-add-card { display: flex; }
 .ac-grid-1 { display: grid; grid-template-columns: 1fr; gap: 16px; }
 .ac-grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 16px; }
 .ac-grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 16px; }
+.ac-grid-4 { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 14px; }
+/* 4열 그리드 안의 카드는 패딩·여백을 살짝 줄여 한 줄 정렬 */
+.ac-grid-4 .ac-card { padding: 18px 18px 20px; min-height: 200px; }
+.ac-grid-4 .ac-card h3 { font-size: 16px !important; }
+.ac-grid-4 .ac-card p { font-size: 12.5px !important; }
 .ac-services-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px,1fr)); gap: 14px; }
 
 /* ── Responsive ─────────────────────────────────────────────── */
+@media (max-width: 1180px) {
+  /* 4열 그리드는 모바일/태블릿에선 2열 */
+  .ac-grid-4 { grid-template-columns: repeat(2, minmax(0,1fr)); }
+}
 @media (max-width: 960px) {
   .ac-section { grid-template-columns: 1fr; gap: 20px; padding: 40px 0; }
   .ac-section-label { position: static; }
@@ -169,6 +178,10 @@ body.ac-editing .ac-add-card { display: flex; }
   .ac-sg-page-head { grid-template-columns: 1fr !important; }
   .ac-strip { grid-template-columns: 1fr !important; }
   .ac-toc { max-width: 100% !important; justify-content: flex-start !important; }
+}
+@media (max-width: 720px) {
+  /* 모바일에선 4열 그리드도 1열 */
+  .ac-grid-4 { grid-template-columns: 1fr; }
 }
 @media (max-width: 600px) {
   .ac-container { padding: 0 20px; }
