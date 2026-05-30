@@ -5,6 +5,7 @@ import { sendVerificationEmail } from '../../../../lib/email';
 import { logAuth } from '../../../../lib/audit';
 import { reportError } from '../../../../lib/error-report';
 import { isAllowedSignupEmail, DOMAIN_REJECT_MESSAGE } from '../../../../lib/email-allowlist';
+import { isTestAccountEmail, isTestAccountActive } from '../../../../lib/test-account';
 
 const CODE_TTL_MIN = 10;
 
@@ -37,6 +38,16 @@ export async function POST(req: NextRequest) {
   if (existing.length > 0) {
     await logAuth({ type: 'signup_request', email, success: false, req, detail: 'already-member' });
     return NextResponse.json({ ok: true, alreadyMember: true });
+  }
+
+  // ── 데모용 테스트 계정: 실제 메일 발송 우회 ──
+  if (isTestAccountEmail(email) && isTestAccountActive()) {
+    console.log('[signup-request] TEST mode — skipping Resend for', email);
+    await logAuth({
+      type: 'signup_request', email, success: true, req,
+      detail: 'test-account-bypass (no email sent)',
+    });
+    return NextResponse.json({ ok: true, ttlMinutes: CODE_TTL_MIN, testMode: true });
   }
 
   // 6자리 OTP

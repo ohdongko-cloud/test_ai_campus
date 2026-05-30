@@ -3,6 +3,7 @@ import { sql } from '../../../../lib/db';
 import { checkRateLimit, getClientIp, tooManyRequests } from '../../../../lib/ratelimit';
 import { signSignupToken } from '../../../../lib/jwt';
 import { logAuth } from '../../../../lib/audit';
+import { isTestAccountEmail, isTestAccountActive, isTestAccountCode } from '../../../../lib/test-account';
 
 const MAX_ATTEMPTS = 5;
 
@@ -23,6 +24,16 @@ export async function POST(req: NextRequest) {
   const code  = String(body?.code  || '').trim();
   if (!email || !code) {
     return NextResponse.json({ error: '이메일과 인증 코드를 입력해주세요.' }, { status: 400 });
+  }
+
+  // ── 데모용 테스트 계정: 고정 코드 일치 시 바로 통과 ──
+  if (isTestAccountEmail(email) && isTestAccountActive() && isTestAccountCode(code)) {
+    const signupToken = await signSignupToken(email, 15 * 60);
+    await logAuth({
+      type: 'signup_verify_success', email, success: true, req,
+      detail: 'test-account-bypass',
+    });
+    return NextResponse.json({ ok: true, signupToken, testMode: true });
   }
 
   // 가장 최근 미사용 verification
