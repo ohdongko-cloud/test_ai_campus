@@ -33,21 +33,22 @@ export async function POST(req: NextRequest) {
   const rlEmail = await checkRateLimit('signup-req-email', email, 3, '10 m');
   if (!rlEmail.success) return tooManyRequests();
 
+  // ── 데모용 테스트 계정: 가입 이력 무시 + 실제 메일 발송 우회 ──
+  // (반복 시연을 위해 alreadyMember 체크보다 먼저 처리)
+  if (isTestAccountEmail(email) && isTestAccountActive()) {
+    console.log('[signup-request] TEST mode — skipping Resend for', email);
+    await logAuth({
+      type: 'signup_request', email, success: true, req,
+      detail: 'test-account-bypass (no email sent, ignore-already-member)',
+    });
+    return NextResponse.json({ ok: true, ttlMinutes: CODE_TTL_MIN, testMode: true });
+  }
+
   // 이미 가입된 이메일이면 — enumeration 방지 위해 200 + alreadyMember 반환, 메일은 발송 X
   const existing = await sql`SELECT id FROM users WHERE email = ${email} LIMIT 1`;
   if (existing.length > 0) {
     await logAuth({ type: 'signup_request', email, success: false, req, detail: 'already-member' });
     return NextResponse.json({ ok: true, alreadyMember: true });
-  }
-
-  // ── 데모용 테스트 계정: 실제 메일 발송 우회 ──
-  if (isTestAccountEmail(email) && isTestAccountActive()) {
-    console.log('[signup-request] TEST mode — skipping Resend for', email);
-    await logAuth({
-      type: 'signup_request', email, success: true, req,
-      detail: 'test-account-bypass (no email sent)',
-    });
-    return NextResponse.json({ ok: true, ttlMinutes: CODE_TTL_MIN, testMode: true });
   }
 
   // 6자리 OTP

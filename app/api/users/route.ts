@@ -7,6 +7,7 @@ import { containsReplacementChar } from '../../../lib/text-validation';
 import { checkRateLimit, getClientIp, tooManyRequests } from '../../../lib/ratelimit';
 import { logAuth } from '../../../lib/audit';
 import { reportError } from '../../../lib/error-report';
+import { isTestAccountEmail, isTestAccountActive } from '../../../lib/test-account';
 
 // POST /api/users — 신규 계정 생성 (이메일 인증 후 signup_token 필수)
 export async function POST(req: NextRequest) {
@@ -51,7 +52,21 @@ export async function POST(req: NextRequest) {
   try {
     const existing = await sql`SELECT id FROM users WHERE email = ${email} LIMIT 1`;
     if (existing.length > 0) {
-      return NextResponse.json({ error: '이미 등록된 이메일입니다.' }, { status: 409 });
+      // ── 데모용 테스트 계정: 기존 row 자동 삭제 후 새로 INSERT ──
+      // (매 시연마다 깨끗한 신규 가입 화면을 보여주기 위함)
+      if (isTestAccountEmail(email) && isTestAccountActive()) {
+        const oldId = existing[0].id;
+        console.log('[users.signup] TEST mode — deleting existing test user', { email, oldId });
+        // 외래키 제약 회피: 의존 데이터 먼저 제거
+        await sql`DELETE FROM shared_services WHERE user_id = ${oldId}`;
+        await sql`DELETE FROM users WHERE id = ${oldId}`;
+        await logAuth({
+          type: 'signup_complete', email, success: true, req,
+          detail: `test-account-reset (deleted old id=${oldId})`,
+        });
+      } else {
+        return NextResponse.json({ error: '이미 등록된 이메일입니다.' }, { status: 409 });
+      }
     }
 
     const password_hash = await hashPassword(password);
