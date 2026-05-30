@@ -2,7 +2,7 @@
 
 - 최초 작성: 2026-05-29
 - 최종 갱신: 2026-05-29
-- 현재 버전: **versionCode 2 / versionName "1.0.1"**
+- 현재 버전: **versionCode 3 / versionName "1.0.2"**
 - 작성자/소유자: ohdongko + Claude
 - 범위: 안드로이드 앱(Capacitor + WebView) 운영 사양·정책·변경 이력
 
@@ -36,14 +36,14 @@
 
 | 항목 | 값 |
 |---|---|
-| versionCode | 2 |
-| versionName | 1.0.1 |
+| versionCode | 3 |
+| versionName | 1.0.2 |
 | applicationId | `kr.co.eland.aicampus` |
 | minSdkVersion | 24 (Android 7.0) |
 | compileSdkVersion | 36 |
 | targetSdkVersion | 36 |
 | Capacitor 버전 | 7.x |
-| 배포 상태 | **빌드 완료** (1.0.1 .aab 생성됨, Play Console 업로드 대기) |
+| 배포 상태 | **재빌드 진행 중** (1.0.2 .aab 생성 후 업로드 대기) |
 | 배포 트랙 | Closed Testing 예정 |
 | 산출물 | `android/app/build/outputs/bundle/release/app-release.aab` (1.0.1 ≈ 2.95 MB) |
 
@@ -227,6 +227,15 @@ test_ai_campus/
 | Capacitor 7 + targetSdk 36 호환 | 새 SDK 정책(예: 백그라운드 제한) 추적 필요 | Google Play 정책 알림 구독 |
 
 ## 11. 변경 이력
+
+### v1.0.2 — 2026-05-29 (계정 삭제 요청 페이지 추가)
+
+**versionCode**: 3 / **versionName**: 1.0.2
+
+- 신규 — `app/account-deletion/page.tsx` 계정 및 데이터 삭제 요청 안내 페이지. Google Play 데이터 보안 정책 3대 요건(앱/개발자명 기재·삭제 절차 명시·삭제/보관 데이터 항목과 기간 명시) 충족.
+- URL — `https://test-ai-campus.vercel.app/account-deletion` (Play Console "계정 URL 삭제" 항목 등록용).
+- 영향 — Web(Next.js)에만 신규 라우트 추가. 안드로이드 네이티브 변경 없음(외부 URL 로딩 방식이라 자동 노출). versionCode 증가는 Play Console 신규 빌드 등록용.
+- 영향 파일: `app/account-deletion/page.tsx`(신규), `android/app/build.gradle`(versionCode/Name), `docs/prd/android-app.md`(본 PRD).
 
 ### v1.0.1 — 2026-05-29 (개인정보처리방침 페이지 추가)
 
