@@ -25,7 +25,10 @@ interface FabProps {
 function FabButton({ label, ariaLabel, bg, icon, onClick }: FabProps) {
   const [hover, setHover] = useState(false);
   return (
-    <div style={{
+    // width를 버튼과 같은 56px(모바일 52px)로 고정 → 모든 버튼이 우측 끝에 일렬 정렬됨.
+    // 라벨은 박스 중앙 기준으로 좌우 overflow 허용(글자 수가 달라도 버튼 위치는 변동 X).
+    <div className="ffa-item" style={{
+      width: 56,
       display: 'flex', flexDirection: 'column', alignItems: 'center',
       gap: 4,
     }}>
@@ -170,6 +173,9 @@ export default function FloatingActions({ onNavigate }: Props = {}) {
           .ffa-wrap :global(.ffa-btn) {
             width: 52px !important;
             height: 52px !important;
+          }
+          .ffa-wrap :global(.ffa-item) {
+            width: 52px !important;
           }
         }
       `}</style>

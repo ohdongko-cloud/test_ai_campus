@@ -68,6 +68,8 @@
 
 | 커밋 | 메시지 | 비고 |
 |---|---|---|
+| `(다음)` | fix: 플로팅 액션 버튼(FAB) 3개 우측 정렬 어긋남 수정 | 각 item 너비 56px 고정 → 라벨 글자 수와 무관하게 버튼 일렬 정렬 |
+| `375254d` | docs: PRD 마스터 문서 3종 추가 (CHANGELOG/CURRENT-STATE/BACKLOG) | living docs 운영 시작 |
 | `e593a25` | feat: 테스트 계정 반복 시연 지원 (가입 이력 자동 초기화) | 매 시연마다 신규 가입 화면 재현 |
 | `3b1b36b` | feat: 데모용 테스트 계정 + 7일 자동 만료 + cron 정리 | `test@eland.co.kr` / `000000`, Vercel Cron 매일 00:00 UTC |
 | `7b1e081` | docs: 15 페르소나 사용자 리서치 + 인사이트·커리큘럼 제안 | `public/research/personas-raw.md`, `insights-summary.md` |
