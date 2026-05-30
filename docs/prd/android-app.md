@@ -2,7 +2,7 @@
 
 - 최초 작성: 2026-05-29
 - 최종 갱신: 2026-05-29
-- 현재 버전: **versionCode 1 / versionName "1.0.0"**
+- 현재 버전: **versionCode 2 / versionName "1.0.1"**
 - 작성자/소유자: ohdongko + Claude
 - 범위: 안드로이드 앱(Capacitor + WebView) 운영 사양·정책·변경 이력
 
@@ -36,16 +36,16 @@
 
 | 항목 | 값 |
 |---|---|
-| versionCode | 1 |
-| versionName | 1.0.0 |
+| versionCode | 2 |
+| versionName | 1.0.1 |
 | applicationId | `kr.co.eland.aicampus` |
 | minSdkVersion | 24 (Android 7.0) |
 | compileSdkVersion | 36 |
 | targetSdkVersion | 36 |
 | Capacitor 버전 | 7.x |
-| 배포 상태 | **빌드 완료** (.aab 생성됨, Play Console 업로드 대기) |
+| 배포 상태 | **빌드 완료** (1.0.1 .aab 생성됨, Play Console 업로드 대기) |
 | 배포 트랙 | Closed Testing 예정 |
-| 산출물 | `android/app/build/outputs/bundle/release/app-release.aab` (≈2.87 MB) |
+| 산출물 | `android/app/build/outputs/bundle/release/app-release.aab` (1.0.1 ≈ 2.95 MB) |
 
 ## 3. 앱 식별 정보
 
@@ -114,7 +114,7 @@
 | 타겟 사용자층 | 18세 이상 |
 | 광고 | 없음 |
 | 인앱 결제 | 없음 |
-| 개인정보처리방침 URL | (운영 도메인의 `/privacy` 등 별도 페이지 필요) |
+| 개인정보처리방침 URL | `https://test-ai-campus.vercel.app/privacy` ([app/privacy/page.tsx](../../app/privacy/page.tsx)) |
 | 데이터 보안 양식 | 이메일·이름·소속·직무·IP 수집 명시 |
 
 ## 7. 빌드 / 서명
@@ -227,6 +227,15 @@ test_ai_campus/
 | Capacitor 7 + targetSdk 36 호환 | 새 SDK 정책(예: 백그라운드 제한) 추적 필요 | Google Play 정책 알림 구독 |
 
 ## 11. 변경 이력
+
+### v1.0.1 — 2026-05-29 (개인정보처리방침 페이지 추가)
+
+**versionCode**: 2 / **versionName**: 1.0.1
+
+- 신규 — `app/privacy/page.tsx` 개인정보처리방침 페이지(한국 PIPA 11개 절). URL `/privacy`.
+- 갱신 — 본 PRD §6 Play Console 등록정보 표의 "개인정보처리방침 URL" 항목 채움.
+- 영향 — Web(Next.js)에만 신규 라우트 추가. 안드로이드 네이티브 코드 변경 없음(외부 URL 로딩 방식이라 자동 노출). versionCode 증가는 Play Console 신규 빌드 등록을 위함.
+- 영향 파일: `app/privacy/page.tsx`(신규), `android/app/build.gradle`(versionCode/Name), `docs/prd/android-app.md`(본 PRD).
 
 ### v1.0.0 — 2026-05-29 (초기 빌드 준비)
 
