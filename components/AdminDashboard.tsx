@@ -12,6 +12,7 @@ import AdminGuide from './AdminGuide';
 import AdminImport from './AdminImport';
 import AdminLogs from './AdminLogs';
 import AdminUsersManage from './AdminUsersManage';
+import AdminMembers from './AdminMembers';
 import BrandMark from './BrandMark';
 
 interface Props {
@@ -32,6 +33,7 @@ const TABS: TabInfo[] = [
   { key: 'services', label: '서비스 공유 관리',  perm: 'services' },
   { key: 'board',    label: '게시판 관리',       perm: 'board' },
   { key: 'guide',    label: '가이드 관리',       perm: 'guide' },
+  { key: 'members',  label: '회원 관리',         perm: 'members' },
   { key: 'logs',     label: '로그',              perm: 'logs' },
   { key: 'admins',   label: '관리자 관리',       perm: 'admins' }, // master 전용
 ];
@@ -87,6 +89,7 @@ export default function AdminDashboard({ onExit }: Props) {
       case 'services': return <AdminServices />;
       case 'board':    return <AdminBoardStats />;
       case 'guide':    return <AdminGuide />;
+      case 'members':  return <AdminMembers />;
       case 'logs':     return <AdminLogs />;
       case 'admins':   return <AdminUsersManage />;
       default: return null;

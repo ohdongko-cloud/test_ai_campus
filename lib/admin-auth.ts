@@ -6,8 +6,9 @@
 //   - legacy  : ADMIN_PASSWORD 비번으로 발급된 admin_session 쿠키 보유 (마스터 동등)
 //   - null    : 권한 없음
 //
-// 권한 키 (10개):
-//   videos, meetings, services, chatroom, board, guide, stats, logs, import, admins
+// 권한 키 (11개):
+//   videos, meetings, services, chatroom, board, guide, stats, logs, import, admins, members
+//   - members: 회원 통계 + 회원 목록 조회 (PII 노출, 별도 권한 필요)
 //
 // master/legacy 는 모든 권한 통과. admin 은 permissions JSON에 키 = true 일 때만 통과.
 
@@ -25,11 +26,11 @@ export type AdminRole = 'master' | 'admin' | 'legacy';
 
 export type PermissionKey =
   | 'videos' | 'meetings' | 'services' | 'chatroom'
-  | 'board' | 'guide' | 'stats' | 'logs' | 'import' | 'admins';
+  | 'board' | 'guide' | 'stats' | 'logs' | 'import' | 'admins' | 'members';
 
 export const PERMISSION_KEYS: PermissionKey[] = [
   'videos', 'meetings', 'services', 'chatroom',
-  'board', 'guide', 'stats', 'logs', 'import', 'admins',
+  'board', 'guide', 'stats', 'logs', 'import', 'admins', 'members',
 ];
 
 export interface AdminContext {

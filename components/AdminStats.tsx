@@ -30,12 +30,26 @@ function daysAgo(n: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+type VisitorPeriod = 'today' | '7d' | '30d';
+
+interface OverviewStats {
+  totalMembers: number;
+  todaySignups: number;
+  visitorsToday: number;
+  visitors7d: number;
+  visitors30d: number;
+}
+
 export default function AdminStats() {
   const [copied, setCopied] = useState(false);
   const [videos, setVideos] = useState<Video[]>([]);
   const [reservationCount, setReservationCount] = useState(0);
   const [serviceCount, setServiceCount] = useState(0);
   const [levelData, setLevelData] = useState<{ name: string; value: number }[]>([]);
+  // ── 회원/방문자 통계 ──
+  const [overview, setOverview] = useState<OverviewStats | null>(null);
+  const [visitorPeriod, setVisitorPeriod] = useState<VisitorPeriod>('today');
+  const [overviewError, setOverviewError] = useState<string | null>(null);
 
   // 날짜 범위 필터
   const [startDate, setStartDate] = useState(daysAgo(29));
@@ -91,6 +105,18 @@ export default function AdminStats() {
     setLevelData(Object.entries(levelMap).map(([name, value]) => ({ name, value })));
 
     computeClickStats(startDate, endDate, selectedButtons);
+
+    // 회원/방문자 통계 (서버 SQL 집계) — 캐시 우회로 항상 최신
+    fetch(`/api/admin/stats/overview?_=${Date.now()}`, {
+      credentials: 'include', cache: 'no-store',
+    })
+      .then(r => r.ok ? r.json() : Promise.reject(r.status))
+      .then((d: OverviewStats) => { setOverview(d); setOverviewError(null); })
+      .catch(err => {
+        if (err === 401 || err === 403) setOverviewError('회원 통계 권한이 없습니다.');
+        else setOverviewError('회원 통계를 불러오지 못했습니다.');
+        setOverview(null);
+      });
   }, [startDate, endDate, selectedButtons, computeClickStats]);
 
   useEffect(() => {
@@ -164,6 +190,65 @@ export default function AdminStats() {
       {copied && (
         <div className="bg-green-50 border border-green-200 text-green-800 rounded p-3 text-sm">
           보고서가 복사되었습니다.
+        </div>
+      )}
+
+      {/* ── 회원 / 방문자 통계 (신규) ── */}
+      {overviewError && (
+        <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded p-3 text-sm">
+          {overviewError}
+        </div>
+      )}
+      {overview && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+            <p className="text-sm text-gray-500 mb-2">총 가입자</p>
+            <p className="text-3xl font-bold text-gray-900">
+              {overview.totalMembers}
+              <span className="text-base font-normal text-gray-500 ml-1">명</span>
+            </p>
+          </div>
+          <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+            <p className="text-sm text-gray-500 mb-2">오늘 가입</p>
+            <p className="text-3xl font-bold text-gray-900">
+              {overview.todaySignups}
+              <span className="text-base font-normal text-gray-500 ml-1">명</span>
+              <span className="text-xs font-normal text-gray-400 ml-2">(KST)</span>
+            </p>
+          </div>
+          <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm text-gray-500">방문자 (로그인 기준)</p>
+              <div className="flex gap-1">
+                {([
+                  { k: 'today' as const, label: '오늘' },
+                  { k: '7d'    as const, label: '7일'  },
+                  { k: '30d'   as const, label: '30일' },
+                ]).map(p => {
+                  const active = visitorPeriod === p.k;
+                  return (
+                    <button
+                      key={p.k}
+                      onClick={() => setVisitorPeriod(p.k)}
+                      className={`text-xs px-2 py-0.5 rounded border transition-colors ${
+                        active
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'bg-white text-gray-500 border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <p className="text-3xl font-bold text-gray-900">
+              {visitorPeriod === 'today' && overview.visitorsToday}
+              {visitorPeriod === '7d'    && overview.visitors7d}
+              {visitorPeriod === '30d'   && overview.visitors30d}
+              <span className="text-base font-normal text-gray-500 ml-1">명</span>
+            </p>
+          </div>
         </div>
       )}
 

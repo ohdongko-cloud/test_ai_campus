@@ -76,7 +76,7 @@ export interface ClickLog {
 
 export type TabType = 'home' | 'videos' | 'meeting' | 'board' | 'share' | 'guide';
 export type ReservationStatus = 'pending' | 'confirmed' | 'cancelled';
-export type AdminTabType = 'stats' | 'videos' | 'meetings' | 'chatroom' | 'services' | 'board' | 'guide' | 'logs' | 'admins';
+export type AdminTabType = 'stats' | 'videos' | 'meetings' | 'chatroom' | 'services' | 'board' | 'guide' | 'members' | 'logs' | 'admins';
 
 // 서비스 가입 가이드
 export interface GuideServiceItem {
