@@ -15,6 +15,7 @@ import FloatingActions from '../components/FloatingActions';
 import LegalModal from '../components/LegalModal';
 import PrivacyContent from '../components/policy/PrivacyContent';
 import TermsContent from '../components/policy/TermsContent';
+import BrandMark from '../components/BrandMark';
 import { addClickLog } from '../lib/utils';
 import { adminLogin, adminLogout, isAdminAuthenticated } from '../lib/admin-client';
 
@@ -240,15 +241,7 @@ export default function Page() {
             onClick={() => navigateTo('home')}
             style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
           >
-            <div style={{
-              width: 32, height: 32, borderRadius: 8,
-              background: 'var(--color-primary)',
-              display: 'grid', placeItems: 'center',
-              color: '#fff', fontFamily: 'var(--font-eng)', fontWeight: 700,
-              fontSize: 10, letterSpacing: '-0.04em', flexShrink: 0,
-            }}>
-              Eland
-            </div>
+            <BrandMark size={36} />
             <div style={{
               fontWeight: 700, fontSize: 16, letterSpacing: '-0.01em',
               color: 'var(--color-ink)', whiteSpace: 'nowrap',

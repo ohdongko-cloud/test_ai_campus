@@ -12,6 +12,7 @@ import AdminGuide from './AdminGuide';
 import AdminImport from './AdminImport';
 import AdminLogs from './AdminLogs';
 import AdminUsersManage from './AdminUsersManage';
+import BrandMark from './BrandMark';
 
 interface Props {
   onExit: () => void;
@@ -109,12 +110,7 @@ export default function AdminDashboard({ onExit }: Props) {
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{
-            width: 34, height: 34, borderRadius: 10,
-            background: 'linear-gradient(135deg, #2563EB 0%, #1E40AF 100%)',
-            color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 16, fontWeight: 700, boxShadow: '0 2px 8px rgba(37,99,235,0.25)',
-          }}>A</div>
+          <BrandMark size={36} />
           <div>
             <div style={{ fontSize: 15, fontWeight: 700, color: '#0F1E33', letterSpacing: '-0.02em', lineHeight: 1 }}>
               이랜드리테일 AI 캠퍼스

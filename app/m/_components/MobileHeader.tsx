@@ -1,6 +1,7 @@
 'use client';
 
 import { M } from '../_styles/tokens';
+import BrandMark from '../../../components/BrandMark';
 
 interface Props {
   title: string;
@@ -43,24 +44,7 @@ export default function MobileHeader({
       >
         {/* 로고 + 타이틀 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
-          <div
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: M.r2,
-              background: M.primary,
-              display: 'grid',
-              placeItems: 'center',
-              color: '#fff',
-              fontFamily: M.fontEn,
-              fontWeight: 700,
-              fontSize: 14,
-              letterSpacing: '-0.02em',
-              flexShrink: 0,
-            }}
-          >
-            AI
-          </div>
+          <BrandMark size={36} />
           <div
             style={{
               fontWeight: 700,

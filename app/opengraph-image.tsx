@@ -77,22 +77,37 @@ export default async function OGImage() {
 
         {/* Top row: brand mark + chip */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
+          {/* AI 브랜드 마크 — 헤더와 통일 */}
           <div
             style={{
+              position: 'relative',
               width: 64,
               height: 64,
               borderRadius: 16,
-              background: '#FFFFFF',
+              background: 'linear-gradient(135deg, #1647A8 0%, #0B2664 100%)',
+              boxShadow: '0 4px 12px rgba(11,38,100,0.45)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#0F1E33',
-              fontSize: 22,
-              fontWeight: 700,
-              letterSpacing: '-0.04em',
+              color: '#fff',
+              fontSize: 32,
+              fontWeight: 800,
+              letterSpacing: '-0.06em',
+              fontFamily: 'sans-serif',
             }}
           >
-            Eland
+            AI
+            <div
+              style={{
+                position: 'absolute',
+                top: 10,
+                right: 10,
+                width: 11,
+                height: 11,
+                borderRadius: 999,
+                background: '#FF914D',
+              }}
+            />
           </div>
           <div
             style={{
