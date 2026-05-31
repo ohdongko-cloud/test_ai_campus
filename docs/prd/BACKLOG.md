@@ -54,6 +54,7 @@
 - [ ] 회원가입 화면 — 모바일 뷰포트 점검 (특히 비밀번호 정책 메시지)
 - [ ] 홈 카드 영문 워딩 일관성 점검
 - [ ] 빈 상태(영상 없음, 게시글 없음 등) 메시지 일관성
+- [ ] **CDN 캐시 일관성 점검** — `/api/services` 와 같은 패턴의 라우트 6곳 (`/api/videos`, `/api/video-levels`, `/api/reservations`, `/api/blocked-slots`, `/api/guide`, `/api/stats`)도 mutation 직후 옛 응답 반환 가능성. 각 페이지 `load()`에서 cache-busting 또는 응답 헤더 정책 통일 검토. (SharePage 만 우선 픽스 — 2026-05-30)
 
 ---
 

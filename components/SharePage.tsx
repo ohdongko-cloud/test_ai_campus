@@ -14,7 +14,10 @@ export default function SharePage() {
 
   const load = async () => {
     try {
-      const res = await fetch('/api/services');
+      // /api/services GET 은 Vercel edge 에서 s-maxage=60 으로 캐시됨.
+      // 등록 직후 본인이 옛 목록을 보지 않도록 cache-busting query + no-store 로
+      // CDN/브라우저 캐시를 모두 우회한다 (share 페이지는 트래픽 적어 비용 무시 가능).
+      const res = await fetch(`/api/services?_=${Date.now()}`, { cache: 'no-store' });
       if (res.ok) setServicesState(await res.json());
     } catch { /* ignore */ }
   };
