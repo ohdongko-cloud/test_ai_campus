@@ -68,8 +68,8 @@
 
 | 커밋 | 메시지 | 비고 |
 |---|---|---|
-| `(다음)` | chore: 도메인 URL 갱신 (test-ai-campus → retail-ai-campus) | layout/OG/capacitor/load-test/문서 일괄, env `NEXT_PUBLIC_SITE_URL` fallback 도 동기화 |
-| `(다음)` | feat: SharePage 레이아웃 변경 — 목록 우선 + 등록 모달 분리 | PRD `2026-05-30-share-page-layout-modal.md`, ShareRegisterModal 신규 |
+| `349cf80` | chore: 도메인 URL 갱신 (test-ai-campus → retail-ai-campus) | layout/OG/capacitor/load-test/문서 일괄, env `NEXT_PUBLIC_SITE_URL` fallback 도 동기화 |
+| `ff4ac7b` | feat: SharePage 레이아웃 변경 — 목록 우선 + 등록 모달 분리 | PRD `2026-05-30-share-page-layout-modal.md`, ShareRegisterModal 신규 |
 | `0ace015` | fix: 서비스 공유 등록 직후 목록 미반영 (CDN 캐시 우회) | SharePage `load()` cache-busting + `no-store` — Vercel edge `s-maxage=60` 우회 |
 | `6df8a74` | feat: 영상 카드 '필수 시청' 빨강 뱃지 + 어드민 토글 | PRD `2026-05-30-video-required-badge.md`, DB `videos.is_required` 컬럼 |
 | `8eacdfc` | fix: /m/video 페이지 useSearchParams 미사용 dead code 제거 (빌드 깨짐 픽스) | Suspense boundary 누락으로 prerender 실패하던 것 해결 |
