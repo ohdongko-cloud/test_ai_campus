@@ -2,7 +2,7 @@
 
 - 최초 작성: 2026-05-29
 - 최종 갱신: 2026-05-29
-- 현재 버전: **versionCode 5 / versionName "1.0.4"**
+- 현재 버전: **versionCode 6 / versionName "1.0.5"**
 - 작성자/소유자: ohdongko + Claude
 - 범위: 안드로이드 앱(Capacitor + WebView) 운영 사양·정책·변경 이력
 
@@ -36,16 +36,16 @@
 
 | 항목 | 값 |
 |---|---|
-| versionCode | 5 |
-| versionName | 1.0.4 |
+| versionCode | 6 |
+| versionName | 1.0.5 |
 | applicationId | `kr.co.eland.aicampus` |
 | minSdkVersion | 24 (Android 7.0) |
 | compileSdkVersion | 36 |
 | targetSdkVersion | 36 |
 | Capacitor 버전 | 8.x |
-| 배포 상태 | **빌드 완료** (1.0.4 .aab 생성됨, Play Console 업로드 대기) |
+| 배포 상태 | **빌드 완료** (1.0.5 .aab 생성됨, Play Console 업로드 대기 — 도메인 전환) |
 | 배포 트랙 | Closed Testing 예정 |
-| 산출물 | `android/app/build/outputs/bundle/release/app-release.aab` (1.0.4 ≈ 3.90 MB) |
+| 산출물 | `android/app/build/outputs/bundle/release/app-release.aab` (1.0.5 ≈ 3.90 MB) |
 
 ## 3. 앱 식별 정보
 
@@ -220,13 +220,24 @@ test_ai_campus/
 | 항목 | 영향 | 완화 |
 |---|---|---|
 | 외부 URL 로딩 방식 → 오프라인 시 사용 불가 | 네트워크 없을 때 진입 차단 | `/offline.html` fallback, 추후 핵심 라우트 SW 캐싱 확대 검토 |
-| `retail-ai-campus.vercel.app` 도메인에 "test" 포함 | 사용자 인식 부정적 가능 | 정식 도메인(예: `aicampus.eland.co.kr`) 발급 후 server.url 교체 + versionCode 증가 |
+| ~~`test-ai-campus.vercel.app` 도메인에 "test" 포함~~ | ~~사용자 인식 부정적 가능~~ | ✅ 해소(v1.0.5) — `retail-ai-campus.vercel.app` 으로 전환. 옛 도메인은 redirect 유지 → v1.0.4 사용자도 안전. |
 | FLAG_SECURE는 안드로이드만 차단, iOS·웹은 별도 | iOS 앱 출시 시 별도 구현 필요 | iOS PRD에서 다룸 |
 | ~~잠정 아이콘 (한 글자 "E")~~ | ~~Play Store 첫인상 약함~~ | ✅ 해소(v1.0.3) — 정식 그라데이션 + AI 디자인으로 교체 |
 | WebView 쿠키·세션 격리 | 일부 디바이스에서 매번 로그인 요구 가능 | `singleTask` launchMode + 쿠키 정책 점검 |
 | Capacitor 7 + targetSdk 36 호환 | 새 SDK 정책(예: 백그라운드 제한) 추적 필요 | Google Play 정책 알림 구독 |
 
 ## 11. 변경 이력
+
+### v1.0.5 — 2026-05-29 (운영 도메인 retail-ai-campus.vercel.app 전환)
+
+**versionCode**: 6 / **versionName**: 1.0.5
+
+- 변경 — Capacitor `server.url`을 `https://test-ai-campus.vercel.app/m` → `https://retail-ai-campus.vercel.app/m` 로.
+- 변경 — `capacitor.config.ts` `allowNavigation`에 `retail-ai-campus.vercel.app` 등록.
+- 변경 — 운영 PRD/메모리/스크립트 일괄 갱신: 본 PRD §1·§2·§3·§4.1·§6·§10·§11, `docs/prd/2026-05-29-android-mobile-ui.md`, `docs/prd/CHANGELOG.md`, `docs/prd/CURRENT-STATE.md`, `memory/project_aicampus.md`, `memory/project_android_strategy.md`, `scripts/load-test.mjs`, `app/layout.tsx` `SITE_URL` fallback, `app/opengraph-image.tsx`.
+- 호환 — 옛 도메인 `test-ai-campus.vercel.app`은 Vercel에서 새 도메인으로 redirect 유지 → 이미 설치된 v1.0.4 사용자도 정상 동작.
+- Play Console 작업 필요: ① 개인정보처리방침 URL, ② 계정 URL 삭제, ③ 데이터 URL 삭제, ④ 스토어 등록정보 웹사이트 — 모두 새 도메인으로 갱신 + v1.0.5 .aab 업로드.
+- 영향 파일: `capacitor.config.ts`, `android/app/build.gradle`, `docs/prd/android-app.md`(본 PRD), 위 동기화 대상 모두.
 
 ### v1.0.4 — 2026-05-29 (안드로이드 전용 모바일 UI 신규 라우트 `/m/*`)
 
