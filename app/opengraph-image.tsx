@@ -164,7 +164,7 @@ export default async function OGImage() {
               fontFamily: 'sans-serif',
             }}
           >
-            test-ai-campus.vercel.app
+            retail-ai-campus.vercel.app
           </div>
           <div
             style={{

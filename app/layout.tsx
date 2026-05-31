@@ -3,7 +3,7 @@ import SwRegister from "../components/SwRegister";
 import "./globals.css";
 
 const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL || "https://test-ai-campus.vercel.app";
+  process.env.NEXT_PUBLIC_SITE_URL || "https://retail-ai-campus.vercel.app";
 const TITLE = "이랜드리테일 AI 캠퍼스";
 const DESCRIPTION = "이랜드리테일 AI 교육 허브 — 학습, 제작, 질문, 공유";
 

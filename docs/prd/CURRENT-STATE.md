@@ -3,7 +3,7 @@
 - 최초 작성: 2026-05-30
 - 최종 갱신: 2026-05-30
 - 현재 버전: **v1.0-rc** (시연 직전)
-- 운영 URL: https://test-ai-campus.vercel.app
+- 운영 URL: https://retail-ai-campus.vercel.app
 - 작성자/소유자: ohdongko + Claude
 
 > **이 문서의 목적**
@@ -150,7 +150,7 @@
 
 | 항목 | 상태 |
 |---|---|
-| 프로덕션 | Vercel main 자동 배포, https://test-ai-campus.vercel.app |
+| 프로덕션 | Vercel main 자동 배포, https://retail-ai-campus.vercel.app |
 | 모니터링 | Sentry — 운영 이슈 자동 수집 + Slack 미설정 |
 | 부하 검증 | `scripts/load-test.mjs` (Node 18+ 내장 fetch) |
 | 안드로이드 | Capacitor .aab 빌드 완료 (versionCode 1), Play Console 업로드 대기 |

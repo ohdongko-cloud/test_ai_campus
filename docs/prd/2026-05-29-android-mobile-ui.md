@@ -9,7 +9,7 @@
 ## 1. 배경
 
 ### 1.1 현재 상황
-v1.0.3까지의 안드로이드 앱은 Capacitor `server.url = https://test-ai-campus.vercel.app` 로 데스크톱 우선 디자인의 웹 화면을 그대로 WebView에 로드한다. 결과적으로:
+v1.0.3까지의 안드로이드 앱은 Capacitor `server.url = https://retail-ai-campus.vercel.app` 로 데스크톱 우선 디자인의 웹 화면을 그대로 WebView에 로드한다. 결과적으로:
 
 - **인라인 스타일 + 픽셀 고정값**으로 작성된 컴포넌트들이 모바일 뷰포트(360–428dp)에서 깨짐
 - 데스크톱 그리드(4컬럼·사이드바)가 모바일에서 비좁게 표시
@@ -27,7 +27,7 @@ v1.0.3까지의 안드로이드 앱은 Capacitor `server.url = https://test-ai-c
 | 접근 방식 | **별도 라우트 트리 `/m/*`** — Capacitor만 이쪽 로드, 데스크톱 웹은 기존 라우트 유지 | 기존 컴포넌트 반응형화 / 분기 컴포넌트 |
 | 1차 범위 | **인증(웰컴) + 메인 홈 + 영상 강의 + 게시판** 4화면 | 메인만 PoC / 전체 한 번에 |
 | 인증 처리 | **기존 `/api/users/*` API 그대로 재사용**, UI만 모바일 전용 | 인증도 모바일 신규 |
-| Capacitor 라우트 | `server.url = https://test-ai-campus.vercel.app/m` 으로 변경 | 변경 없이 데스크톱 + 모바일 자동 분기 |
+| Capacitor 라우트 | `server.url = https://retail-ai-campus.vercel.app/m` 으로 변경 | 변경 없이 데스크톱 + 모바일 자동 분기 |
 | 디바이스 감지 | **별도 라우트 분리이므로 감지 불필요** — 안드로이드 앱은 무조건 `/m` 진입 | UA 감지 redirect |
 | 디자인 토대 | **v1.0.3 스크린샷 mockup 디자인** 그대로 React로 구현 | 신규 디자인 |
 | 데스크톱 영향 | **없음** — 기존 라우트·컴포넌트 변경 X | 일부 공유 |
@@ -204,7 +204,7 @@ app/
 - 영상/가이드 데이터 fetch — 기존 클라이언트 fetch 패턴 재사용
 
 ### 5.4 Capacitor 설정 변경
-- `capacitor.config.ts` → `server.url = "https://test-ai-campus.vercel.app/m"`
+- `capacitor.config.ts` → `server.url = "https://retail-ai-campus.vercel.app/m"`
 - `allowNavigation`에 동일 도메인 그대로
 
 ### 5.5 영상 보호

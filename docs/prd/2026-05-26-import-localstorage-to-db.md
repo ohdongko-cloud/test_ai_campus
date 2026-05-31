@@ -113,7 +113,7 @@
 ## 8. 롤아웃
 
 1. 코드 push → Vercel 자동 배포.
-2. 사용자: PC 브라우저로 https://test-ai-campus.vercel.app 접속 → 어드민 로그인 → 임포트 버튼 클릭.
+2. 사용자: PC 브라우저로 https://retail-ai-campus.vercel.app 접속 → 어드민 로그인 → 임포트 버튼 클릭.
 3. 모바일에서 새로고침해 동일 데이터 표시 확인.
 
 ## 9. 미해결 질문

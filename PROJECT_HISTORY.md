@@ -5,7 +5,7 @@
 ## v1.2.0 — 회원 로그인/회원가입 기능 추가
 
 **구현일시**: 2026-05-21  
-**배포 URL**: https://test-ai-campus.vercel.app
+**배포 URL**: https://retail-ai-campus.vercel.app
 
 ### 구현 요약
 
@@ -83,7 +83,7 @@ CREATE UNIQUE INDEX users_email_idx ON users (email);
 ## v1.1.0 — 예약 차단 시간 종료시간 지원
 
 **구현일시**: 2026-05-21  
-**배포 URL**: https://test-ai-campus.vercel.app
+**배포 URL**: https://retail-ai-campus.vercel.app
 
 ### 구현 요약
 
@@ -142,7 +142,7 @@ PROJECT_HISTORY.md  (신규 생성)
 ## v1.0.0 — Admin PRD 전면 개선
 
 **구현일시**: 2026-05-21  
-**배포 URL**: https://test-ai-campus.vercel.app
+**배포 URL**: https://retail-ai-campus.vercel.app
 
 ### 구현 요약
 

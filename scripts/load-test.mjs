@@ -14,7 +14,7 @@ const args = Object.fromEntries(
   }, [])
 );
 
-const URL_BASE = args.url || 'https://test-ai-campus.vercel.app';
+const URL_BASE = args.url || 'https://retail-ai-campus.vercel.app';
 const USERS    = parseInt(args.users || '50', 10);
 const DURATION = parseInt(args.duration || '30', 10); // seconds
 const TARGET   = args.target || 'mix';

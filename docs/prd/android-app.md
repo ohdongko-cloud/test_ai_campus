@@ -17,12 +17,12 @@
 
 ## 1. 개요
 
-이랜드리테일 AI 캠퍼스 웹 서비스(https://test-ai-campus.vercel.app)를 안드로이드 네이티브 앱으로 배포한다. 앱은 WebView 기반(**Capacitor**)으로, 동일 백엔드(Next.js 15 SSR + Neon DB)를 그대로 사용하며 모바일 환경에서의 접근성·보안·푸시(추후)를 확장한다.
+이랜드리테일 AI 캠퍼스 웹 서비스(https://retail-ai-campus.vercel.app)를 안드로이드 네이티브 앱으로 배포한다. 앱은 WebView 기반(**Capacitor**)으로, 동일 백엔드(Next.js 15 SSR + Neon DB)를 그대로 사용하며 모바일 환경에서의 접근성·보안·푸시(추후)를 확장한다.
 
 | 항목 | 값 |
 |---|---|
 | 패키징 방식 | Capacitor (WebView + Native Plugin) |
-| 호스팅 URL | https://test-ai-campus.vercel.app |
+| 호스팅 URL | https://retail-ai-campus.vercel.app |
 | 코드 위치 | `android/` (Capacitor 생성), `lib/secureScreen.ts`, `components/SwRegister.tsx`, `public/sw.js`, `public/offline.html`, `public/icon-*.png`, `app/manifest.ts` |
 | 빌드 산출물 | `android/app/build/outputs/bundle/release/app-release.aab` |
 | Play Console 계정 | ohdongko 보유 |
@@ -62,9 +62,9 @@
 
 ### 4.1 외부 URL 로딩 (Capacitor server.url)
 
-- `capacitor.config.ts`의 `server.url = "https://test-ai-campus.vercel.app"`.
+- `capacitor.config.ts`의 `server.url = "https://retail-ai-campus.vercel.app"`.
 - WebView 스킴: `https`, `cleartext: false`.
-- `allowNavigation`: `test-ai-campus.vercel.app`, `*.vercel.app`.
+- `allowNavigation`: `retail-ai-campus.vercel.app`, `*.vercel.app`.
 - **의미**: 모든 화면은 Vercel 운영본을 그대로 로드. 앱 업데이트 없이 콘텐츠 갱신 가능. 대신 **인터넷 연결이 항상 필요**하고 콜드 스타트가 웹 의존.
 
 ### 4.2 PWA (Service Worker + Web Manifest)
@@ -114,7 +114,7 @@
 | 타겟 사용자층 | 18세 이상 |
 | 광고 | 없음 |
 | 인앱 결제 | 없음 |
-| 개인정보처리방침 URL | `https://test-ai-campus.vercel.app/privacy` ([app/privacy/page.tsx](../../app/privacy/page.tsx)) |
+| 개인정보처리방침 URL | `https://retail-ai-campus.vercel.app/privacy` ([app/privacy/page.tsx](../../app/privacy/page.tsx)) |
 | 데이터 보안 양식 | 이메일·이름·소속·직무·IP 수집 명시 |
 
 ## 7. 빌드 / 서명
@@ -220,7 +220,7 @@ test_ai_campus/
 | 항목 | 영향 | 완화 |
 |---|---|---|
 | 외부 URL 로딩 방식 → 오프라인 시 사용 불가 | 네트워크 없을 때 진입 차단 | `/offline.html` fallback, 추후 핵심 라우트 SW 캐싱 확대 검토 |
-| `test-ai-campus.vercel.app` 도메인에 "test" 포함 | 사용자 인식 부정적 가능 | 정식 도메인(예: `aicampus.eland.co.kr`) 발급 후 server.url 교체 + versionCode 증가 |
+| `retail-ai-campus.vercel.app` 도메인에 "test" 포함 | 사용자 인식 부정적 가능 | 정식 도메인(예: `aicampus.eland.co.kr`) 발급 후 server.url 교체 + versionCode 증가 |
 | FLAG_SECURE는 안드로이드만 차단, iOS·웹은 별도 | iOS 앱 출시 시 별도 구현 필요 | iOS PRD에서 다룸 |
 | ~~잠정 아이콘 (한 글자 "E")~~ | ~~Play Store 첫인상 약함~~ | ✅ 해소(v1.0.3) — 정식 그라데이션 + AI 디자인으로 교체 |
 | WebView 쿠키·세션 격리 | 일부 디바이스에서 매번 로그인 요구 가능 | `singleTask` launchMode + 쿠키 정책 점검 |
@@ -260,7 +260,7 @@ test_ai_campus/
 **versionCode**: 3 / **versionName**: 1.0.2
 
 - 신규 — `app/account-deletion/page.tsx` 계정 및 데이터 삭제 요청 안내 페이지. Google Play 데이터 보안 정책 3대 요건(앱/개발자명 기재·삭제 절차 명시·삭제/보관 데이터 항목과 기간 명시) 충족.
-- URL — `https://test-ai-campus.vercel.app/account-deletion` (Play Console "계정 URL 삭제" 항목 등록용).
+- URL — `https://retail-ai-campus.vercel.app/account-deletion` (Play Console "계정 URL 삭제" 항목 등록용).
 - 영향 — Web(Next.js)에만 신규 라우트 추가. 안드로이드 네이티브 변경 없음(외부 URL 로딩 방식이라 자동 노출). versionCode 증가는 Play Console 신규 빌드 등록용.
 - 영향 파일: `app/account-deletion/page.tsx`(신규), `android/app/build.gradle`(versionCode/Name), `docs/prd/android-app.md`(본 PRD).
 
@@ -278,7 +278,7 @@ test_ai_campus/
 **versionCode**: 1 / **versionName**: 1.0.0
 
 - 신규 — Capacitor 7 + Android 플랫폼 추가 (`android/`).
-- 신규 — Capacitor `server.url` 외부 URL 로딩(test-ai-campus.vercel.app).
+- 신규 — Capacitor `server.url` 외부 URL 로딩(retail-ai-campus.vercel.app).
 - 신규 — PWA Service Worker, manifest, offline fallback, 아이콘 3종.
 - 신규 — Capacitor `SecureScreen` 커스텀 플러그인 + VideoPage 통합(FLAG_SECURE).
 - 신규 — AndroidManifest 보안(`allowBackup=false`, `usesCleartextTraffic=false`).
