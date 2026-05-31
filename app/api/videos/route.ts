@@ -5,7 +5,7 @@ import { sql } from '../../../lib/db';
 export async function GET() {
   try {
     const rows = await sql`
-      SELECT id, title, level, description, youtube_url, view_count, stages, order_idx
+      SELECT id, title, level, description, youtube_url, view_count, stages, order_idx, is_required
       FROM videos
       ORDER BY order_idx ASC, created_at ASC`;
     const out = rows.map(r => ({
@@ -17,6 +17,7 @@ export async function GET() {
       viewCount: r.view_count,
       stages: r.stages || [],
       order: r.order_idx,
+      isRequired: !!r.is_required, // 마이그레이션 전 환경 호환 (undefined → false)
     }));
     const res = NextResponse.json(out);
     res.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');

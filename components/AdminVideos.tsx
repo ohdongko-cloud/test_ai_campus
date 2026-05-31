@@ -152,6 +152,7 @@ export default function AdminVideos() {
   const [selLevel, setSelLevel] = useState('');
   const [desc, setDesc] = useState('');
   const [newStages, setNewStages] = useState<VideoStage[]>([]);
+  const [newIsRequired, setNewIsRequired] = useState(false);
 
   // Level form
   const [newLvName, setNewLvName] = useState('');
@@ -203,15 +204,33 @@ export default function AdminVideos() {
           youtubeUrl,
           stages: newStages.filter(s => s.title.trim()),
           order: videos.length,
+          isRequired: newIsRequired,
         }),
       });
       if (!res.ok) throw new Error(await res.text());
       flash('영상이 추가되었습니다.');
       setTitle(''); setYoutubeUrl(''); setDesc('');
       setSelLevel(levels[0]?.name || '기초'); setNewStages([]);
+      setNewIsRequired(false);
       await load();
     } catch (e) {
       handleAdminError(e, '영상 추가에 실패했습니다.');
+    }
+  };
+
+  // 필수 시청 토글 (낙관적 업데이트 + 실패 시 롤백)
+  const handleToggleRequired = async (id: string, next: boolean) => {
+    const before = videos;
+    setVideosState(vs => vs.map(v => v.id === id ? { ...v, isRequired: next } : v));
+    try {
+      const res = await adminFetch(`/api/admin/videos/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ isRequired: next }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+    } catch (e) {
+      setVideosState(before); // 롤백
+      handleAdminError(e, '필수 시청 변경에 실패했습니다.');
     }
   };
 
@@ -439,6 +458,23 @@ export default function AdminVideos() {
             <textarea rows={2} value={desc} onChange={e => setDesc(e.target.value)}
               style={{ ...iStyle, resize: 'vertical' }} />
           </div>
+          {/* 필수 시청 토글 */}
+          <div>
+            <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={newIsRequired}
+                onChange={e => setNewIsRequired(e.target.checked)}
+                className="w-4 h-4 accent-red-600"
+              />
+              <span className="text-xs font-medium text-gray-700">
+                필수 시청 영상으로 표시
+              </span>
+              <span className="text-[11px] text-gray-400">
+                (카드 우측 상단에 빨간 뱃지)
+              </span>
+            </label>
+          </div>
           {/* 스테이지 편집 */}
           <div>
             <div className="flex items-center justify-between mb-2">
@@ -507,6 +543,18 @@ export default function AdminVideos() {
                     {/* 제목 */}
                     <span className="text-xs font-semibold text-gray-700 flex-1 truncate">{v.title}</span>
                     <span className="text-xs text-gray-400 shrink-0">{v.viewCount}회</span>
+                    {/* 필수 시청 토글 */}
+                    <button
+                      onClick={() => handleToggleRequired(v.id, !v.isRequired)}
+                      title={v.isRequired ? '필수 시청 해제' : '필수 시청으로 표시'}
+                      className={`text-[11px] px-2 py-0.5 rounded border whitespace-nowrap shrink-0 font-bold transition-colors ${
+                        v.isRequired
+                          ? 'bg-red-600 text-yellow-300 border-red-700 hover:bg-red-700'
+                          : 'bg-white text-gray-500 border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      {v.isRequired ? '⭐ 필수' : '필수 아님'}
+                    </button>
                     {/* 편집 */}
                     <button onClick={() => setEditVideoId(v.id)}
                       className="text-xs text-gray-700 hover:text-black px-2 py-0.5 rounded border border-gray-300 hover:bg-gray-100 whitespace-nowrap shrink-0">

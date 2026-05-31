@@ -19,6 +19,7 @@ export interface Video {
   viewCount: number;
   stages?: VideoStage[];
   order?: number;
+  isRequired?: boolean; // 필수 시청 영상 — 카드 우상단 빨간 뱃지 노출
 }
 
 export interface Reservation {

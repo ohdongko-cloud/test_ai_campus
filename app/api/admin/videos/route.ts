@@ -17,6 +17,8 @@ export async function POST(req: NextRequest) {
   const youtubeUrl = String(body.youtubeUrl || '').trim();
   const stages = Array.isArray(body.stages) ? body.stages : [];
   const orderIdx = Number.isFinite(body.order) ? Number(body.order) : 0;
+  // 필수 시청 플래그: boolean만 허용, 누락 시 false
+  const isRequired = typeof body.isRequired === 'boolean' ? body.isRequired : false;
 
   if (!title || !youtubeUrl || !level) {
     return NextResponse.json({ error: 'title/level/youtubeUrl 필수' }, { status: 400 });
@@ -31,9 +33,9 @@ export async function POST(req: NextRequest) {
 
   try {
     await sql`
-      INSERT INTO videos (id, title, level, description, youtube_url, stages, order_idx)
+      INSERT INTO videos (id, title, level, description, youtube_url, stages, order_idx, is_required)
       VALUES (${id}, ${title}, ${level}, ${description}, ${youtubeUrl},
-              ${JSON.stringify(stages)}::jsonb, ${orderIdx})`;
+              ${JSON.stringify(stages)}::jsonb, ${orderIdx}, ${isRequired})`;
     return NextResponse.json({ ok: true, id }, { status: 201 });
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
