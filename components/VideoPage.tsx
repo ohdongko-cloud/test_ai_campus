@@ -713,13 +713,15 @@ export default function VideoPage() {
                 }}
                 aria-hidden="true"
               />
-              {/* 우하단 YouTube 로고 영역(워터마크 스타일, 클릭 시 youtube.com 이동) 차단.
-                  컨트롤바(하단 50px) 위쪽에 배치하여 재생/음량 버튼은 클릭 가능하게 유지. */}
+              {/* 우하단 YouTube 로고 + 우측 컨트롤(자막/설정/미니/극장) 일괄 차단.
+                  YouTube 로고는 컨트롤바와 같은 하단 영역에 위치하므로 bottom:0 부터 가린다.
+                  풀스크린은 fs=0 으로 이미 숨겨졌고, 재생/일시정지/볼륨/진행바는 좌측에
+                  있어 시청은 정상. width/height 는 16:9 영상의 우하단 1/4 지점까지 커버. */}
               <div
                 onClick={handleExternalLinkBlock}
                 style={{
-                  position: 'absolute', bottom: 48, right: 0,
-                  width: 130, height: 40, zIndex: 5,
+                  position: 'absolute', bottom: 0, right: 0,
+                  width: 220, height: 56, zIndex: 5,
                   cursor: 'not-allowed',
                 }}
                 aria-hidden="true"
