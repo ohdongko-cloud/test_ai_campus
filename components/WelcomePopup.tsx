@@ -136,14 +136,7 @@ export default function WelcomePopup({ onClose }: Props) {
     setEmail(e);
     setBusy(true);
     try {
-      // 이미 가입된 회원인지 확인
-      const existsRes = await fetch(`/api/users/exists?email=${encodeURIComponent(e)}`);
-      const existsData = await existsRes.json().catch(() => ({}));
-      if (existsData?.exists) {
-        setStep('login');
-        return;
-      }
-      // 인증 코드 발송
+      // 인증 코드 발송 (가입 여부는 signup-request 응답으로 판단)
       const res = await fetch('/api/users/signup-request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

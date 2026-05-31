@@ -19,22 +19,13 @@ async function sha256(text: string) {
 export async function POST(req: NextRequest) {
   const ip = getClientIp(req);
 
-  // IP 단위 강한 제한
-  const rlIp = await checkRateLimit('signup-req-ip', ip, 5, '10 m');
-  if (!rlIp.success) return tooManyRequests();
-
   const body = await req.json().catch(() => ({}));
   const email = String(body?.email || '').trim().toLowerCase();
   if (!isAllowedSignupEmail(email)) {
     return NextResponse.json({ error: DOMAIN_REJECT_MESSAGE }, { status: 400 });
   }
 
-  // 이메일 단위 제한
-  const rlEmail = await checkRateLimit('signup-req-email', email, 3, '10 m');
-  if (!rlEmail.success) return tooManyRequests();
-
-  // ── 데모용 테스트 계정: 가입 이력 무시 + 실제 메일 발송 우회 ──
-  // (반복 시연을 위해 alreadyMember 체크보다 먼저 처리)
+  // ── 데모용 테스트 계정: 레이트리밋·가입 이력 완전 우회 ──
   if (isTestAccountEmail(email) && isTestAccountActive()) {
     console.log('[signup-request] TEST mode — skipping Resend for', email);
     await logAuth({
@@ -43,6 +34,14 @@ export async function POST(req: NextRequest) {
     });
     return NextResponse.json({ ok: true, ttlMinutes: CODE_TTL_MIN, testMode: true });
   }
+
+  // IP 단위 강한 제한
+  const rlIp = await checkRateLimit('signup-req-ip', ip, 5, '10 m');
+  if (!rlIp.success) return tooManyRequests();
+
+  // 이메일 단위 제한
+  const rlEmail = await checkRateLimit('signup-req-email', email, 3, '10 m');
+  if (!rlEmail.success) return tooManyRequests();
 
   // 이미 가입된 이메일이면 — enumeration 방지 위해 200 + alreadyMember 반환, 메일은 발송 X
   const existing = await sql`SELECT id FROM users WHERE email = ${email} LIMIT 1`;
