@@ -694,28 +694,32 @@ export default function VideoPage() {
             >
               <iframe
                 width="100%" height="100%"
-                src={`https://www.youtube.com/embed/${extractVideoId(selectedVideo.youtubeUrl)}?autoplay=1&rel=0&modestbranding=1&iv_load_policy=3&disablekb=1&playsinline=1`}
+                // 풀스크린·관련영상·자막 자동·키보드 조작 등 외부 노출 경로 최소화.
+                // fs=0 → 풀스크린 버튼 숨김. allow 에서도 fullscreen 제거 + allowFullScreen 미지정.
+                src={`https://www.youtube.com/embed/${extractVideoId(selectedVideo.youtubeUrl)}?autoplay=1&rel=0&modestbranding=1&iv_load_policy=3&disablekb=1&playsinline=1&fs=0`}
                 title={selectedVideo.title}
                 allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
                 style={{ display: 'block', border: 'none' }}
               />
-              {/* YouTube 우상단 '시청' 버튼 영역 클릭 차단 */}
+              {/* ── 외부 이동 차단 오버레이 (영상 컨트롤바와는 충돌하지 않게 가장자리만) ── */}
+              {/* 상단 전체 너비: 영상 제목 + 채널 아바타(YouTube 채널로 이동) 클릭 차단.
+                  영상 컨트롤은 상단에 없으므로 UX 영향 없음. */}
               <div
                 onClick={handleExternalLinkBlock}
                 style={{
-                  position: 'absolute', top: 0, right: 0,
-                  width: 90, height: 48, zIndex: 5,
+                  position: 'absolute', top: 0, left: 0,
+                  width: '100%', height: 64, zIndex: 5,
                   cursor: 'not-allowed',
                 }}
                 aria-hidden="true"
               />
-              {/* YouTube 좌하단 로고 영역 클릭 차단 */}
+              {/* 우하단 YouTube 로고 영역(워터마크 스타일, 클릭 시 youtube.com 이동) 차단.
+                  컨트롤바(하단 50px) 위쪽에 배치하여 재생/음량 버튼은 클릭 가능하게 유지. */}
               <div
                 onClick={handleExternalLinkBlock}
                 style={{
-                  position: 'absolute', bottom: 0, left: 0,
-                  width: 110, height: 36, zIndex: 5,
+                  position: 'absolute', bottom: 48, right: 0,
+                  width: 130, height: 40, zIndex: 5,
                   cursor: 'not-allowed',
                 }}
                 aria-hidden="true"
