@@ -738,6 +738,18 @@ export default function VideoPage() {
                 }}
                 aria-hidden="true"
               />
+              {/* 좌하단 — YouTube 일시정지 시 표시되는 공유하기(화살표) + 저장하기(시계)
+                  콜투액션 버튼 차단. 영상 한가운데에 있는 큰 재생/일시정지 버튼과는
+                  겹치지 않음. */}
+              <div
+                onClick={handleExternalLinkBlock}
+                style={{
+                  position: 'absolute', bottom: 0, left: 0,
+                  width: '14%', height: '14%', zIndex: 5,
+                  cursor: 'not-allowed',
+                }}
+                aria-hidden="true"
+              />
               {/* 워터마크 — 4 모서리 중 2개씩 표시, 30초마다 swap */}
               {[
                 wmPosToggle === 0 ? { top: 10, left: 12 }   : { top: 10, right: 12 },
