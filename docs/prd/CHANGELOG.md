@@ -68,6 +68,7 @@
 
 | 커밋 | 메시지 | 비고 |
 |---|---|---|
+| `(다음)` | feat: 가이드에 Vrew + OpenClaw 추가 + 아이콘 매핑 | DB INSERT 실행 완료. CapCut 은 이미 등록되어 있어 제외 |
 | `cc0f145` | feat: 미팅 페이지 이번 주 자동 세팅 + 자정 자동 갱신 | weekDates useMemo, todayKey 추적(1분 interval + visibilitychange/focus), "오늘로 ↩" 버튼, "이번 주" 뱃지 |
 | `349cf80` | chore: 도메인 URL 갱신 (test-ai-campus → retail-ai-campus) | layout/OG/capacitor/load-test/문서 일괄, env `NEXT_PUBLIC_SITE_URL` fallback 도 동기화 |
 | `ff4ac7b` | feat: SharePage 레이아웃 변경 — 목록 우선 + 등록 모달 분리 | PRD `2026-05-30-share-page-layout-modal.md`, ShareRegisterModal 신규 |

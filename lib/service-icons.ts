@@ -56,6 +56,10 @@ export const SERVICE_ICONS: Record<string, string> = {
   'suno':         FAVICON('suno.com'),
   'heygen':       FAVICON('heygen.com'),
   'capcut':       SIMPLE('capcut', '000000'),
+  'vrew':         FAVICON('vrew.voyagerx.com'),  // 한국 VoyagerX, 영상 자동 자막 AI
+
+  // 오픈소스 게임/엔진
+  'openclaw':     FAVICON('github.com'),  // GitHub 호스팅, 별도 로고 없음
 
   // 디자인
   'miricanvas':   FAVICON('miricanvas.com'),
