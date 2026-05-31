@@ -2,7 +2,7 @@
 
 - 최초 작성: 2026-05-29
 - 최종 갱신: 2026-05-29
-- 현재 버전: **versionCode 3 / versionName "1.0.2"**
+- 현재 버전: **versionCode 5 / versionName "1.0.4"**
 - 작성자/소유자: ohdongko + Claude
 - 범위: 안드로이드 앱(Capacitor + WebView) 운영 사양·정책·변경 이력
 
@@ -36,16 +36,16 @@
 
 | 항목 | 값 |
 |---|---|
-| versionCode | 3 |
-| versionName | 1.0.2 |
+| versionCode | 5 |
+| versionName | 1.0.4 |
 | applicationId | `kr.co.eland.aicampus` |
 | minSdkVersion | 24 (Android 7.0) |
 | compileSdkVersion | 36 |
 | targetSdkVersion | 36 |
-| Capacitor 버전 | 7.x |
-| 배포 상태 | **재빌드 진행 중** (1.0.2 .aab 생성 후 업로드 대기) |
+| Capacitor 버전 | 8.x |
+| 배포 상태 | **빌드 완료** (1.0.4 .aab 생성됨, Play Console 업로드 대기) |
 | 배포 트랙 | Closed Testing 예정 |
-| 산출물 | `android/app/build/outputs/bundle/release/app-release.aab` (1.0.1 ≈ 2.95 MB) |
+| 산출물 | `android/app/build/outputs/bundle/release/app-release.aab` (1.0.4 ≈ 3.90 MB) |
 
 ## 3. 앱 식별 정보
 
@@ -56,7 +56,7 @@
 | 짧은 이름 (PWA) | AI 캠퍼스 | `app/manifest.ts` |
 | applicationId | `kr.co.eland.aicampus` | **변경 불가** (Play 등록 후) |
 | 키스토어 별칭 | `upload` | 변경 불가 (Play App Signing) |
-| 아이콘 (1.0.0) | 잠정 — `#1647A8` 배경 + 흰색 "E" | 정식 디자인으로 추후 교체 |
+| 아이콘 (1.0.3) | 정식 — 이랜드 블루 그라데이션(#1647A8→#0B2664) + 흰색 "AI" + 우상단 오렌지 액센트(#FF914D) | PWA 3종 + Android mipmap 5단계 × 3장 모두 통일 |
 
 ## 4. 기능 사양
 
@@ -222,11 +222,38 @@ test_ai_campus/
 | 외부 URL 로딩 방식 → 오프라인 시 사용 불가 | 네트워크 없을 때 진입 차단 | `/offline.html` fallback, 추후 핵심 라우트 SW 캐싱 확대 검토 |
 | `test-ai-campus.vercel.app` 도메인에 "test" 포함 | 사용자 인식 부정적 가능 | 정식 도메인(예: `aicampus.eland.co.kr`) 발급 후 server.url 교체 + versionCode 증가 |
 | FLAG_SECURE는 안드로이드만 차단, iOS·웹은 별도 | iOS 앱 출시 시 별도 구현 필요 | iOS PRD에서 다룸 |
-| 잠정 아이콘 (한 글자 "E") | Play Store 첫인상 약함 | 정식 디자인 확정 후 교체 (versionCode 증가) |
+| ~~잠정 아이콘 (한 글자 "E")~~ | ~~Play Store 첫인상 약함~~ | ✅ 해소(v1.0.3) — 정식 그라데이션 + AI 디자인으로 교체 |
 | WebView 쿠키·세션 격리 | 일부 디바이스에서 매번 로그인 요구 가능 | `singleTask` launchMode + 쿠키 정책 점검 |
 | Capacitor 7 + targetSdk 36 호환 | 새 SDK 정책(예: 백그라운드 제한) 추적 필요 | Google Play 정책 알림 구독 |
 
 ## 11. 변경 이력
+
+### v1.0.4 — 2026-05-29 (안드로이드 전용 모바일 UI 신규 라우트 `/m/*`)
+
+**versionCode**: 5 / **versionName**: 1.0.4
+
+- 신규 — 안드로이드 앱 전용 모바일 UI 라우트 `app/m/*` (PRD: `docs/prd/2026-05-29-android-mobile-ui.md`)
+  - `app/m/layout.tsx`, `m/page.tsx`(홈), `m/video/page.tsx`(영상 리스트), `m/video/[id]/page.tsx`(시청 모달), `m/board/page.tsx`(게시판), `m/profile/page.tsx`(프로필)
+  - `app/m/_components/`: `MobileHeader`·`MobileTabBar`·`MobileWelcome`·`MobileHero`·`MobileMenuCard`·`MobileFeaturedVideo`·`MobileVideoCard`·`MobilePostCard`·`MobileSearchBar`·`MobileToast`
+  - `app/m/_styles/tokens.ts` (전용 디자인 토큰)
+- 변경 — `capacitor.config.ts` `server.url`을 `vercel.app` → `vercel.app/m` 로. 안드로이드 앱이 자동으로 모바일 UI 진입.
+- 변경 — Capacitor 7 → 8 업그레이드 (sync 결과 `@capacitor/app@8.1.0` 인식)
+- 신규 npm — `@capacitor/app` (안드로이드 백 버튼 리스너용)
+- 의도 — 데스크톱 컴포넌트를 WebView에 그대로 로드하던 v1.0.0~v1.0.3 패턴 해소. PRD의 모바일 우선 디자인을 React로 그대로 구현하여 깨짐·기능 가독성 문제 해결.
+- 데스크톱 웹(`/`)은 그대로 유지 — 외부 영향 0.
+- 영향 파일: `app/m/**`(15+ 파일), `capacitor.config.ts`, `android/app/build.gradle`, `docs/prd/android-app.md`, `docs/prd/2026-05-29-android-mobile-ui.md`(신규), `package.json`.
+
+### v1.0.3 — 2026-05-29 (정식 아이콘 디자인 통일 + Play Store 마케팅 자산)
+
+**versionCode**: 4 / **versionName**: 1.0.3
+
+- 신규 — Play Store 등록용 마케팅 자산: `public/play-icon-512.png`(앱 아이콘), `public/play-feature-1024x500.png`(피처 그래픽).
+- 갱신 — 런처/PWA 아이콘 전체를 잠정 "E" 단순 디자인에서 정식 디자인으로 교체:
+  - PWA: `public/icon-192.png`, `icon-512.png`, `icon-maskable-512.png`
+  - Android mipmap: `mdpi`(48)/`hdpi`(72)/`xhdpi`(96)/`xxhdpi`(144)/`xxxhdpi`(192) 각 폴더의 `ic_launcher.png`, `ic_launcher_round.png`, `ic_launcher_foreground.png`
+- 디자인 — 이랜드 블루 그라데이션 배경(#1647A8 → #0B2664, 135°) + 중앙 흰색 "AI" + 우상단 오렌지 액센트(#FF914D). Adaptive foreground는 안전 영역(중앙 32%)에 "AI"만, Maskable은 오렌지 점 제외(80% safe area 보장).
+- 영향 — 안드로이드 런처 리소스 변경이므로 .aab 재빌드 필수. PWA 사용자는 SW 캐시 만료 후 새 아이콘 자동 적용.
+- 영향 파일: `public/icon-*.png`(3), `public/play-icon-512.png`(신규), `public/play-feature-1024x500.png`(신규), `android/app/src/main/res/mipmap-*/*.png`(15), `android/app/build.gradle`(versionCode/Name), `docs/prd/android-app.md`(본 PRD).
 
 ### v1.0.2 — 2026-05-29 (계정 삭제 요청 페이지 추가)
 
