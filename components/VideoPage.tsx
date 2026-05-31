@@ -433,12 +433,12 @@ export default function VideoPage() {
               <path d="M9 7l9 5-9 5V7z" fill={T.primary}/>
             </svg>
           </div>
-          {/* 필수 시청 뱃지 — 빨강 배경 + 노랑 글씨, 우측 상단 */}
+          {/* 필수 시청 뱃지 — 빨강 배경 + 노랑 글씨, 좌측 상단 */}
           {v.isRequired && (
             <span
               aria-label="필수 시청 영상"
               style={{
-                position: 'absolute', top: 8, right: 8, zIndex: 5,
+                position: 'absolute', top: 8, left: 8, zIndex: 5,
                 background: '#E11D2E', color: '#FFD400',
                 fontSize: 11, fontWeight: 700, letterSpacing: '-0.01em',
                 padding: '4px 8px', borderRadius: 999,
