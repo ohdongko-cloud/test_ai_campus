@@ -2,7 +2,7 @@
 
 - 최초 작성: 2026-05-29
 - 최종 갱신: 2026-05-29
-- 현재 버전: **versionCode 7 / versionName "1.0.6"**
+- 현재 버전: **versionCode 8 / versionName "1.0.7"**
 - 작성자/소유자: ohdongko + Claude
 - 범위: 안드로이드 앱(Capacitor + WebView) 운영 사양·정책·변경 이력
 
@@ -36,16 +36,16 @@
 
 | 항목 | 값 |
 |---|---|
-| versionCode | 7 |
-| versionName | 1.0.6 |
+| versionCode | 8 |
+| versionName | 1.0.7 |
 | applicationId | `kr.co.eland.aicampus` |
 | minSdkVersion | 24 (Android 7.0) |
 | compileSdkVersion | 36 |
 | targetSdkVersion | 36 |
 | Capacitor 버전 | 8.x |
-| 배포 상태 | **빌드 완료** (1.0.6 .aab 생성됨, Play Console 업로드 대기) |
+| 배포 상태 | **빌드 완료** (1.0.7 .aab 생성됨, Play Console 업로드 대기) |
 | 배포 트랙 | Closed Testing 예정 |
-| 산출물 | `android/app/build/outputs/bundle/release/app-release.aab` (1.0.6 ≈ 3.90 MB) |
+| 산출물 | `android/app/build/outputs/bundle/release/app-release.aab` (1.0.7 ≈ 3.90 MB) |
 
 ## 3. 앱 식별 정보
 
@@ -227,6 +227,17 @@ test_ai_campus/
 | Capacitor 7 + targetSdk 36 호환 | 새 SDK 정책(예: 백그라운드 제한) 추적 필요 | Google Play 정책 알림 구독 |
 
 ## 11. 변경 이력
+
+### v1.0.7 — 2026-05-31 (모바일 미팅·공유 라우트 신규 + 메뉴 카드 정합)
+
+**versionCode**: 8 / **versionName**: 1.0.7
+
+- 수정 — 메뉴 카드 라우팅 버그: "공유" 카드가 `/m/board?tab=share` (게시판으로 잘못 진입) → `/m/share` 로 정합. "질문"만 `/m/board`.
+- 신규 — 메뉴 카드 라인업 변경: **학습 / 미팅 / 질문 / 공유** (제작/가이드는 v1.0.8 후속). MENU_GRADIENTS에 `meeting` 추가(sky blue).
+- 신규 — `/m/meeting` 페이지: 주차 캘린더(월~금) + 30분 슬롯 + 신청 폼. `MobileMeetingCalendar`, `MobileMeetingForm` 컴포넌트. `/api/reservations`·`/api/blocked-slots` 연동. 자정 경과 자동 갱신.
+- 신규 — `/m/share` 페이지: 공유 서비스 카드 목록 + 우하단 FAB(+) → 등록 바텀시트. `MobileServiceCard`, `MobileShareRegisterSheet` 컴포넌트. 비로그인 시 등록 차단. 외부 링크는 `rel="noopener noreferrer"` 강제.
+- 영향 — 데스크톱(`/`) 0 영향. PRD: `docs/prd/2026-05-31-android-meeting-share-routes.md`.
+- 영향 파일: `app/m/share/page.tsx`(신규), `app/m/meeting/page.tsx`(신규), `app/m/_components/MobileServiceCard.tsx`(신규), `MobileShareRegisterSheet.tsx`(신규), `MobileMeetingCalendar.tsx`(신규), `MobileMeetingForm.tsx`(신규), `MobileMenuCard.tsx`(라우팅/라인업 변경), `app/m/page.tsx`(가이드 fetch 제거), `app/m/_styles/tokens.ts`(meeting 그라데이션), `android/app/build.gradle`, `docs/prd/android-app.md`(본 PRD).
 
 ### v1.0.6 — 2026-05-31 (모바일 UI 3건 수정 — 자동로그인·메뉴 카드 실데이터·추천 강의)
 
