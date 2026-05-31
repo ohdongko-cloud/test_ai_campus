@@ -68,6 +68,7 @@
 
 | 커밋 | 메시지 | 비고 |
 |---|---|---|
+| `(다음)` | feat: 영상 모달 최대화 (max-width 860 → 1280px/95vw) + 차단 영역 % 단위 전환 | 풀스크린 차단 보상 — 모달 안에서 최대한 크게 시청. 차단 영역 비례 유지 |
 | `9bda35e` | fix: 우하단 YouTube 로고 차단 영역 컨트롤바까지 확장 (bottom:0) | fcd1c7e 후속 — 컨트롤바 위쪽에 배치되어 있던 차단 div 를 bottom:0 까지 내림 |
 | `fcd1c7e` | fix: 영상 보호 — YouTube 로고/제목 클릭 차단 위치 교정 + 풀스크린 차단 | 좌하단 차단 → 우하단(YouTube 로고)으로 이동, 상단 전체 차단 추가, fs=0 + allowFullScreen 제거 |
 | `c787a06` | feat: 브랜드 마크 통일 — 헤더 3곳 + favicon + apple-icon + OG 이미지 | components/BrandMark.tsx 신규 (파란 그라데이션 + 흰 AI + 우상단 오렌지 점 + 둥근 모서리) |

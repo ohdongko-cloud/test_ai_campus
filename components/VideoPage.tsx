@@ -681,7 +681,10 @@ export default function VideoPage() {
             onClick={e => e.stopPropagation()}
             style={{
               background: T.surface, borderRadius: T.r3,
-              width: '100%', maxWidth: 860, maxHeight: 'calc(100vh - 32px)',
+              // 풀스크린이 막혀있는 만큼 모달 안에서 최대한 크게 보여준다.
+              // 와이드 모니터(>1400)에서는 1280px 까지, 그 이하에서는 viewport 95%.
+              width: '100%', maxWidth: 'min(1280px, 95vw)',
+              maxHeight: 'calc(100vh - 32px)',
               boxShadow: '0 4px 12px rgba(15,30,51,0.06), 0 16px 40px rgba(15,30,51,0.10)',
               overflow: 'hidden', display: 'flex', flexDirection: 'column',
             }}
@@ -701,27 +704,36 @@ export default function VideoPage() {
                 allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
                 style={{ display: 'block', border: 'none' }}
               />
-              {/* ── 외부 이동 차단 오버레이 (영상 컨트롤바와는 충돌하지 않게 가장자리만) ── */}
+              {/* ── 외부 이동 차단 오버레이 (% 단위 — 영상 크기 무관 동일 비율 유지) ── */}
               {/* 상단 전체 너비: 영상 제목 + 채널 아바타(YouTube 채널로 이동) 클릭 차단.
                   영상 컨트롤은 상단에 없으므로 UX 영향 없음. */}
               <div
                 onClick={handleExternalLinkBlock}
                 style={{
                   position: 'absolute', top: 0, left: 0,
-                  width: '100%', height: 64, zIndex: 5,
+                  width: '100%', height: '12%', zIndex: 5,
+                  cursor: 'not-allowed',
+                }}
+                aria-hidden="true"
+              />
+              {/* 우상단 메뉴(공유/저장) 차단 — 상단 차단과 겹쳐도 안전. */}
+              <div
+                onClick={handleExternalLinkBlock}
+                style={{
+                  position: 'absolute', top: 0, right: 0,
+                  width: '12%', height: '14%', zIndex: 5,
                   cursor: 'not-allowed',
                 }}
                 aria-hidden="true"
               />
               {/* 우하단 YouTube 로고 + 우측 컨트롤(자막/설정/미니/극장) 일괄 차단.
-                  YouTube 로고는 컨트롤바와 같은 하단 영역에 위치하므로 bottom:0 부터 가린다.
-                  풀스크린은 fs=0 으로 이미 숨겨졌고, 재생/일시정지/볼륨/진행바는 좌측에
-                  있어 시청은 정상. width/height 는 16:9 영상의 우하단 1/4 지점까지 커버. */}
+                  영상 크기 비례로 가려 모달 크기 변경에도 안전. 풀스크린은 fs=0 으로
+                  이미 숨김. 재생/일시정지/볼륨/진행바는 좌측에 있어 시청 정상. */}
               <div
                 onClick={handleExternalLinkBlock}
                 style={{
                   position: 'absolute', bottom: 0, right: 0,
-                  width: 220, height: 56, zIndex: 5,
+                  width: '22%', height: '14%', zIndex: 5,
                   cursor: 'not-allowed',
                 }}
                 aria-hidden="true"
