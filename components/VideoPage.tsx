@@ -66,6 +66,10 @@ export default function VideoPage() {
   //   normal : 영상 + 정보 균형 (기본)
   //   wide   : 영상 위주 (와이드 모니터)
   const [modalSize, setModalSize] = useState<'compact' | 'normal' | 'wide'>('normal');
+  // 스테이지 사이드바 — 데스크탑 펼침/접힘, 모바일 오버레이.
+  // 모바일은 항상 false 시작. selectedVideo 가 바뀌면 (다른 영상) 신규 stages 기반 재계산.
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   // ── 영상 보호용 워터마크 ──
   const [watermarkEmail, setWatermarkEmail] = useState<string>('anon');
@@ -97,6 +101,32 @@ export default function VideoPage() {
     enableSecureScreen();
     return () => { disableSecureScreen(); };
   }, [selectedVideo]);
+
+  // 모바일 / 데스크탑 분기 (viewport width 768px 기준).
+  // resize 시 모바일 ↔ 데스크탑 전환되면 사이드바 자동 접힘.
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(prev => {
+        if (prev !== mobile) {
+          // 모드 전환 시 사이드바는 접힘으로 시작
+          setSidebarOpen(false);
+        }
+        return mobile;
+      });
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // 영상이 바뀔 때마다(모달 열기/다른 영상 선택) 사이드바 초기 상태 재계산.
+  // 데스크탑 + 스테이지 ≥ 1개 → 펼침. 그 외 → 접힘.
+  useEffect(() => {
+    if (!selectedVideo) return;
+    const hasStages = (selectedVideo.stages?.length ?? 0) > 0;
+    setSidebarOpen(!isMobile && hasStages);
+  }, [selectedVideo?.id, isMobile]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 우클릭/단축키 차단 (모달 내부)
   const blockContext = (e: React.MouseEvent) => { e.preventDefault(); };
@@ -689,6 +719,91 @@ export default function VideoPage() {
               normal:  { maxWidth: 960,  videoMaxVh: 55 },
               wide:    { maxWidth: 1280, videoMaxVh: 70 },
             }[modalSize];
+            const hasStages = (selectedVideo.stages?.length ?? 0) > 0;
+            // 우측 사이드바 안에 들어갈 학습 단계 카드 리스트.
+            // 영상 정보 좌측 본문에서 분리되어 항상 영상 옆에 노출.
+            const stagesPanel = !hasStages ? null : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: 16 }}>
+                {selectedVideo.stages!.map((stage, idx) => {
+                  const isOpen = openStageIdx === idx;
+                  return (
+                    <div
+                      key={stage.id}
+                      style={{
+                        border: `1.5px solid ${isOpen ? T.primary : T.border}`,
+                        borderRadius: T.r, overflow: 'hidden',
+                        transition: 'border-color .15s',
+                      }}
+                    >
+                      <button
+                        onClick={() => setOpenStageIdx(isOpen ? null : idx)}
+                        style={{
+                          width: '100%', display: 'flex', alignItems: 'center',
+                          gap: 10, padding: '10px 14px',
+                          background: isOpen ? T.primaryLight : T.surface,
+                          border: 'none', cursor: 'pointer',
+                          textAlign: 'left', transition: 'background .15s',
+                        }}
+                      >
+                        <span style={{
+                          width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
+                          background: isOpen ? T.primary : T.bg,
+                          color: isOpen ? '#fff' : T.textMuted,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 11, fontWeight: 700,
+                        }}>{idx + 1}</span>
+                        <span style={{
+                          flex: 1, fontSize: 13, fontWeight: 600,
+                          color: isOpen ? T.primary : T.text,
+                        }}>{stage.title}</span>
+                        <svg
+                          width="14" height="14" viewBox="0 0 24 24"
+                          fill="none" stroke={isOpen ? T.primary : T.textMuted}
+                          strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                          style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform .2s', flexShrink: 0 }}
+                        ><path d="M6 9l6 6 6-6"/></svg>
+                      </button>
+                      {isOpen && stage.description && (
+                        <div style={{ padding: '10px 14px 12px 14px', background: T.primarySoft }}>
+                          <div style={{ marginBottom: 8 }}>
+                            <button
+                              type="button"
+                              onClick={() => copyStageDescription(idx, stage.description)}
+                              style={{
+                                display: 'inline-flex', alignItems: 'center', gap: 6,
+                                minHeight: 28, padding: '4px 10px',
+                                background: copiedStageIdx === idx ? T.successBg : T.surface,
+                                border: `1px solid ${copiedStageIdx === idx ? T.success : T.border}`,
+                                color: copiedStageIdx === idx ? T.success : T.text,
+                                borderRadius: T.r, fontSize: 12, fontWeight: 600,
+                                cursor: 'pointer', fontFamily: T.fontKo,
+                              }}
+                              aria-label="스테이지 설명 전체 복사"
+                            >
+                              {copiedStageIdx === idx ? (
+                                <>
+                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5L20 7"/></svg>
+                                  복사됨
+                                </>
+                              ) : (
+                                <>
+                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 012-2h10"/></svg>
+                                  전체 복사
+                                </>
+                              )}
+                            </button>
+                          </div>
+                          <div style={{
+                            fontSize: 13, color: T.textBody, lineHeight: 1.65,
+                            whiteSpace: 'pre-wrap',
+                          }}>{stage.description}</div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            );
             return (
           <div
             onClick={e => e.stopPropagation()}
@@ -852,8 +967,13 @@ export default function VideoPage() {
               🔒 본 영상은 이랜드리테일 사내 한정 자료입니다. 외부 공유·녹화·캡처를 금지합니다.
             </div>
 
-            {/* 영상 정보 — flex:1 + minHeight:0 으로 항상 스크롤 가능한 영역 확보.
-                영상이 maxHeight 로 제한되므로 정보 영역은 절대 사라지지 않음. */}
+            {/* ── 본문 영역: 가로 2분할 (좌: 영상정보+댓글 / 우: 스테이지 사이드바) ──
+                스테이지가 0개면 사이드바 자체 미렌더 → 좌측이 전체 너비 사용. */}
+            <div style={{
+              flex: '1 1 0', minHeight: 0, display: 'flex', flexDirection: 'row',
+              position: 'relative', overflow: 'hidden',
+            }}>
+            {/* 좌측: 영상 정보 + 댓글 (스테이지는 사이드바로 분리됨) */}
             <div style={{ padding: '20px 24px', overflowY: 'auto', flex: '1 1 0', minHeight: 0 }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 16 }}>
                 <div style={{ flex: 1 }}>
@@ -894,131 +1014,7 @@ export default function VideoPage() {
                 </button>
               </div>
 
-              {/* 학습 단계 아코디언 */}
-              {selectedVideo.stages && selectedVideo.stages.length > 0 && (
-                <div style={{ borderTop: `1px solid ${T.border}`, paddingTop: 16 }}>
-                  <div style={{
-                    fontSize: 13, fontWeight: 700, color: T.text, marginBottom: 10,
-                    display: 'flex', alignItems: 'center', gap: 6,
-                  }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={T.primary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
-                    </svg>
-                    학습 단계 ({selectedVideo.stages.length}단계)
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    {selectedVideo.stages.map((stage, idx) => {
-                      const isOpen = openStageIdx === idx;
-                      return (
-                        <div
-                          key={stage.id}
-                          style={{
-                            border: `1.5px solid ${isOpen ? T.primary : T.border}`,
-                            borderRadius: T.r, overflow: 'hidden',
-                            transition: 'border-color .15s',
-                          }}
-                        >
-                          <button
-                            onClick={() => setOpenStageIdx(isOpen ? null : idx)}
-                            style={{
-                              width: '100%', display: 'flex', alignItems: 'center',
-                              gap: 10, padding: '10px 14px',
-                              background: isOpen ? T.primaryLight : T.surface,
-                              border: 'none', cursor: 'pointer',
-                              textAlign: 'left', transition: 'background .15s',
-                            }}
-                          >
-                            <span style={{
-                              width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
-                              background: isOpen ? T.primary : T.bg,
-                              color: isOpen ? '#fff' : T.textMuted,
-                              display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              fontSize: 11, fontWeight: 700,
-                            }}>
-                              {idx + 1}
-                            </span>
-                            <span style={{
-                              flex: 1, fontSize: 13, fontWeight: 600,
-                              color: isOpen ? T.primary : T.text,
-                            }}>
-                              {stage.title}
-                            </span>
-                            <svg
-                              width="14" height="14" viewBox="0 0 24 24"
-                              fill="none" stroke={isOpen ? T.primary : T.textMuted}
-                              strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                              style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform .2s', flexShrink: 0 }}
-                            >
-                              <path d="M6 9l6 6 6-6"/>
-                            </svg>
-                          </button>
-                          {isOpen && stage.description && (
-                            <div style={{
-                              padding: '10px 14px 12px 46px',
-                              background: T.primarySoft,
-                            }}>
-                              <div style={{ marginBottom: 8 }}>
-                                <button
-                                  type="button"
-                                  onClick={() => copyStageDescription(idx, stage.description)}
-                                  style={{
-                                    display: 'inline-flex', alignItems: 'center', gap: 6,
-                                    minHeight: 28, padding: '4px 10px',
-                                    background: copiedStageIdx === idx ? T.successBg : T.surface,
-                                    border: `1px solid ${copiedStageIdx === idx ? T.success : T.border}`,
-                                    color: copiedStageIdx === idx ? T.success : T.text,
-                                    borderRadius: T.r, fontSize: 12, fontWeight: 600,
-                                    cursor: 'pointer', fontFamily: T.fontKo,
-                                    transition: 'background .15s, border-color .15s, color .15s',
-                                  }}
-                                  onMouseEnter={e => {
-                                    if (copiedStageIdx !== idx) {
-                                      e.currentTarget.style.background = T.primaryLight;
-                                      e.currentTarget.style.borderColor = T.primary;
-                                      e.currentTarget.style.color = T.primary;
-                                    }
-                                  }}
-                                  onMouseLeave={e => {
-                                    if (copiedStageIdx !== idx) {
-                                      e.currentTarget.style.background = T.surface;
-                                      e.currentTarget.style.borderColor = T.border;
-                                      e.currentTarget.style.color = T.text;
-                                    }
-                                  }}
-                                  aria-label="스테이지 설명 전체 복사"
-                                >
-                                  {copiedStageIdx === idx ? (
-                                    <>
-                                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M5 12l5 5L20 7"/>
-                                      </svg>
-                                      복사됨
-                                    </>
-                                  ) : (
-                                    <>
-                                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <rect x="9" y="9" width="11" height="11" rx="2"/>
-                                        <path d="M5 15V5a2 2 0 012-2h10"/>
-                                      </svg>
-                                      전체 복사
-                                    </>
-                                  )}
-                                </button>
-                              </div>
-                              <div style={{
-                                fontSize: 13, color: T.textBody, lineHeight: 1.65,
-                                whiteSpace: 'pre-wrap',
-                              }}>
-                                {stage.description}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
+              {/* 학습 단계는 우측 사이드바(stagesPanel)로 분리됨 — 좌측 본문에는 영상 정보 + 댓글만. */}
 
               {/* 댓글 패널 */}
               <div style={{ borderTop: `1px solid ${T.border}`, paddingTop: 16, marginTop: 16 }}>
@@ -1125,6 +1121,92 @@ export default function VideoPage() {
                   </div>
                 )}
               </div>
+            </div>
+            {/* ── 우측 스테이지 사이드바 ── */}
+            {hasStages && (
+              <>
+                {/* 모바일 펼침 시 백드롭 (사이드바 외 영역 클릭 → 닫힘) */}
+                {isMobile && sidebarOpen && (
+                  <div
+                    onClick={() => setSidebarOpen(false)}
+                    style={{
+                      position: 'absolute', inset: 0, zIndex: 6,
+                      background: 'rgba(15,30,51,0.35)',
+                    }}
+                    aria-hidden="true"
+                  />
+                )}
+                <aside
+                  id="video-stage-sidebar"
+                  role="complementary"
+                  aria-label="학습 단계"
+                  style={{
+                    position: isMobile ? 'absolute' : 'relative',
+                    top: 0, right: 0, bottom: 0, zIndex: 7,
+                    width: sidebarOpen ? (isMobile ? '85%' : 320) : 36,
+                    background: T.surface,
+                    borderLeft: `1px solid ${T.border}`,
+                    display: 'flex', flexDirection: 'column',
+                    transition: 'width .2s ease',
+                    overflow: 'hidden',
+                    flexShrink: 0,
+                  }}
+                >
+                  {/* 토글 핸들 — 사이드바 좌측 가장자리 */}
+                  <button
+                    onClick={() => setSidebarOpen(o => !o)}
+                    aria-expanded={sidebarOpen}
+                    aria-controls="video-stage-sidebar"
+                    title={sidebarOpen ? '사이드바 접기' : '학습 단계 펼치기'}
+                    style={{
+                      position: 'absolute', top: 8, left: 0,
+                      width: 36, height: 36, borderRadius: 6,
+                      background: 'transparent', border: 'none',
+                      color: T.textBody, cursor: 'pointer', zIndex: 1,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: sidebarOpen ? 'rotate(0deg)' : 'rotate(180deg)', transition: 'transform .2s' }}>
+                      <path d="M9 18l6-6-6-6"/>
+                    </svg>
+                  </button>
+                  {/* 접힘 상태 — 좁은 띠에 세로 라벨 */}
+                  {!sidebarOpen && (
+                    <div style={{
+                      position: 'absolute', top: 56, left: 0, right: 0,
+                      writingMode: 'vertical-rl' as const, textOrientation: 'mixed' as const,
+                      transform: 'rotate(180deg)', transformOrigin: 'center',
+                      fontSize: 12, fontWeight: 700, color: T.primary,
+                      letterSpacing: '0.04em', textAlign: 'center',
+                      paddingTop: 8, userSelect: 'none',
+                    }}>
+                      학습 단계 ({selectedVideo.stages?.length})
+                    </div>
+                  )}
+                  {/* 펼침 상태 — 헤더 + 카드 리스트 */}
+                  {sidebarOpen && (
+                    <>
+                      <div style={{
+                        display: 'flex', alignItems: 'center', gap: 8,
+                        padding: '12px 16px 12px 48px',
+                        borderBottom: `1px solid ${T.border}`,
+                        background: T.surfaceAlt, flexShrink: 0,
+                      }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={T.primary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+                        </svg>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>
+                          학습 단계 ({selectedVideo.stages?.length}단계)
+                        </span>
+                      </div>
+                      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+                        {stagesPanel}
+                      </div>
+                    </>
+                  )}
+                </aside>
+              </>
+            )}
             </div>
           </div>
             );
