@@ -2,7 +2,7 @@
 
 - 최초 작성: 2026-05-29
 - 최종 갱신: 2026-05-29
-- 현재 버전: **versionCode 6 / versionName "1.0.5"**
+- 현재 버전: **versionCode 7 / versionName "1.0.6"**
 - 작성자/소유자: ohdongko + Claude
 - 범위: 안드로이드 앱(Capacitor + WebView) 운영 사양·정책·변경 이력
 
@@ -36,16 +36,16 @@
 
 | 항목 | 값 |
 |---|---|
-| versionCode | 6 |
-| versionName | 1.0.5 |
+| versionCode | 7 |
+| versionName | 1.0.6 |
 | applicationId | `kr.co.eland.aicampus` |
 | minSdkVersion | 24 (Android 7.0) |
 | compileSdkVersion | 36 |
 | targetSdkVersion | 36 |
 | Capacitor 버전 | 8.x |
-| 배포 상태 | **빌드 완료** (1.0.5 .aab 생성됨, Play Console 업로드 대기 — 도메인 전환) |
+| 배포 상태 | **빌드 완료** (1.0.6 .aab 생성됨, Play Console 업로드 대기) |
 | 배포 트랙 | Closed Testing 예정 |
-| 산출물 | `android/app/build/outputs/bundle/release/app-release.aab` (1.0.5 ≈ 3.90 MB) |
+| 산출물 | `android/app/build/outputs/bundle/release/app-release.aab` (1.0.6 ≈ 3.90 MB) |
 
 ## 3. 앱 식별 정보
 
@@ -227,6 +227,16 @@ test_ai_campus/
 | Capacitor 7 + targetSdk 36 호환 | 새 SDK 정책(예: 백그라운드 제한) 추적 필요 | Google Play 정책 알림 구독 |
 
 ## 11. 변경 이력
+
+### v1.0.6 — 2026-05-31 (모바일 UI 3건 수정 — 자동로그인·메뉴 카드 실데이터·추천 강의)
+
+**versionCode**: 7 / **versionName**: 1.0.6
+
+- 신규 — `MobileWelcome` 로그인 단계에 **자동로그인 체크박스**(기본 ON, 30일 유지). `/api/users/login` body에 `rememberMe` 전달. 기존 데스크톱 `WelcomePopup`과 동일 정책.
+- 변경 — `MobileMenuCard` 4개 카드(학습/제작/질문/공유)의 **하드코딩된 카운트('32강', '18개', '+12 new', '1 예약') 제거** → props로 받음. `app/m/page.tsx`가 `/api/videos`·`/api/guide`·`/api/posts`·`/api/services`를 병렬 fetch 후 실제 길이 주입. 데이터 로딩 전엔 `–` 표시.
+- 변경 — **추천 강의를 "필수시청(`isRequired`) 영상 중 조회수 1위"** 로 자동 선정 (`pickFeatured`). 필수시청 영상이 없으면 전체 영상 중 조회수 1위로 폴백. 영상이 0개면 placeholder 표시.
+- 영향 — Web/안드로이드 양쪽 모바일 UI 개선. 데스크톱(`/`)은 0 영향. 다음 빌드에서 외부 URL 로딩 방식으로 자동 반영.
+- 영향 파일: `app/m/page.tsx`, `app/m/_components/MobileWelcome.tsx`, `app/m/_components/MobileMenuCard.tsx`, `android/app/build.gradle`, `docs/prd/android-app.md`.
 
 ### v1.0.5 — 2026-05-29 (운영 도메인 retail-ai-campus.vercel.app 전환)
 
