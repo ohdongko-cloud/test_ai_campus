@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   appName: 'Eland AI 캠퍼스',
   webDir: 'public',
   server: {
-    url: 'https://test-ai-campus.vercel.app',
+    url: 'https://test-ai-campus.vercel.app/m',
     androidScheme: 'https',
     cleartext: false,
     allowNavigation: [
