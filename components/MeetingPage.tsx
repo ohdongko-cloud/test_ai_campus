@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Reservation } from '../lib/types';
 import {
   getWeekDates, generateTimeSlots,
@@ -11,6 +11,12 @@ import { BlockedSlot } from '../lib/types';
 
 const DAY_NAMES = ['월', '화', '수', '목', '금'];
 
+// 오늘 날짜를 'YYYY-MM-DD' 키로 — 자정 지나 바뀌면 이 값도 바뀜 → 주차 자동 갱신 트리거
+function getTodayKey(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
+
 interface SelectedSlot {
   date: string;
   startTime: string;
@@ -19,7 +25,13 @@ interface SelectedSlot {
 
 export default function MeetingPage() {
   const [weekOffset, setWeekOffset] = useState(0);
-  const [weekDates, setWeekDates] = useState<Date[]>([]);
+  // todayKey 가 바뀌면 weekDates 자동 재계산 (자정/탭 활성화 시 setState 호출)
+  const [todayKey, setTodayKey] = useState<string>(getTodayKey);
+  // useMemo: weekOffset / todayKey 변경 시 자동 재계산
+  const weekDates = useMemo(() => {
+    void todayKey; // todayKey 변경을 의존성으로 잡기 위한 명시적 참조
+    return getWeekDates(weekOffset);
+  }, [weekOffset, todayKey]);
   const [timeSlots] = useState<string[]>(generateTimeSlots());
   const [reservations, setReservationsState] = useState<Reservation[]>([]);
   const [blockedSlots, setBlockedSlotsState] = useState<BlockedSlot[]>([]);
@@ -34,9 +46,28 @@ export default function MeetingPage() {
   const [formEmail, setFormEmail] = useState('');
   const [formPhone, setFormPhone] = useState('');
 
+  // 날짜 변경 자동 감지 — 페이지 오래 열어둔 채 자정이 지나도, 다른 탭 갔다 돌아와도
+  // 자동으로 "이번 주"가 다시 표시되게 한다.
+  //   - 매 60초마다 오늘 날짜 키 비교 → 바뀌었으면 todayKey 갱신 + weekOffset 0 으로 reset
+  //   - 탭 다시 활성화(visibilitychange) / 창 focus 시에도 즉시 체크
   useEffect(() => {
-    setWeekDates(getWeekDates(weekOffset));
-  }, [weekOffset]);
+    const tick = () => {
+      const k = getTodayKey();
+      if (k !== todayKey) {
+        setTodayKey(k);
+        setWeekOffset(0); // 새 주가 시작됐으면 자동으로 이번 주로
+      }
+    };
+    const onVisible = () => { if (!document.hidden) tick(); };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    const id = setInterval(tick, 60_000);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+      clearInterval(id);
+    };
+  }, [todayKey]);
 
   const loadAll = async () => {
     try {
@@ -255,17 +286,22 @@ export default function MeetingPage() {
       </p>
 
       {/* 주 이동 */}
-      <div className="flex items-center gap-4 mb-4">
+      <div className="flex items-center gap-3 mb-4 flex-wrap">
         <button
           onClick={() => setWeekOffset(w => w - 1)}
           className="bg-white border border-gray-300 text-black px-3 py-1.5 rounded text-sm hover:bg-gray-50"
         >
           &lt; 이전 주
         </button>
-        <span className="text-sm font-medium text-gray-700">
+        <span className="text-sm font-medium text-gray-700 inline-flex items-center gap-2">
           {weekDates.length > 0
             ? `${weekDates[0].getMonth() + 1}/${weekDates[0].getDate()} ~ ${weekDates[4].getMonth() + 1}/${weekDates[4].getDate()}`
             : ''}
+          {weekOffset === 0 && (
+            <span className="text-[11px] font-semibold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+              이번 주
+            </span>
+          )}
         </span>
         <button
           onClick={() => setWeekOffset(w => w + 1)}
@@ -273,6 +309,15 @@ export default function MeetingPage() {
         >
           다음 주 &gt;
         </button>
+        {weekOffset !== 0 && (
+          <button
+            onClick={() => setWeekOffset(0)}
+            className="ml-auto text-xs font-semibold bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700 transition-colors"
+            title="이번 주로 돌아가기"
+          >
+            오늘로 ↩
+          </button>
+        )}
       </div>
 
       {/* 캘린더 테이블 */}
