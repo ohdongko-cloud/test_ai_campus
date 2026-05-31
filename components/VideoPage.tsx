@@ -61,6 +61,11 @@ export default function VideoPage() {
   const [hoverCard, setHoverCard] = useState<string | null>(null);
   const [openStageIdx, setOpenStageIdx] = useState<number | null>(null);
   const [copiedStageIdx, setCopiedStageIdx] = useState<number | null>(null);
+  // 영상 모달 크기 — 사용자가 토글로 변경. 기본은 '표준'.
+  //   compact: 영상 작게 + 스테이지/스크립트 위주
+  //   normal : 영상 + 정보 균형 (기본)
+  //   wide   : 영상 위주 (와이드 모니터)
+  const [modalSize, setModalSize] = useState<'compact' | 'normal' | 'wide'>('normal');
 
   // ── 영상 보호용 워터마크 ──
   const [watermarkEmail, setWatermarkEmail] = useState<string>('anon');
@@ -677,21 +682,44 @@ export default function VideoPage() {
           }}
           onClick={() => setSelectedVideo(null)}
         >
+          {(() => {
+            // 사이즈별 모달/영상 한계 — 한 곳에서 관리.
+            const sizeConfig = {
+              compact: { maxWidth: 720,  videoMaxVh: 45 },
+              normal:  { maxWidth: 960,  videoMaxVh: 55 },
+              wide:    { maxWidth: 1280, videoMaxVh: 70 },
+            }[modalSize];
+            return (
           <div
             onClick={e => e.stopPropagation()}
             style={{
               background: T.surface, borderRadius: T.r3,
-              // 풀스크린이 막혀있는 만큼 모달 안에서 최대한 크게 보여준다.
-              // 와이드 모니터(>1400)에서는 1280px 까지, 그 이하에서는 viewport 95%.
-              width: '100%', maxWidth: 'min(1280px, 95vw)',
+              // 모달 폭은 사이즈 토글로 결정. 작은 화면에서는 viewport 95% 가 우선.
+              width: '100%', maxWidth: `min(${sizeConfig.maxWidth}px, 95vw)`,
               maxHeight: 'calc(100vh - 32px)',
               boxShadow: '0 4px 12px rgba(15,30,51,0.06), 0 16px 40px rgba(15,30,51,0.10)',
               overflow: 'hidden', display: 'flex', flexDirection: 'column',
+              transition: 'max-width .2s ease',
             }}
           >
             {/* 유튜브 플레이어 + 보호 레이어 */}
+            {/* 영상 영역: 16:9 비율 자동 유지 + maxHeight 로 정보 영역 공간 확보.
+                영상이 maxHeight 에 의해 작아지면 좌우에 검정 배경 띠가 자연스럽게 생김. */}
             <div
-              style={{ aspectRatio: '16/9', background: '#000', flexShrink: 0, position: 'relative' }}
+              style={{
+                background: '#000', flexShrink: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                maxHeight: `${sizeConfig.videoMaxVh}vh`,
+              }}
+            >
+            <div
+              style={{
+                aspectRatio: '16/9',
+                width: '100%',
+                maxHeight: `${sizeConfig.videoMaxVh}vh`,
+                maxWidth: `calc(${sizeConfig.videoMaxVh}vh * 16 / 9)`,
+                position: 'relative',
+              }}
               onContextMenu={blockContext}
               onKeyDown={blockShortcuts}
             >
@@ -778,16 +806,55 @@ export default function VideoPage() {
                 </div>
               )}
             </div>
+            </div>
+            {/* ── 사이즈 토글 바 — 영상 직후, 정보 영역 위 ── */}
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              gap: 4, padding: '8px 12px',
+              background: T.surfaceAlt, borderBottom: `1px solid ${T.border}`,
+              flexShrink: 0,
+            }}>
+              <span style={{ fontSize: 11, color: T.textMuted, marginRight: 6, fontWeight: 500 }}>
+                창 크기
+              </span>
+              {([
+                { key: 'compact' as const, label: '컴팩트', hint: '스크립트 위주' },
+                { key: 'normal'  as const, label: '표준',   hint: '균형' },
+                { key: 'wide'    as const, label: '와이드', hint: '영상 위주' },
+              ]).map(opt => {
+                const active = modalSize === opt.key;
+                return (
+                  <button
+                    key={opt.key}
+                    onClick={() => setModalSize(opt.key)}
+                    title={opt.hint}
+                    style={{
+                      padding: '4px 12px', borderRadius: 999,
+                      border: active ? `1.5px solid ${T.primary}` : `1px solid ${T.border}`,
+                      background: active ? T.primaryLight : T.surface,
+                      color: active ? T.primary : T.textBody,
+                      fontSize: 12, fontWeight: active ? 700 : 500,
+                      cursor: 'pointer',
+                      transition: 'all .15s',
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
             {/* 사내 한정 자료 안내 */}
             <div style={{
               padding: '8px 16px', background: '#FDF2F4', borderBottom: `1px solid ${T.border}`,
               fontSize: 11, color: T.danger, fontWeight: 600, textAlign: 'center',
+              flexShrink: 0,
             }}>
               🔒 본 영상은 이랜드리테일 사내 한정 자료입니다. 외부 공유·녹화·캡처를 금지합니다.
             </div>
 
-            {/* 영상 정보 */}
-            <div style={{ padding: '20px 24px', overflowY: 'auto', flex: 1 }}>
+            {/* 영상 정보 — flex:1 + minHeight:0 으로 항상 스크롤 가능한 영역 확보.
+                영상이 maxHeight 로 제한되므로 정보 영역은 절대 사라지지 않음. */}
+            <div style={{ padding: '20px 24px', overflowY: 'auto', flex: '1 1 0', minHeight: 0 }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 16 }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
@@ -1060,6 +1127,8 @@ export default function VideoPage() {
               </div>
             </div>
           </div>
+            );
+          })()}
         </div>
       )}
     </div>
