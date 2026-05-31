@@ -68,6 +68,7 @@
 
 | 커밋 | 메시지 | 비고 |
 |---|---|---|
+| `(다음)` | fix: 영상 모달 사이드바 위치 — 영상 옆(모달 우측 전체)으로 이동 | 본문 영역 분할 → 모달 전체 row 분할. 영상과 같은 행에서 사이드바 항상 보이게. 모달 maxWidth 에 sidebarW 자동 가산 |
 | `45000db` | feat: 관리자 가입자/방문자 통계 + 회원 관리 탭 | PRD `2026-05-30-admin-member-stats.md`, 신규 권한 'members', `/api/admin/stats/overview` + `/api/admin/members` API, AdminMembers 컴포넌트 |
 | `cb564eb` | feat: 영상 모달 스테이지 우측 사이드바 (접었다 폈다 + 모바일 오버레이) | PRD `2026-05-30-video-stage-sidebar.md`, 데스크탑 320/36px 토글, 모바일 85% 오버레이 + 백드롭 |
 | `4aa2852` | feat: 영상 모달 크기 토글(컴팩트/표준/와이드) + 정보 영역 항상 노출 | 영상 maxHeight 로 크기 제약, 스테이지/스크립트/댓글 항상 스크롤 가능 |

@@ -720,6 +720,9 @@ export default function VideoPage() {
               wide:    { maxWidth: 1280, videoMaxVh: 70 },
             }[modalSize];
             const hasStages = (selectedVideo.stages?.length ?? 0) > 0;
+            // 사이드바 폭(데스크탑) — 모달 전체 너비에 가산해 영상 폭이 줄어들지 않게 한다.
+            // 모바일은 오버레이 방식이라 너비 가산 0.
+            const sidebarW = hasStages && !isMobile ? (sidebarOpen ? 320 : 36) : 0;
             // 우측 사이드바 안에 들어갈 학습 단계 카드 리스트.
             // 영상 정보 좌측 본문에서 분리되어 항상 영상 옆에 노출.
             const stagesPanel = !hasStages ? null : (
@@ -809,14 +812,24 @@ export default function VideoPage() {
             onClick={e => e.stopPropagation()}
             style={{
               background: T.surface, borderRadius: T.r3,
-              // 모달 폭은 사이즈 토글로 결정. 작은 화면에서는 viewport 95% 가 우선.
-              width: '100%', maxWidth: `min(${sizeConfig.maxWidth}px, 95vw)`,
+              // 모달 폭 = 본문 폭(sizeConfig) + 사이드바 폭(영상 옆에 같이 보이도록).
+              // 작은 화면에서는 viewport 95% 가 우선.
+              width: '100%',
+              maxWidth: `min(${sizeConfig.maxWidth + sidebarW}px, 95vw)`,
               maxHeight: 'calc(100vh - 32px)',
               boxShadow: '0 4px 12px rgba(15,30,51,0.06), 0 16px 40px rgba(15,30,51,0.10)',
-              overflow: 'hidden', display: 'flex', flexDirection: 'column',
+              overflow: 'hidden',
+              // 모달 자체를 가로 2분할 (좌: 영상+토글+안내+영상정보+댓글 / 우: 사이드바).
+              display: 'flex', flexDirection: 'row',
+              position: 'relative', // 모바일 사이드바 absolute 기준
               transition: 'max-width .2s ease',
             }}
           >
+            {/* 좌측 패널 — 영상 + 토글 + 안내 + 본문(영상정보+댓글). flex column. */}
+            <div style={{
+              flex: '1 1 0', minWidth: 0,
+              display: 'flex', flexDirection: 'column', overflow: 'hidden',
+            }}>
             {/* 유튜브 플레이어 + 보호 레이어 */}
             {/* 영상 영역: 16:9 비율 자동 유지 + maxHeight 로 정보 영역 공간 확보.
                 영상이 maxHeight 에 의해 작아지면 좌우에 검정 배경 띠가 자연스럽게 생김. */}
@@ -967,13 +980,7 @@ export default function VideoPage() {
               🔒 본 영상은 이랜드리테일 사내 한정 자료입니다. 외부 공유·녹화·캡처를 금지합니다.
             </div>
 
-            {/* ── 본문 영역: 가로 2분할 (좌: 영상정보+댓글 / 우: 스테이지 사이드바) ──
-                스테이지가 0개면 사이드바 자체 미렌더 → 좌측이 전체 너비 사용. */}
-            <div style={{
-              flex: '1 1 0', minHeight: 0, display: 'flex', flexDirection: 'row',
-              position: 'relative', overflow: 'hidden',
-            }}>
-            {/* 좌측: 영상 정보 + 댓글 (스테이지는 사이드바로 분리됨) */}
+            {/* 본문: 영상 정보 + 댓글 (스테이지는 모달 우측 사이드바로 분리됨) */}
             <div style={{ padding: '20px 24px', overflowY: 'auto', flex: '1 1 0', minHeight: 0 }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 16 }}>
                 <div style={{ flex: 1 }}>
@@ -1122,7 +1129,9 @@ export default function VideoPage() {
                 )}
               </div>
             </div>
-            {/* ── 우측 스테이지 사이드바 ── */}
+            {/* 좌측 패널 close */}
+            </div>
+            {/* ── 우측 스테이지 사이드바 — 모달 우측 전체 (영상 옆에서 시작) ── */}
             {hasStages && (
               <>
                 {/* 모바일 펼침 시 백드롭 (사이드바 외 영역 클릭 → 닫힘) */}
@@ -1207,7 +1216,6 @@ export default function VideoPage() {
                 </aside>
               </>
             )}
-            </div>
           </div>
             );
           })()}
