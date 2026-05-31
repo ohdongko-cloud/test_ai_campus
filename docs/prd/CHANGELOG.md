@@ -68,7 +68,7 @@
 
 | 커밋 | 메시지 | 비고 |
 |---|---|---|
-| `(다음)` | feat: 영상 카드 '필수 시청' 빨강 뱃지 + 어드민 토글 | PRD `2026-05-30-video-required-badge.md`, DB `videos.is_required` 컬럼 |
+| `6df8a74` | feat: 영상 카드 '필수 시청' 빨강 뱃지 + 어드민 토글 | PRD `2026-05-30-video-required-badge.md`, DB `videos.is_required` 컬럼 |
 | `8eacdfc` | fix: /m/video 페이지 useSearchParams 미사용 dead code 제거 (빌드 깨짐 픽스) | Suspense boundary 누락으로 prerender 실패하던 것 해결 |
 | `22b7006` | fix: 플로팅 액션 버튼(FAB) 3개 우측 정렬 어긋남 수정 | 각 item 너비 56px 고정 → 라벨 글자 수와 무관하게 버튼 일렬 정렬 |
 | `375254d` | docs: PRD 마스터 문서 3종 추가 (CHANGELOG/CURRENT-STATE/BACKLOG) | living docs 운영 시작 |
