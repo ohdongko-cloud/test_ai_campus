@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { M } from '../_styles/tokens';
 import MobileHeader from '../_components/MobileHeader';
 import MobileVideoCard from '../_components/MobileVideoCard';
@@ -12,7 +12,6 @@ const ALL = '전체';
 
 export default function MobileVideoListPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [videos, setVideos] = useState<Video[]>([]);
   const [levels, setLevels] = useState<VideoLevel[]>([]);
   const [activeLevel, setActiveLevel] = useState<string>(ALL);
