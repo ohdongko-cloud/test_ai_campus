@@ -8,16 +8,104 @@ import MobileHero from './_components/MobileHero';
 import MobileMenuCard from './_components/MobileMenuCard';
 import MobileFeaturedVideo from './_components/MobileFeaturedVideo';
 import { getUserInfo, type UserInfo } from '../../lib/utils';
+import type { Video } from '../../lib/types';
+
+interface MenuCounts {
+  videoCount?: number;
+  guideCount?: number;
+  postCount?: number;
+  serviceCount?: number;
+}
+
+interface Featured {
+  id?: string;
+  title: string;
+  level: string;
+  duration: string;
+  views?: number;
+  author?: string;
+}
+
+function durationFromVideo(v: Video): string {
+  // YouTube URL에서 직접 길이를 못 얻으므로 기본 라벨 사용. 추후 stages 기반 추정 가능.
+  return v.stages?.length ? `${v.stages.length}단계` : '강의';
+}
+
+function pickFeatured(videos: Video[]): Featured | null {
+  if (!videos.length) return null;
+  // 1순위: 필수시청 + 조회수 높은 순
+  const required = videos
+    .filter(v => v.isRequired)
+    .sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0));
+  const pool = required.length ? required : videos;
+  const top = pool[0];
+  return {
+    id: top.id,
+    title: top.title,
+    level: top.level || '강의',
+    duration: durationFromVideo(top),
+    views: top.viewCount,
+    author: '운영팀',
+  };
+}
 
 export default function MobileHomePage() {
   const [ready, setReady] = useState(false);
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
+  const [counts, setCounts] = useState<MenuCounts>({});
+  const [featured, setFeatured] = useState<Featured | null>(null);
 
   useEffect(() => {
     const info = getUserInfo();
     setUserInfo(info && info.visited ? info : null);
     setReady(true);
   }, []);
+
+  // 사용자 인증된 뒤 실 데이터 fetch
+  useEffect(() => {
+    if (!userInfo) return;
+    let alive = true;
+
+    const safeFetch = async <T,>(url: string): Promise<T | null> => {
+      try {
+        const r = await fetch(url, { credentials: 'include' });
+        if (!r.ok) return null;
+        return (await r.json()) as T;
+      } catch {
+        return null;
+      }
+    };
+
+    (async () => {
+      const [videos, guide, posts, services] = await Promise.all([
+        safeFetch<Video[]>('/api/videos'),
+        safeFetch<unknown[] | { groups?: unknown[] }>('/api/guide'),
+        safeFetch<unknown[] | { posts?: unknown[] }>('/api/posts?limit=100'),
+        safeFetch<unknown[]>('/api/services'),
+      ]);
+      if (!alive) return;
+
+      const videoCount   = Array.isArray(videos) ? videos.length : undefined;
+      const guideCount   = Array.isArray(guide)
+        ? guide.length
+        : Array.isArray((guide as { groups?: unknown[] } | null)?.groups)
+          ? (guide as { groups: unknown[] }).groups.length
+          : undefined;
+      const postCount    = Array.isArray(posts)
+        ? posts.length
+        : Array.isArray((posts as { posts?: unknown[] } | null)?.posts)
+          ? (posts as { posts: unknown[] }).posts.length
+          : undefined;
+      const serviceCount = Array.isArray(services) ? services.length : undefined;
+
+      setCounts({ videoCount, guideCount, postCount, serviceCount });
+      if (Array.isArray(videos)) {
+        setFeatured(pickFeatured(videos));
+      }
+    })();
+
+    return () => { alive = false; };
+  }, [userInfo]);
 
   if (!ready) return <FullPageSpinner />;
 
@@ -55,17 +143,26 @@ export default function MobileHomePage() {
 
         {/* 섹션: 메뉴 */}
         <SectionHeader title="메뉴" sub="원하는 학습을 시작해보세요" />
-        <MobileMenuCard />
+        <MobileMenuCard {...counts} />
 
-        {/* 섹션: 추천 강의 */}
-        <SectionHeader title="추천 강의" right="전체 보기 ›" />
-        <MobileFeaturedVideo
-          title="Claude로 첫 챗봇 만들기"
-          level="입문"
-          duration="12:35"
-          views={324}
-          author="운영팀"
+        {/* 섹션: 추천 강의 — 필수시청 영상 중 조회수 1위 */}
+        <SectionHeader
+          title="추천 강의"
+          sub={featured ? '오늘의 필수시청' : undefined}
+          right="전체 보기 ›"
         />
+        {featured ? (
+          <MobileFeaturedVideo
+            videoId={featured.id}
+            title={featured.title}
+            level={featured.level}
+            duration={featured.duration}
+            views={featured.views}
+            author={featured.author}
+          />
+        ) : (
+          <FeaturedPlaceholder />
+        )}
       </div>
     </>
   );
@@ -93,6 +190,25 @@ function SectionHeader({
         {sub && <p style={{ fontSize: 12, color: M.textMuted, margin: '2px 0 0' }}>{sub}</p>}
       </div>
       {right && <span style={{ fontSize: 12, fontWeight: 700, color: M.primary }}>{right}</span>}
+    </div>
+  );
+}
+
+function FeaturedPlaceholder() {
+  return (
+    <div
+      style={{
+        margin: '0 16px',
+        padding: 24,
+        borderRadius: 16,
+        background: M.surface,
+        border: `1px solid ${M.border}`,
+        textAlign: 'center',
+        color: M.textMuted,
+        fontSize: 13,
+      }}
+    >
+      추천 강의를 불러오는 중...
     </div>
   );
 }

@@ -32,6 +32,7 @@ export default function MobileWelcome({ onSuccess }: Props) {
   const [pos, setPos] = useState('');
   const [pw, setPw] = useState('');
   const [pw2, setPw2] = useState('');
+  const [rememberMe, setRememberMe] = useState(true);
 
   const resetError = () => setError('');
 
@@ -160,7 +161,7 @@ export default function MobileWelcome({ onSuccess }: Props) {
       const res = await fetch('/api/users/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password: pw }),
+        body: JSON.stringify({ email, password: pw, rememberMe }),
         credentials: 'include',
       });
       const data = await res.json().catch(() => ({}));
@@ -310,6 +311,26 @@ export default function MobileWelcome({ onSuccess }: Props) {
                 placeholder=""
                 autoFocus
               />
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  margin: '4px 0 16px',
+                  cursor: 'pointer',
+                  userSelect: 'none',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  style={{ width: 18, height: 18, accentColor: M.primary, margin: 0 }}
+                />
+                <span style={{ fontSize: 13, color: M.textBody }}>
+                  로그인 유지 <span style={{ color: M.textMuted }}>(30일)</span>
+                </span>
+              </label>
               <Err msg={error} />
               <PrimaryButton onClick={handleLogin} busy={busy}>
                 로그인

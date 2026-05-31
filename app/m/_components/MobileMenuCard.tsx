@@ -12,14 +12,31 @@ interface MenuItem {
   href: string;
 }
 
-const ITEMS: MenuItem[] = [
-  { kind: 'learn', title: '학습', sub: 'AI 강의 · 실습',   count: '32',  countSuffix: '강',    href: '/m/video' },
-  { kind: 'make',  title: '제작', sub: '프로젝트 가이드', count: '18',  countSuffix: '개',    href: '/m/video?cat=guide' },
-  { kind: 'ask',   title: '질문', sub: '게시판 · QnA',     count: '+12', countSuffix: 'new',   href: '/m/board' },
-  { kind: 'share', title: '공유', sub: '팀 미팅 · 자료',   count: '1',   countSuffix: '예약',  href: '/m/board?tab=share' },
-];
+export interface MenuCardCounts {
+  /** 강의 전체 개수 (`/api/videos` 길이) */
+  videoCount?: number;
+  /** 가이드 그룹 개수 (`/api/guide` 그룹 길이) */
+  guideCount?: number;
+  /** 게시글 전체 개수 (`/api/posts` 길이) */
+  postCount?: number;
+  /** 공유 서비스 개수 (`/api/services` 길이) */
+  serviceCount?: number;
+}
 
-export default function MobileMenuCard() {
+function buildItems(c: MenuCardCounts): MenuItem[] {
+  const fmt = (n?: number) => (typeof n === 'number' ? String(n) : '–');
+  return [
+    { kind: 'learn', title: '학습', sub: 'AI 강의 · 실습',   count: fmt(c.videoCount),   countSuffix: '강',  href: '/m/video' },
+    { kind: 'make',  title: '제작', sub: '프로젝트 가이드', count: fmt(c.guideCount),   countSuffix: '개', href: '/m/video?cat=guide' },
+    { kind: 'ask',   title: '질문', sub: '게시판 · QnA',     count: fmt(c.postCount),    countSuffix: '글', href: '/m/board' },
+    { kind: 'share', title: '공유', sub: '팀 미팅 · 자료',   count: fmt(c.serviceCount), countSuffix: '개', href: '/m/board?tab=share' },
+  ];
+}
+
+export default function MobileMenuCard({
+  videoCount, guideCount, postCount, serviceCount,
+}: MenuCardCounts = {}) {
+  const ITEMS = buildItems({ videoCount, guideCount, postCount, serviceCount });
   const router = useRouter();
   return (
     <div
