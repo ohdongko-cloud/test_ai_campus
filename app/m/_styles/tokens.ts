@@ -63,9 +63,10 @@ export const M = {
   maxW: 720, // 7~10인치 태블릿 가독성 최대 너비
 } as const;
 
-// 그라데이션 카드 컬러 셋 (4 메뉴 카드용)
+// 그라데이션 카드 컬러 셋 (모바일 홈 메뉴 카드용)
 export const MENU_GRADIENTS = {
   learn:   { from: M.primary, to: M.primaryDark },
+  meeting: { from: '#0EA5E9', to: '#0369A1' }, // sky blue — 핵심 기능, 시각 강조
   make:    { from: M.accent,  to: M.accentDark },
   ask:     { from: M.purple,  to: M.purpleDark },
   share:   { from: M.success, to: M.successDark },

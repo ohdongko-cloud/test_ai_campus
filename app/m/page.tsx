@@ -12,7 +12,6 @@ import type { Video } from '../../lib/types';
 
 interface MenuCounts {
   videoCount?: number;
-  guideCount?: number;
   postCount?: number;
   serviceCount?: number;
 }
@@ -77,20 +76,14 @@ export default function MobileHomePage() {
     };
 
     (async () => {
-      const [videos, guide, posts, services] = await Promise.all([
+      const [videos, posts, services] = await Promise.all([
         safeFetch<Video[]>('/api/videos'),
-        safeFetch<unknown[] | { groups?: unknown[] }>('/api/guide'),
         safeFetch<unknown[] | { posts?: unknown[] }>('/api/posts?limit=100'),
         safeFetch<unknown[]>('/api/services'),
       ]);
       if (!alive) return;
 
       const videoCount   = Array.isArray(videos) ? videos.length : undefined;
-      const guideCount   = Array.isArray(guide)
-        ? guide.length
-        : Array.isArray((guide as { groups?: unknown[] } | null)?.groups)
-          ? (guide as { groups: unknown[] }).groups.length
-          : undefined;
       const postCount    = Array.isArray(posts)
         ? posts.length
         : Array.isArray((posts as { posts?: unknown[] } | null)?.posts)
@@ -98,7 +91,7 @@ export default function MobileHomePage() {
           : undefined;
       const serviceCount = Array.isArray(services) ? services.length : undefined;
 
-      setCounts({ videoCount, guideCount, postCount, serviceCount });
+      setCounts({ videoCount, postCount, serviceCount });
       if (Array.isArray(videos)) {
         setFeatured(pickFeatured(videos));
       }
