@@ -68,7 +68,7 @@
 
 | 커밋 | 메시지 | 비고 |
 |---|---|---|
-| `(다음)` | fix: 영상 보호 — YouTube 로고/제목 클릭 차단 위치 교정 + 풀스크린 차단 | 좌하단 차단 → 우하단(YouTube 로고)으로 이동, 상단 전체 차단 추가, fs=0 + allowFullScreen 제거 |
+| `fcd1c7e` | fix: 영상 보호 — YouTube 로고/제목 클릭 차단 위치 교정 + 풀스크린 차단 | 좌하단 차단 → 우하단(YouTube 로고)으로 이동, 상단 전체 차단 추가, fs=0 + allowFullScreen 제거 |
 | `c787a06` | feat: 브랜드 마크 통일 — 헤더 3곳 + favicon + apple-icon + OG 이미지 | components/BrandMark.tsx 신규 (파란 그라데이션 + 흰 AI + 우상단 오렌지 점 + 둥근 모서리) |
 | `f897872` | feat: 가이드에 Vrew + OpenClaw 추가 + 아이콘 매핑 | DB INSERT 실행 완료. CapCut 은 이미 등록되어 있어 제외 |
 | `cc0f145` | feat: 미팅 페이지 이번 주 자동 세팅 + 자정 자동 갱신 | weekDates useMemo, todayKey 추적(1분 interval + visibilitychange/focus), "오늘로 ↩" 버튼, "이번 주" 뱃지 |
