@@ -29,7 +29,7 @@ const inputStyle: React.CSSProperties = {
 
 // 비밀번호 입력 + 눈 아이콘 토글
 function PasswordField({
-  value, onChange, placeholder, maxLength = 12, autoFocus, onEnter,
+  value, onChange, placeholder, maxLength = 16, autoFocus, onEnter,
 }: {
   value: string;
   onChange: (v: string) => void;
