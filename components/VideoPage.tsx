@@ -1077,21 +1077,6 @@ export default function VideoPage() {
             <div style={{ padding: '20px 24px', overflowY: 'auto', flex: '1 1 0', minHeight: 0 }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 16 }}>
                 <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                    {(() => {
-                      const badge = getBadgeStyle(selectedVideo.level, levels);
-                      return (
-                        <span style={{
-                          display: 'inline-flex', alignItems: 'center', height: 20, padding: '0 8px',
-                          fontSize: 11, background: badge.bg, color: badge.fg,
-                          borderRadius: 999, fontWeight: 600,
-                        }}>{selectedVideo.level}</span>
-                      );
-                    })()}
-                    <span style={{ fontSize: 12, color: T.textMuted }}>
-                      조회 {selectedVideo.viewCount.toLocaleString()}
-                    </span>
-                  </div>
                   <h3 style={{
                     margin: '0 0 8px', fontSize: 20, fontWeight: 700, color: T.text,
                     fontFamily: T.fontKo, letterSpacing: '-0.02em',
@@ -1284,27 +1269,85 @@ export default function VideoPage() {
                   {hasStages ? `학습 단계 (${selectedVideo.stages?.length})` : '학습 단계'}
                 </div>
               )}
-              {/* 펼침 상태 — 헤더 + 카드 리스트 */}
-              {sidebarOpen && (
-                <>
-                  <div style={{
-                    display: 'flex', alignItems: 'center', gap: 8,
-                    padding: '12px 16px 12px 48px',
-                    borderBottom: `1px solid ${T.border}`,
-                    background: T.surfaceAlt, flexShrink: 0,
-                  }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={T.primary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
-                    </svg>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>
-                      {hasStages ? `학습 단계 (${selectedVideo.stages?.length}단계)` : '학습 단계'}
-                    </span>
-                  </div>
-                  <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
-                    {stagesPanel}
-                  </div>
-                </>
-              )}
+              {/* 펼침 상태 — stats + 학습단계 헤더 + 카드 리스트 */}
+              {sidebarOpen && (() => {
+                const s = getStats(selectedVideo.id);
+                const badge = getBadgeStyle(selectedVideo.level, levels);
+                return (
+                  <>
+                    {/* ── 상단 stats 바: 레벨 · 조회수 · 좋아요 · 댓글 ── */}
+                    <div style={{
+                      padding: '10px 16px 10px 48px',
+                      borderBottom: `1px solid ${T.border}`,
+                      background: T.surface, flexShrink: 0,
+                      display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap',
+                    }}>
+                      {/* 레벨 */}
+                      <span style={{
+                        display: 'inline-flex', alignItems: 'center', height: 20, padding: '0 8px',
+                        fontSize: 11, background: badge.bg, color: badge.fg,
+                        borderRadius: 999, fontWeight: 600,
+                      }}>{selectedVideo.level}</span>
+                      {/* 조회수 */}
+                      <span style={{ fontSize: 11, color: T.textMuted, fontWeight: 500 }}>
+                        조회 {selectedVideo.viewCount.toLocaleString()}
+                      </span>
+                      <div style={{ flex: 1 }} />
+                      {/* 좋아요 */}
+                      <button
+                        type="button"
+                        onClick={() => handleToggleLike(selectedVideo.id)}
+                        disabled={!!likeBusy[selectedVideo.id]}
+                        aria-pressed={!!s.liked}
+                        style={{
+                          display: 'inline-flex', alignItems: 'center', gap: 4,
+                          padding: '3px 8px', borderRadius: 999, cursor: 'pointer',
+                          background: s.liked ? T.dangerBg : T.surface,
+                          border: `1px solid ${s.liked ? '#FBCBD2' : T.border}`,
+                          color: s.liked ? T.danger : T.textBody,
+                          fontSize: 11, fontWeight: 600, fontFamily: T.fontKo,
+                          opacity: likeBusy[selectedVideo.id] ? 0.6 : 1,
+                        }}
+                      >
+                        <svg width="11" height="11" viewBox="0 0 24 24"
+                          fill={s.liked ? T.danger : 'none'}
+                          stroke={s.liked ? T.danger : T.textMuted}
+                          strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                        </svg>
+                        {s.likes_count}
+                      </button>
+                      {/* 댓글 수 */}
+                      <div style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 4,
+                        color: T.textMuted, fontSize: 11, fontWeight: 600,
+                      }}>
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                        </svg>
+                        {s.comments_count}
+                      </div>
+                    </div>
+                    {/* ── 학습 단계 헤더 ── */}
+                    <div style={{
+                      display: 'flex', alignItems: 'center', gap: 8,
+                      padding: '10px 16px 10px 48px',
+                      borderBottom: `1px solid ${T.border}`,
+                      background: T.surfaceAlt, flexShrink: 0,
+                    }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={T.primary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+                      </svg>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>
+                        {hasStages ? `학습 단계 (${selectedVideo.stages?.length}단계)` : '학습 단계'}
+                      </span>
+                    </div>
+                    <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+                      {stagesPanel}
+                    </div>
+                  </>
+                );
+              })()}
             </aside>
           </div>
             );
