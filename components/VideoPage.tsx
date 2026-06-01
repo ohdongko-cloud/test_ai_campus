@@ -7,7 +7,13 @@ import { enableSecureScreen, disableSecureScreen } from '../lib/secureScreen';
 
 function youtubeThumb(youtubeUrl: string): string | null {
   const id = extractVideoId(youtubeUrl);
-  return id ? `https://img.youtube.com/vi/${id}/hqdefault.jpg` : null;
+  // mqdefault = 네이티브 16:9 (320x180). hqdefault(4:3 레터박스) 대신 사용해 비율 통일.
+  return id ? `https://img.youtube.com/vi/${id}/mqdefault.jpg` : null;
+}
+
+// 설명에서 핵심 요약 한 줄 추출 (첫 줄)
+function firstLine(text: string): string {
+  return (text || '').split('\n').map(s => s.trim()).filter(Boolean)[0] || '';
 }
 
 const T = {
@@ -57,6 +63,7 @@ export default function VideoPage() {
   const [levels, setLevels] = useState<VideoLevel[]>([]);
   const [search, setSearch] = useState('');
   const [levelFilter, setLevelFilter] = useState('전체');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
   const [hoverCard, setHoverCard] = useState<string | null>(null);
   const [openStageIdx, setOpenStageIdx] = useState<number | null>(null);
@@ -462,13 +469,14 @@ export default function VideoPage() {
   ];
 
   // ── 카드 렌더 헬퍼 ── (level grouping과 단일 그리드에서 공용)
-  const renderVideoCard = (v: Video, idx: number, paletteIdx: number) => {
+  const renderVideoCard = (v: Video, idx: number, paletteIdx: number, sessionNo: number | null = null) => {
     const badge = getBadgeStyle(v.level, levels);
     const palette = CARD_PALETTES[paletteIdx % CARD_PALETTES.length];
     const isHover = hoverCard === v.id;
     const thumb = youtubeThumb(v.youtubeUrl);
     const useFallback = !thumb || thumbFailed[v.id];
     const s = getStats(v.id);
+    const summary = firstLine(v.description);
     void idx;
     return (
       <div
@@ -557,7 +565,17 @@ export default function VideoPage() {
 
         {/* 카드 본문 */}
         <div style={{ padding: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+          {/* 세션 번호 (전체 보기에서만 전달됨) */}
+          {sessionNo != null && (
+            <div style={{
+              fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
+              color: T.primary, marginBottom: 6, fontFamily: T.fontEn,
+            }}>
+              SESSION {String(sessionNo).padStart(2, '0')}
+            </div>
+          )}
+          {/* 메타: 레벨 · 조회수 · 단계 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
             <span style={{
               display: 'inline-flex', alignItems: 'center', height: 20,
               padding: '0 8px', fontSize: 11, background: badge.bg, color: badge.fg,
@@ -576,16 +594,21 @@ export default function VideoPage() {
               </span>
             )}
           </div>
+          {/* 제목 — 2줄 고정(말줄임)으로 카드 높이 정렬 */}
           <div style={{
             fontSize: 15, fontWeight: 700, color: T.text,
             letterSpacing: '-0.02em', marginBottom: 6, lineHeight: 1.4,
             fontFamily: T.fontKo,
-          }}>{v.title}</div>
-          <p style={{
-            margin: 0, fontSize: 13, color: T.textMuted, lineHeight: 1.5,
             display: '-webkit-box', WebkitLineClamp: 2,
             WebkitBoxOrient: 'vertical' as const, overflow: 'hidden',
-          }}>{v.description}</p>
+            minHeight: 42,
+          }}>{v.title}</div>
+          {/* 핵심 요약 — 설명 첫 줄 1줄 말줄임 */}
+          <p style={{
+            margin: 0, fontSize: 13, color: T.textMuted, lineHeight: 1.5,
+            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+            minHeight: 20,
+          }}>{summary}</p>
 
           {/* 좋아요 / 댓글 인디케이터 */}
           <div style={{
@@ -637,6 +660,106 @@ export default function VideoPage() {
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={T.primary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M5 12h14M13 6l6 6-6 6"/>
               </svg>
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // 리스트(콤팩트 1행) 아이템 렌더러
+  const renderVideoListItem = (v: Video, sessionNo: number | null = null) => {
+    const badge = getBadgeStyle(v.level, levels);
+    const isHover = hoverCard === v.id;
+    const thumb = youtubeThumb(v.youtubeUrl);
+    const useFallback = !thumb || thumbFailed[v.id];
+    const s = getStats(v.id);
+    const summary = firstLine(v.description);
+    return (
+      <div
+        key={v.id}
+        onMouseEnter={() => setHoverCard(v.id)}
+        onMouseLeave={() => setHoverCard(null)}
+        onClick={() => handleWatch(v)}
+        style={{
+          display: 'flex', gap: 14, alignItems: 'stretch',
+          background: T.surface, border: `1px solid ${isHover ? T.primary : T.border}`,
+          borderRadius: T.r2, overflow: 'hidden', padding: 10,
+          boxShadow: isHover ? T.shadowMd : T.shadowSm,
+          cursor: 'pointer', transition: 'all .15s',
+        }}
+      >
+        {/* 썸네일 */}
+        <div style={{
+          position: 'relative', flexShrink: 0,
+          width: 168, aspectRatio: '16/9', borderRadius: T.r, overflow: 'hidden',
+          background: useFallback ? T.bg : undefined,
+          backgroundImage: useFallback ? `repeating-linear-gradient(135deg, transparent 0 12px, ${T.border} 12px 13px)` : undefined,
+        }}>
+          {!useFallback && (
+            <img src={thumb!} alt={v.title}
+              onError={() => setThumbFailed(m => ({ ...m, [v.id]: true }))}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          )}
+          {v.isRequired && (
+            <span style={{
+              position: 'absolute', top: 6, left: 6,
+              background: '#E11D2E', color: '#FFD400', fontSize: 10, fontWeight: 700,
+              padding: '2px 6px', borderRadius: 999, whiteSpace: 'nowrap',
+            }}>필수</span>
+          )}
+          {v.duration && (
+            <span style={{
+              position: 'absolute', bottom: 6, right: 6,
+              background: 'rgba(0,0,0,0.72)', color: '#fff', fontSize: 10, fontWeight: 600,
+              padding: '2px 5px', borderRadius: 3, fontFamily: T.fontEn,
+            }}>{v.duration}</span>
+          )}
+        </div>
+
+        {/* 내용 */}
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', paddingRight: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
+            {sessionNo != null && (
+              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', color: T.primary, fontFamily: T.fontEn }}>
+                SESSION {String(sessionNo).padStart(2, '0')}
+              </span>
+            )}
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', height: 18,
+              padding: '0 7px', fontSize: 10, background: badge.bg, color: badge.fg,
+              borderRadius: 999, fontWeight: 600,
+            }}>{v.level}</span>
+            {v.stages && v.stages.length > 0 && (
+              <span style={{ fontSize: 10, color: T.primary, background: T.primaryLight, padding: '1px 6px', borderRadius: 999, fontWeight: 600 }}>
+                {v.stages.length}단계
+              </span>
+            )}
+          </div>
+          <div style={{
+            fontSize: 15, fontWeight: 700, color: T.text, letterSpacing: '-0.02em',
+            lineHeight: 1.35, marginBottom: 3, fontFamily: T.fontKo,
+            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+          }}>{v.title}</div>
+          {summary && (
+            <p style={{
+              margin: 0, fontSize: 12.5, color: T.textMuted, lineHeight: 1.4,
+              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+            }}>{summary}</p>
+          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 6, fontSize: 11.5, color: T.textFaint }}>
+            <span>조회 {v.viewCount.toLocaleString()}</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill={s.liked ? T.danger : 'none'} stroke={s.liked ? T.danger : 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+              </svg>
+              {s.likes_count}
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              </svg>
+              {s.comments_count}
             </span>
           </div>
         </div>
@@ -761,6 +884,35 @@ export default function VideoPage() {
             <div style={{ fontSize: 14, color: T.textBody, fontWeight: 500 }}>
               총 <strong style={{ color: T.primary }}>{filtered.length}</strong>편의 강의
             </div>
+            {/* 보기 모드 토글 */}
+            <div style={{ display: 'flex', gap: 4, background: T.bg, border: `1px solid ${T.border}`, borderRadius: T.r, padding: 3 }}>
+              {([
+                { key: 'grid' as const, label: '그리드', icon: <><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></> },
+                { key: 'list' as const, label: '리스트', icon: <><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></> },
+              ]).map(m => {
+                const on = viewMode === m.key;
+                return (
+                  <button
+                    key={m.key}
+                    onClick={() => setViewMode(m.key)}
+                    aria-label={`${m.label} 보기`}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 5,
+                      padding: '5px 10px', borderRadius: 6, border: 'none', cursor: 'pointer',
+                      background: on ? T.surface : 'transparent',
+                      color: on ? T.primary : T.textMuted,
+                      fontSize: 12, fontWeight: 600, fontFamily: T.fontKo,
+                      boxShadow: on ? T.shadowSm : 'none', transition: 'all .12s',
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      {m.icon}
+                    </svg>
+                    {m.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {filtered.length === 0 ? (
@@ -800,26 +952,36 @@ export default function VideoPage() {
                         {lv.description}
                       </span>
                     </div>
-                    {/* 해당 레벨 카드 그리드 */}
-                    <div style={{
-                      display: 'grid', gap: 16,
-                      gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
-                    }}>
-                      {items.map((v, vidx) => {
-                        const idx = filtered.indexOf(v);
-                        return renderVideoCard(v, idx, vidx);
-                      })}
-                    </div>
+                    {/* 해당 레벨 — 세션 순번 부여 (그리드/리스트) */}
+                    {viewMode === 'grid' ? (
+                      <div style={{
+                        display: 'grid', gap: 16,
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+                      }}>
+                        {items.map((v, vidx) => {
+                          const idx = filtered.indexOf(v);
+                          return renderVideoCard(v, idx, vidx, vidx + 1);
+                        })}
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        {items.map((v, vidx) => renderVideoListItem(v, vidx + 1))}
+                      </div>
+                    )}
                   </div>
                 );
               })}
             </div>
-          ) : (
+          ) : viewMode === 'grid' ? (
             <div style={{
               display: 'grid', gap: 16,
               gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
             }}>
               {filtered.map((v, idx) => renderVideoCard(v, idx, idx))}
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {filtered.map(v => renderVideoListItem(v))}
             </div>
           )}
         </div>
