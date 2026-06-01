@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Video, VideoLevel, VideoStats, VideoComment } from '../lib/types';
 import { extractVideoId, getSessionId } from '../lib/utils';
 import { enableSecureScreen, disableSecureScreen } from '../lib/secureScreen';
@@ -66,6 +66,9 @@ export default function VideoPage() {
   //   normal : 영상 + 정보 균형 (기본)
   //   wide   : 영상 위주 (와이드 모니터)
   const [modalSize, setModalSize] = useState<'compact' | 'normal' | 'wide'>('normal');
+  // 전체화면
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const videoAreaRef = useRef<HTMLDivElement>(null);
   // 스테이지 사이드바 — 데스크탑 펼침/접힘, 모바일 오버레이.
   // 모바일은 항상 false 시작. selectedVideo 가 바뀌면 (다른 영상) 신규 stages 기반 재계산.
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -126,6 +129,20 @@ export default function VideoPage() {
     if (!selectedVideo) return;
     setSidebarOpen(!isMobile);
   }, [selectedVideo?.id, isMobile]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 전체화면 toggle + fullscreenchange 동기화
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      videoAreaRef.current?.requestFullscreen().catch(() => {});
+    } else {
+      document.exitFullscreen().catch(() => {});
+    }
+  };
+  useEffect(() => {
+    const handler = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', handler);
+    return () => document.removeEventListener('fullscreenchange', handler);
+  }, []);
 
   // 우클릭/단축키 차단 (모달 내부)
   const blockContext = (e: React.MouseEvent) => { e.preventDefault(); };
@@ -844,12 +861,14 @@ export default function VideoPage() {
             }}>
             {/* 유튜브 플레이어 + 보호 레이어 */}
             {/* 영상 영역: 16:9 비율 자동 유지 + maxHeight 로 정보 영역 공간 확보.
-                영상이 maxHeight 에 의해 작아지면 좌우에 검정 배경 띠가 자연스럽게 생김. */}
+                전체화면 시: 브라우저 fullscreen API 로 이 div 가 화면 전체를 채움. */}
             <div
+              ref={videoAreaRef}
               style={{
                 background: '#000', flexShrink: 0,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                maxHeight: `${sizeConfig.videoMaxVh}vh`,
+                maxHeight: isFullscreen ? '100vh' : `${sizeConfig.videoMaxVh}vh`,
+                width: isFullscreen ? '100vw' : undefined,
               }}
             >
             <div
@@ -945,9 +964,30 @@ export default function VideoPage() {
                   외부 사이트로 이동할 수 없습니다.
                 </div>
               )}
+              {/* 전체화면 나가기 버튼 — fullscreen 진입 시에만 표시 */}
+              {isFullscreen && (
+                <button
+                  onClick={toggleFullscreen}
+                  style={{
+                    position: 'absolute', top: 12, right: 12, zIndex: 20,
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    padding: '6px 12px', borderRadius: 6, border: 'none',
+                    background: 'rgba(0,0,0,0.6)', color: '#fff',
+                    fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                    backdropFilter: 'blur(4px)',
+                  }}
+                  title="전체화면 나가기"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M8 3v3a2 2 0 01-2 2H3m18 0h-3a2 2 0 01-2-2V3m0 18v-3a2 2 0 012-2h3M3 16h3a2 2 0 012 2v3"/>
+                  </svg>
+                  나가기
+                </button>
+              )}
             </div>
             </div>
-            {/* ── 사이즈 토글 바 — 영상 직후, 정보 영역 위 ── */}
+            {/* ── 사이즈 토글 바 — 영상 직후, 정보 영역 위. 전체화면 시 숨김. ── */}
+            {!isFullscreen && (
             <div style={{
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               gap: 4, padding: '8px 12px',
@@ -982,7 +1022,27 @@ export default function VideoPage() {
                   </button>
                 );
               })}
+              {/* 전체화면 버튼 */}
+              <div style={{ width: 1, height: 16, background: T.border, margin: '0 4px' }} />
+              <button
+                onClick={toggleFullscreen}
+                title="전체화면"
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  padding: '4px 12px', borderRadius: 999,
+                  border: `1px solid ${T.border}`,
+                  background: T.surface, color: T.textBody,
+                  fontSize: 12, fontWeight: 500, cursor: 'pointer',
+                  transition: 'all .15s',
+                }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/>
+                </svg>
+                전체화면
+              </button>
             </div>
+            )}
             {/* 사내 한정 자료 안내 */}
             <div style={{
               padding: '8px 16px', background: '#FDF2F4', borderBottom: `1px solid ${T.border}`,
@@ -1143,9 +1203,9 @@ export default function VideoPage() {
             </div>
             {/* 좌측 패널 close */}
             </div>
-            {/* ── 우측 스테이지 사이드바 — stages 유무 무관, 항상 렌더 ── */}
+            {/* ── 우측 스테이지 사이드바 — stages 유무 무관, 항상 렌더. 전체화면 시 숨김. ── */}
             {/* 모바일 펼침 시 백드롭 */}
-            {isMobile && sidebarOpen && (
+            {!isFullscreen && isMobile && sidebarOpen && (
               <div
                 onClick={() => setSidebarOpen(false)}
                 style={{
@@ -1160,6 +1220,7 @@ export default function VideoPage() {
               role="complementary"
               aria-label="학습 단계"
               style={{
+                display: isFullscreen ? 'none' : 'flex',
                 position: isMobile ? 'absolute' : 'relative',
                 top: 0, right: 0, bottom: 0, zIndex: 7,
                 width: sidebarOpen ? (isMobile ? '85%' : 320) : 36,
