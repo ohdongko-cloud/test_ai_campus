@@ -7,6 +7,7 @@ import { requireMaster } from '../../../../lib/admin-auth';
  * 멱등 마이그레이션 실행 — 마스터 어드민 전용.
  * 현재 포함된 마이그레이션:
  *   M001: videos.duration TEXT 컬럼 추가
+ *   M002: lecture_requests 테이블 생성 (강의 요청)
  */
 export async function POST(req: NextRequest) {
   const authCheck = await requireMaster(req);
@@ -25,6 +26,24 @@ export async function POST(req: NextRequest) {
     } else {
       results.push({ id: 'M001', status: 'error', message: msg });
     }
+  }
+
+  // M002: lecture_requests 테이블 (강의 요청)
+  try {
+    await sql`
+      CREATE TABLE IF NOT EXISTS lecture_requests (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        title TEXT NOT NULL,
+        content TEXT NOT NULL,
+        requester_name TEXT,
+        requester_email TEXT,
+        status TEXT NOT NULL DEFAULT 'pending',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      )`;
+    results.push({ id: 'M002', status: 'ok', message: 'lecture_requests 테이블 생성 완료' });
+  } catch (e) {
+    results.push({ id: 'M002', status: 'error', message: String(e) });
   }
 
   const hasError = results.some(r => r.status === 'error');

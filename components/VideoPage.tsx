@@ -79,18 +79,66 @@ export default function VideoPage() {
   const [wmPosToggle, setWmPosToggle] = useState(0); // 0/1 — 30초마다 위치 swap
   const [externalLinkBlocked, setExternalLinkBlocked] = useState(false);
 
+  // ── 강의 요청 ──
+  const [reqUser, setReqUser] = useState<{ name: string; email: string }>({ name: '', email: '' });
+  const [showRequest, setShowRequest] = useState(false);
+  const [reqTitle, setReqTitle] = useState('');
+  const [reqContent, setReqContent] = useState('');
+  const [reqSubmitting, setReqSubmitting] = useState(false);
+  const [reqDone, setReqDone] = useState(false);
+  const [reqError, setReqError] = useState('');
+
   useEffect(() => {
     fetch('/api/users/me', { credentials: 'include' })
       .then(r => r.ok ? r.json() : { user: null })
       .then(d => {
-        if (d?.user?.email) setWatermarkEmail(d.user.email);
-        else {
+        if (d?.user?.email) {
+          setWatermarkEmail(d.user.email);
+          setReqUser({ name: d.user.nickname || '', email: d.user.email });
+        } else {
           const sid = getSessionId();
           setWatermarkEmail(`anon · ${sid.slice(-8)}`);
         }
       })
       .catch(() => {});
   }, []);
+
+  const submitRequest = async () => {
+    if (!reqTitle.trim() || !reqContent.trim()) return;
+    setReqSubmitting(true);
+    setReqError('');
+    try {
+      const res = await fetch('/api/lecture-requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: reqTitle.trim(),
+          content: reqContent.trim(),
+          name: reqUser.name || undefined,
+          email: reqUser.email || undefined,
+        }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d?.error || '요청 제출에 실패했습니다.');
+      }
+      setReqDone(true);
+      setReqTitle('');
+      setReqContent('');
+    } catch (e) {
+      setReqError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setReqSubmitting(false);
+    }
+  };
+
+  const closeRequest = () => {
+    setShowRequest(false);
+    setReqDone(false);
+    setReqError('');
+    setReqTitle('');
+    setReqContent('');
+  };
 
   useEffect(() => {
     if (!selectedVideo) return;
@@ -642,6 +690,26 @@ export default function VideoPage() {
               />
             </div>
 
+            {/* 강의 요청 버튼 — 찾는 강의가 없을 때 요청 */}
+            <button
+              onClick={() => setShowRequest(true)}
+              style={{
+                width: '100%', height: 38, marginBottom: 16,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                border: `1px solid ${T.primary}`, borderRadius: T.r,
+                background: T.primaryLight, color: T.primary,
+                fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                fontFamily: T.fontKo, transition: 'background .12s',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = '#DCE8F6')}
+              onMouseLeave={e => (e.currentTarget.style.background = T.primaryLight)}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+              강의 요청
+            </button>
+
             {/* 레벨 필터 (동적) */}
             <div style={{ fontSize: 11, fontWeight: 700, color: T.textMuted, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 10 }}>
               레벨
@@ -756,6 +824,148 @@ export default function VideoPage() {
           )}
         </div>
       </div>
+
+      {/* 강의 요청 모달 */}
+      {showRequest && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 1100,
+            background: 'rgba(15,30,51,0.55)', backdropFilter: 'blur(4px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+          }}
+          onClick={closeRequest}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: T.surface, borderRadius: T.r3,
+              boxShadow: '0 16px 48px rgba(15,30,51,0.22)',
+              width: '100%', maxWidth: 460, padding: 28,
+              fontFamily: T.fontKo, maxHeight: '90vh', overflowY: 'auto',
+            }}
+          >
+            {reqDone ? (
+              // 완료 상태
+              <div style={{ textAlign: 'center', padding: '12px 0' }}>
+                <div style={{
+                  width: 52, height: 52, borderRadius: '50%', margin: '0 auto 16px',
+                  background: T.successBg, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={T.success} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 6L9 17l-5-5" />
+                  </svg>
+                </div>
+                <h3 style={{ margin: '0 0 8px', fontSize: 17, fontWeight: 700, color: T.text }}>
+                  요청이 접수되었습니다
+                </h3>
+                <p style={{ margin: '0 0 24px', fontSize: 13.5, color: T.textMuted, lineHeight: 1.6 }}>
+                  소중한 의견 감사합니다.<br />검토 후 강의 제작에 반영하겠습니다.
+                </p>
+                <button
+                  onClick={closeRequest}
+                  style={{
+                    width: '100%', height: 44, borderRadius: T.r, border: 'none',
+                    background: T.primary, color: '#fff', fontSize: 14, fontWeight: 600,
+                    cursor: 'pointer', fontFamily: T.fontKo,
+                  }}
+                >
+                  확인
+                </button>
+              </div>
+            ) : (
+              <>
+                <div style={{ marginBottom: 20 }}>
+                  <h3 style={{ margin: '0 0 4px', fontSize: 18, fontWeight: 700, color: T.text }}>
+                    강의 요청
+                  </h3>
+                  <p style={{ margin: 0, fontSize: 13, color: T.textMuted, lineHeight: 1.6 }}>
+                    듣고 싶은 강의 주제를 알려주세요. 관리자가 검토 후 제작에 반영합니다.
+                  </p>
+                </div>
+
+                <div style={{ marginBottom: 14 }}>
+                  <label style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: T.textBody, marginBottom: 6 }}>
+                    요청 제목 <span style={{ color: T.danger }}>*</span>
+                  </label>
+                  <input
+                    value={reqTitle}
+                    onChange={e => setReqTitle(e.target.value)}
+                    maxLength={200}
+                    placeholder="예: ChatGPT로 매장 재고관리 자동화하기"
+                    style={{
+                      width: '100%', height: 42, padding: '0 12px', boxSizing: 'border-box',
+                      border: `1px solid ${T.border}`, borderRadius: T.r,
+                      fontSize: 14, color: T.text, outline: 'none', fontFamily: T.fontKo,
+                    }}
+                    onFocus={e => { e.target.style.borderColor = T.primary; e.target.style.boxShadow = `0 0 0 3px ${T.primaryLight}`; }}
+                    onBlur={e => { e.target.style.borderColor = T.border; e.target.style.boxShadow = 'none'; }}
+                  />
+                </div>
+
+                <div style={{ marginBottom: 14 }}>
+                  <label style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: T.textBody, marginBottom: 6 }}>
+                    요청 내용 <span style={{ color: T.danger }}>*</span>
+                  </label>
+                  <textarea
+                    value={reqContent}
+                    onChange={e => setReqContent(e.target.value)}
+                    maxLength={2000}
+                    rows={5}
+                    placeholder="어떤 내용을 배우고 싶으신지 구체적으로 작성해주세요."
+                    style={{
+                      width: '100%', padding: '10px 12px', boxSizing: 'border-box',
+                      border: `1px solid ${T.border}`, borderRadius: T.r, resize: 'vertical',
+                      fontSize: 14, color: T.text, outline: 'none', fontFamily: T.fontKo, lineHeight: 1.6,
+                    }}
+                    onFocus={e => { e.target.style.borderColor = T.primary; e.target.style.boxShadow = `0 0 0 3px ${T.primaryLight}`; }}
+                    onBlur={e => { e.target.style.borderColor = T.border; e.target.style.boxShadow = 'none'; }}
+                  />
+                  <div style={{ textAlign: 'right', fontSize: 11, color: T.textFaint, marginTop: 4 }}>
+                    {reqContent.length}/2000
+                  </div>
+                </div>
+
+                {reqUser.email && (
+                  <p style={{ margin: '0 0 14px', fontSize: 12, color: T.textFaint }}>
+                    요청자: {reqUser.name ? `${reqUser.name} · ` : ''}{reqUser.email}
+                  </p>
+                )}
+
+                {reqError && (
+                  <p style={{ margin: '0 0 14px', fontSize: 12.5, color: T.danger }}>{reqError}</p>
+                )}
+
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button
+                    onClick={submitRequest}
+                    disabled={!reqTitle.trim() || !reqContent.trim() || reqSubmitting}
+                    style={{
+                      flex: 1, height: 44, borderRadius: T.r, border: 'none',
+                      background: (!reqTitle.trim() || !reqContent.trim() || reqSubmitting) ? '#AFC0D6' : T.primary,
+                      color: '#fff', fontSize: 14, fontWeight: 600,
+                      cursor: (!reqTitle.trim() || !reqContent.trim() || reqSubmitting) ? 'not-allowed' : 'pointer',
+                      fontFamily: T.fontKo,
+                    }}
+                  >
+                    {reqSubmitting ? '제출 중…' : '요청 제출'}
+                  </button>
+                  <button
+                    onClick={closeRequest}
+                    style={{
+                      flex: '0 0 90px', height: 44, borderRadius: T.r,
+                      border: `1px solid ${T.border}`, background: 'transparent',
+                      color: T.textMuted, fontSize: 14, fontWeight: 500,
+                      cursor: 'pointer', fontFamily: T.fontKo,
+                    }}
+                  >
+                    취소
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* 영상 시청 모달 */}
       {selectedVideo && (

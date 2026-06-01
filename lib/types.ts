@@ -77,7 +77,19 @@ export interface ClickLog {
 
 export type TabType = 'home' | 'videos' | 'meeting' | 'board' | 'share' | 'guide';
 export type ReservationStatus = 'pending' | 'confirmed' | 'cancelled';
-export type AdminTabType = 'stats' | 'videos' | 'meetings' | 'chatroom' | 'services' | 'board' | 'guide' | 'members' | 'logs' | 'admins';
+export type AdminTabType = 'stats' | 'videos' | 'meetings' | 'chatroom' | 'services' | 'board' | 'guide' | 'members' | 'logs' | 'admins' | 'lectureRequests';
+
+// 강의 요청
+export interface LectureRequest {
+  id: string;
+  title: string;
+  content: string;
+  requesterName?: string | null;
+  requesterEmail?: string | null;
+  status: 'pending' | 'reviewed';
+  createdAt: string;
+  updatedAt: string;
+}
 
 // 서비스 가입 가이드
 export interface GuideServiceItem {
