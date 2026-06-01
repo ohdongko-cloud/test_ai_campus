@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { TabType } from '../lib/types';
 import { getUserInfo, clearUserInfo, UserInfo } from '../lib/utils';
 import WelcomePopup from '../components/WelcomePopup';
+import BookmarkPrompt, { BeforeInstallPromptEvent } from '../components/BookmarkPrompt';
 import MainPage from '../components/MainPage';
 import VideoPage from '../components/VideoPage';
 import MeetingPage from '../components/MeetingPage';
@@ -40,6 +41,8 @@ export default function Page() {
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
   const [hasAdminAccess, setHasAdminAccess] = useState(false); // 권한 보유 (회원 기반)
   const [policyModal, setPolicyModal] = useState<'privacy' | 'terms' | null>(null);
+  const [showBookmark, setShowBookmark] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
 
   const handleAdminEntry = () => {
     if (hasAdminAccess) setIsAdmin(true);
@@ -88,6 +91,10 @@ export default function Page() {
   const handleWelcomeClose = (target?: 'home' | 'videos') => {
     setShowWelcome(false);
     setUserInfo(getUserInfo());
+    // WelcomePopup이 닫히고 1.5초 후 즐겨찾기 안내 표시
+    if (!localStorage.getItem('bookmark_prompted')) {
+      setTimeout(() => setShowBookmark(true), 1500);
+    }
     if (target === 'videos') {
       setActiveTab('videos');
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -108,6 +115,25 @@ export default function Page() {
     setMobileNav(false);
     setShowWelcome(true);
   };
+
+  // ── beforeinstallprompt 캡처 (Chrome/Edge PWA 설치 다이얼로그) ──
+  useEffect(() => {
+    const handler = (e: Event) => {
+      e.preventDefault(); // 브라우저 기본 미니 배너 숨김
+      setDeferredPrompt(e as BeforeInstallPromptEvent);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  // ── 재방문자 즐겨찾기 안내 (최초 방문자는 WelcomePopup 닫힌 후 표시) ──
+  useEffect(() => {
+    if (localStorage.getItem('bookmark_prompted')) return;
+    const info = getUserInfo();
+    if (!info || !info.visited) return; // 최초 방문자: handleWelcomeClose에서 처리
+    const t = setTimeout(() => setShowBookmark(true), 2000);
+    return () => clearTimeout(t);
+  }, []);
 
   // ── Hash 라우팅: 탭 클릭 시 URL hash 갱신 + 브라우저 뒤로/앞으로 동기화 ──
   const VALID_TABS: TabType[] = ['home', 'videos', 'meeting', 'board', 'share', 'guide'];
@@ -164,6 +190,16 @@ export default function Page() {
 
       {/* ── 웰컴 팝업 ── */}
       {showWelcome && <WelcomePopup onClose={handleWelcomeClose} />}
+
+      {/* ── 즐겨찾기 추가 안내 토스트 ── */}
+      <BookmarkPrompt
+        show={showBookmark}
+        deferredPrompt={deferredPrompt}
+        onDismiss={() => {
+          setShowBookmark(false);
+          localStorage.setItem('bookmark_prompted', '1');
+        }}
+      />
 
       {/* ── 관리자 로그인 모달 ── */}
       {showAdminLogin && (
