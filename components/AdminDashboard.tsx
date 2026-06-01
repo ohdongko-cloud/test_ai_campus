@@ -50,7 +50,7 @@ interface MeUser {
 }
 
 export default function AdminDashboard({ onExit }: Props) {
-  const [activeTab, setActiveTab] = useState<AdminTabType>('stats');
+  const [activeTab, setActiveTab] = useState<AdminTabType>('videos');
   const [showImport, setShowImport] = useState(false);
   const [me, setMe] = useState<MeUser | null>(null);
 
