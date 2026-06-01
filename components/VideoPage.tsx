@@ -884,16 +884,20 @@ export default function VideoPage() {
               style={{
                 background: '#000', flexShrink: 0,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
+                // 전체화면: 브라우저가 이 div를 100vw×100vh로 확장. 일반: maxHeight 제한.
                 maxHeight: isFullscreen ? '100vh' : `${sizeConfig.videoMaxVh}vh`,
-                width: isFullscreen ? '100vw' : undefined,
+                width: isFullscreen ? '100%' : undefined,
+                height: isFullscreen ? '100%' : undefined,
               }}
             >
             <div
               style={{
                 aspectRatio: '16/9',
-                width: '100%',
-                maxHeight: `${sizeConfig.videoMaxVh}vh`,
-                maxWidth: `calc(${sizeConfig.videoMaxVh}vh * 16 / 9)`,
+                // 전체화면: 화면 전체를 16:9로 꽉 채움 (contain). 일반: sizeConfig 제한.
+                width: isFullscreen ? 'min(100vw, calc(100vh * 16 / 9))' : '100%',
+                height: isFullscreen ? 'min(100vh, calc(100vw * 9 / 16))' : undefined,
+                maxHeight: isFullscreen ? '100vh' : `${sizeConfig.videoMaxVh}vh`,
+                maxWidth: isFullscreen ? 'calc(100vh * 16 / 9)' : `calc(${sizeConfig.videoMaxVh}vh * 16 / 9)`,
                 position: 'relative',
               }}
               onContextMenu={blockContext}
