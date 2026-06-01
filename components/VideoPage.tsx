@@ -121,11 +121,10 @@ export default function VideoPage() {
   }, []);
 
   // 영상이 바뀔 때마다(모달 열기/다른 영상 선택) 사이드바 초기 상태 재계산.
-  // 데스크탑 + 스테이지 ≥ 1개 → 펼침. 그 외 → 접힘.
+  // 데스크탑 → 항상 펼침 (stages 유무 무관). 모바일 → 접힘.
   useEffect(() => {
     if (!selectedVideo) return;
-    const hasStages = (selectedVideo.stages?.length ?? 0) > 0;
-    setSidebarOpen(!isMobile && hasStages);
+    setSidebarOpen(!isMobile);
   }, [selectedVideo?.id, isMobile]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 우클릭/단축키 차단 (모달 내부)
@@ -720,14 +719,26 @@ export default function VideoPage() {
               wide:    { maxWidth: 1280, videoMaxVh: 70 },
             }[modalSize];
             const hasStages = (selectedVideo.stages?.length ?? 0) > 0;
-            // 사이드바 폭(데스크탑) — 모달 전체 너비에 가산해 영상 폭이 줄어들지 않게 한다.
+            // 사이드바 폭(데스크탑) — stages 유무 무관하게 항상 포함.
             // 모바일은 오버레이 방식이라 너비 가산 0.
-            const sidebarW = hasStages && !isMobile ? (sidebarOpen ? 320 : 36) : 0;
+            const sidebarW = !isMobile ? (sidebarOpen ? 320 : 36) : 0;
             // 우측 사이드바 안에 들어갈 학습 단계 카드 리스트.
-            // 영상 정보 좌측 본문에서 분리되어 항상 영상 옆에 노출.
-            const stagesPanel = !hasStages ? null : (
+            // stages 없으면 플레이스홀더 노출. 항상 렌더.
+            const stagesPanel = (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: 16 }}>
-                {selectedVideo.stages!.map((stage, idx) => {
+                {!hasStages ? (
+                  <div style={{
+                    textAlign: 'center', padding: '40px 16px',
+                    color: T.textFaint, fontSize: 13, lineHeight: 1.7,
+                  }}>
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none"
+                      stroke={T.borderStrong} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
+                      style={{ marginBottom: 10, display: 'block', margin: '0 auto 10px' }}>
+                      <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+                    </svg>
+                    등록된 학습 단계가<br/>없습니다.
+                  </div>
+                ) : selectedVideo.stages!.map((stage, idx) => {
                   const isOpen = openStageIdx === idx;
                   return (
                     <div
@@ -808,6 +819,7 @@ export default function VideoPage() {
               </div>
             );
             return (
+
           <div
             onClick={e => e.stopPropagation()}
             style={{
@@ -1131,91 +1143,87 @@ export default function VideoPage() {
             </div>
             {/* 좌측 패널 close */}
             </div>
-            {/* ── 우측 스테이지 사이드바 — 모달 우측 전체 (영상 옆에서 시작) ── */}
-            {hasStages && (
-              <>
-                {/* 모바일 펼침 시 백드롭 (사이드바 외 영역 클릭 → 닫힘) */}
-                {isMobile && sidebarOpen && (
-                  <div
-                    onClick={() => setSidebarOpen(false)}
-                    style={{
-                      position: 'absolute', inset: 0, zIndex: 6,
-                      background: 'rgba(15,30,51,0.35)',
-                    }}
-                    aria-hidden="true"
-                  />
-                )}
-                <aside
-                  id="video-stage-sidebar"
-                  role="complementary"
-                  aria-label="학습 단계"
-                  style={{
-                    position: isMobile ? 'absolute' : 'relative',
-                    top: 0, right: 0, bottom: 0, zIndex: 7,
-                    width: sidebarOpen ? (isMobile ? '85%' : 320) : 36,
-                    background: T.surface,
-                    borderLeft: `1px solid ${T.border}`,
-                    display: 'flex', flexDirection: 'column',
-                    transition: 'width .2s ease',
-                    overflow: 'hidden',
-                    flexShrink: 0,
-                  }}
-                >
-                  {/* 토글 핸들 — 사이드바 좌측 가장자리 */}
-                  <button
-                    onClick={() => setSidebarOpen(o => !o)}
-                    aria-expanded={sidebarOpen}
-                    aria-controls="video-stage-sidebar"
-                    title={sidebarOpen ? '사이드바 접기' : '학습 단계 펼치기'}
-                    style={{
-                      position: 'absolute', top: 8, left: 0,
-                      width: 36, height: 36, borderRadius: 6,
-                      background: 'transparent', border: 'none',
-                      color: T.textBody, cursor: 'pointer', zIndex: 1,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: sidebarOpen ? 'rotate(0deg)' : 'rotate(180deg)', transition: 'transform .2s' }}>
-                      <path d="M9 18l6-6-6-6"/>
-                    </svg>
-                  </button>
-                  {/* 접힘 상태 — 좁은 띠에 세로 라벨 */}
-                  {!sidebarOpen && (
-                    <div style={{
-                      position: 'absolute', top: 56, left: 0, right: 0,
-                      writingMode: 'vertical-rl' as const, textOrientation: 'mixed' as const,
-                      transform: 'rotate(180deg)', transformOrigin: 'center',
-                      fontSize: 12, fontWeight: 700, color: T.primary,
-                      letterSpacing: '0.04em', textAlign: 'center',
-                      paddingTop: 8, userSelect: 'none',
-                    }}>
-                      학습 단계 ({selectedVideo.stages?.length})
-                    </div>
-                  )}
-                  {/* 펼침 상태 — 헤더 + 카드 리스트 */}
-                  {sidebarOpen && (
-                    <>
-                      <div style={{
-                        display: 'flex', alignItems: 'center', gap: 8,
-                        padding: '12px 16px 12px 48px',
-                        borderBottom: `1px solid ${T.border}`,
-                        background: T.surfaceAlt, flexShrink: 0,
-                      }}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={T.primary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
-                        </svg>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>
-                          학습 단계 ({selectedVideo.stages?.length}단계)
-                        </span>
-                      </div>
-                      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
-                        {stagesPanel}
-                      </div>
-                    </>
-                  )}
-                </aside>
-              </>
+            {/* ── 우측 스테이지 사이드바 — stages 유무 무관, 항상 렌더 ── */}
+            {/* 모바일 펼침 시 백드롭 */}
+            {isMobile && sidebarOpen && (
+              <div
+                onClick={() => setSidebarOpen(false)}
+                style={{
+                  position: 'absolute', inset: 0, zIndex: 6,
+                  background: 'rgba(15,30,51,0.35)',
+                }}
+                aria-hidden="true"
+              />
             )}
+            <aside
+              id="video-stage-sidebar"
+              role="complementary"
+              aria-label="학습 단계"
+              style={{
+                position: isMobile ? 'absolute' : 'relative',
+                top: 0, right: 0, bottom: 0, zIndex: 7,
+                width: sidebarOpen ? (isMobile ? '85%' : 320) : 36,
+                background: T.surface,
+                borderLeft: `1px solid ${T.border}`,
+                display: 'flex', flexDirection: 'column',
+                transition: 'width .2s ease',
+                overflow: 'hidden',
+                flexShrink: 0,
+              }}
+            >
+              {/* 토글 핸들 — 사이드바 좌측 가장자리 */}
+              <button
+                onClick={() => setSidebarOpen(o => !o)}
+                aria-expanded={sidebarOpen}
+                aria-controls="video-stage-sidebar"
+                title={sidebarOpen ? '사이드바 접기' : '학습 단계 펼치기'}
+                style={{
+                  position: 'absolute', top: 8, left: 0,
+                  width: 36, height: 36, borderRadius: 6,
+                  background: 'transparent', border: 'none',
+                  color: T.textBody, cursor: 'pointer', zIndex: 1,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: sidebarOpen ? 'rotate(0deg)' : 'rotate(180deg)', transition: 'transform .2s' }}>
+                  <path d="M9 18l6-6-6-6"/>
+                </svg>
+              </button>
+              {/* 접힘 상태 — 좁은 띠에 세로 라벨 */}
+              {!sidebarOpen && (
+                <div style={{
+                  position: 'absolute', top: 56, left: 0, right: 0,
+                  writingMode: 'vertical-rl' as const, textOrientation: 'mixed' as const,
+                  transform: 'rotate(180deg)', transformOrigin: 'center',
+                  fontSize: 12, fontWeight: 700, color: T.primary,
+                  letterSpacing: '0.04em', textAlign: 'center',
+                  paddingTop: 8, userSelect: 'none',
+                }}>
+                  {hasStages ? `학습 단계 (${selectedVideo.stages?.length})` : '학습 단계'}
+                </div>
+              )}
+              {/* 펼침 상태 — 헤더 + 카드 리스트 */}
+              {sidebarOpen && (
+                <>
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    padding: '12px 16px 12px 48px',
+                    borderBottom: `1px solid ${T.border}`,
+                    background: T.surfaceAlt, flexShrink: 0,
+                  }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={T.primary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+                    </svg>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>
+                      {hasStages ? `학습 단계 (${selectedVideo.stages?.length}단계)` : '학습 단계'}
+                    </span>
+                  </div>
+                  <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+                    {stagesPanel}
+                  </div>
+                </>
+              )}
+            </aside>
           </div>
             );
           })()}
