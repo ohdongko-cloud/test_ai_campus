@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import SwRegister from "../components/SwRegister";
 import "./globals.css";
 
@@ -72,6 +73,11 @@ export default function RootLayout({
       } as React.CSSProperties}>
         {children}
         <SwRegister />
+        {/* Kakao JavaScript SDK — PC에서 안드로이드 앱 링크 공유용 */}
+        <Script
+          src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js"
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   );
