@@ -130,6 +130,28 @@ export default function VideoPage() {
     setSidebarOpen(!isMobile);
   }, [selectedVideo?.id, isMobile]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // YouTube IFrame API — onReady 수신 시 hd1080 품질 요청
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  useEffect(() => {
+    const handler = (e: MessageEvent) => {
+      if (!e.origin.includes('youtube.com')) return;
+      try {
+        const data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
+        if (data?.event === 'onReady') {
+          const cmd = (func: string) =>
+            iframeRef.current?.contentWindow?.postMessage(
+              JSON.stringify({ event: 'command', func, args: ['hd1080'] }),
+              'https://www.youtube.com'
+            );
+          cmd('setPlaybackQuality');
+          cmd('setSuggestedQuality');
+        }
+      } catch { /* ignore */ }
+    };
+    window.addEventListener('message', handler);
+    return () => window.removeEventListener('message', handler);
+  }, []);
+
   // 전체화면 toggle + fullscreenchange 동기화
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -904,10 +926,12 @@ export default function VideoPage() {
               onKeyDown={blockShortcuts}
             >
               <iframe
+                ref={iframeRef}
                 width="100%" height="100%"
                 // 풀스크린·관련영상·자막 자동·키보드 조작 등 외부 노출 경로 최소화.
                 // fs=0 → 풀스크린 버튼 숨김. allow 에서도 fullscreen 제거 + allowFullScreen 미지정.
-                src={`https://www.youtube.com/embed/${extractVideoId(selectedVideo.youtubeUrl)}?autoplay=1&rel=0&modestbranding=1&iv_load_policy=3&disablekb=1&playsinline=1&fs=0`}
+                // enablejsapi=1 → IFrame API 활성화 (고화질 기본값 설정용)
+                src={`https://www.youtube.com/embed/${extractVideoId(selectedVideo.youtubeUrl)}?autoplay=1&rel=0&modestbranding=1&iv_load_policy=3&disablekb=1&playsinline=1&fs=0&enablejsapi=1`}
                 title={selectedVideo.title}
                 allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
                 style={{ display: 'block', border: 'none' }}
