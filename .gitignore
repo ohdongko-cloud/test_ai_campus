@@ -47,3 +47,6 @@ android/app/debug/
 android/keystore.properties
 *.jks
 *.keystore
+
+# design handoff — 로컬 전용, public repo에 노출하지 않음
+design_handoff_ai_campus/
