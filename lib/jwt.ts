@@ -78,3 +78,20 @@ export async function verifySignupToken(token: string): Promise<SignupTokenPaylo
     return { email: payload.email, verified: true, exp: payload.exp as number };
   } catch { return null; }
 }
+
+/** 비밀번호 재설정 인증 통과 후 새 비번 설정 단계용 짧은 토큰 (signup 토큰과 분리: purpose='reset') */
+export async function signResetToken(email: string, ttlSeconds: number = 900): Promise<string> {
+  return await new SignJWT({ email, purpose: 'reset' })
+    .setProtectedHeader({ alg: ALG })
+    .setIssuedAt()
+    .setExpirationTime(Math.floor(Date.now() / 1000) + ttlSeconds)
+    .sign(getSecret());
+}
+
+export async function verifyResetToken(token: string): Promise<{ email: string } | null> {
+  try {
+    const { payload } = await jwtVerify(token, getSecret(), { algorithms: [ALG] });
+    if (payload.purpose !== 'reset' || typeof payload.email !== 'string') return null;
+    return { email: payload.email };
+  } catch { return null; }
+}

@@ -46,6 +46,19 @@ export async function POST(req: NextRequest) {
     results.push({ id: 'M002', status: 'error', message: String(e) });
   }
 
+  // M003: email_verifications.purpose 컬럼 (signup / reset 구분)
+  try {
+    await sql`ALTER TABLE email_verifications ADD COLUMN IF NOT EXISTS purpose TEXT NOT NULL DEFAULT 'signup'`;
+    results.push({ id: 'M003', status: 'ok', message: 'email_verifications.purpose 컬럼 추가 완료' });
+  } catch (e) {
+    const msg = String(e);
+    if (msg.includes('already exists')) {
+      results.push({ id: 'M003', status: 'skip', message: '이미 존재하는 컬럼' });
+    } else {
+      results.push({ id: 'M003', status: 'error', message: msg });
+    }
+  }
+
   const hasError = results.some(r => r.status === 'error');
   return NextResponse.json({ ok: !hasError, results }, { status: hasError ? 500 : 200 });
 }
