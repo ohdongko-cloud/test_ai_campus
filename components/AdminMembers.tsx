@@ -49,10 +49,69 @@ function roleLabel(r: MemberRow): { label: string; bg: string; fg: string } {
   return { label: '회원', bg: '#F3F4F6', fg: '#374151' };
 }
 
+// 삭제 확인 모달
+function DeleteConfirmModal({
+  member,
+  onConfirm,
+  onCancel,
+  deleting,
+}: {
+  member: MemberRow;
+  onConfirm: () => void;
+  onCancel: () => void;
+  deleting: boolean;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center"
+      style={{ background: 'rgba(15,30,51,0.45)' }}>
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-4 p-6">
+        <h3 className="text-base font-bold text-gray-900 mb-1">회원 삭제</h3>
+        <p className="text-xs text-gray-500 mb-4">이 작업은 되돌릴 수 없습니다.</p>
+
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4 text-xs space-y-1">
+          <div><span className="text-gray-400 w-14 inline-block">이메일</span>
+            <span className="font-mono text-gray-800">{member.email}</span></div>
+          <div><span className="text-gray-400 w-14 inline-block">닉네임</span>
+            <span className="text-gray-800">{member.nickname || '-'}</span></div>
+          <div><span className="text-gray-400 w-14 inline-block">조직</span>
+            <span className="text-gray-800">{member.organizationName || '-'}</span></div>
+        </div>
+
+        <p className="text-xs text-red-600 mb-5">
+          회원 정보, 인증 이력, 예약 기록이 모두 삭제됩니다.
+        </p>
+
+        <div className="flex gap-2">
+          <button
+            onClick={onConfirm}
+            disabled={deleting}
+            className="flex-1 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
+            style={{ background: '#DC2626' }}
+          >
+            {deleting ? '삭제 중…' : '삭제 확인'}
+          </button>
+          <button
+            onClick={onCancel}
+            disabled={deleting}
+            className="flex-1 py-2 rounded-lg text-sm font-medium text-gray-600 border border-gray-200 hover:bg-gray-50 disabled:opacity-50"
+          >
+            취소
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminMembers() {
   const [data, setData] = useState<MembersResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // 삭제 모달 상태
+  const [deleteTarget, setDeleteTarget] = useState<MemberRow | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // 필터/검색/정렬/페이지
   const [search, setSearch] = useState('');
@@ -106,6 +165,28 @@ export default function AdminMembers() {
 
   useEffect(() => { load(); }, [load]);
 
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      const res = await fetch(`/api/admin/members/${deleteTarget.id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d?.error || '삭제에 실패했습니다.');
+      }
+      setDeleteTarget(null);
+      load(); // 목록 새로고침
+    } catch (e) {
+      setDeleteError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const handleSort = (key: SortKey) => {
     if (sort === key) {
       setOrder(o => o === 'asc' ? 'desc' : 'asc');
@@ -127,6 +208,7 @@ export default function AdminMembers() {
   const showingTo = Math.min(total, (page + 1) * PAGE_SIZE);
 
   return (
+    <>
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <h2 className="text-base font-semibold text-gray-800">
@@ -220,6 +302,7 @@ export default function AdminMembers() {
                 >
                   가입일{sortIndicator('created_at')}
                 </th>
+                <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600">삭제</th>
               </tr>
             </thead>
             <tbody>
@@ -251,6 +334,18 @@ export default function AdminMembers() {
                     <td className="px-3 py-2 text-xs text-gray-600 whitespace-nowrap">
                       {formatKstDate(r.createdAt)}
                     </td>
+                    <td className="px-3 py-2 text-center">
+                      {r.isMaster ? (
+                        <span className="text-xs text-gray-300 select-none">–</span>
+                      ) : (
+                        <button
+                          onClick={() => { setDeleteError(null); setDeleteTarget(r); }}
+                          className="text-xs text-red-500 hover:text-red-700 hover:underline font-medium"
+                        >
+                          삭제
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 );
               })}
@@ -258,6 +353,13 @@ export default function AdminMembers() {
           </table>
         </div>
       </div>
+
+      {/* 삭제 API 에러 */}
+      {deleteError && (
+        <div className="bg-red-50 border border-red-200 text-red-700 rounded p-3 text-sm">
+          {deleteError}
+        </div>
+      )}
 
       {/* 페이지네이션 */}
       <div className="flex items-center justify-between flex-wrap gap-2">
@@ -285,5 +387,16 @@ export default function AdminMembers() {
         </div>
       </div>
     </div>
+
+    {/* 삭제 확인 모달 */}
+    {deleteTarget && (
+      <DeleteConfirmModal
+        member={deleteTarget}
+        onConfirm={handleDelete}
+        onCancel={() => { setDeleteTarget(null); setDeleteError(null); }}
+        deleting={deleting}
+      />
+    )}
+    </>
   );
 }
