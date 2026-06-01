@@ -2,13 +2,34 @@
 
 // 우측 하단 플로팅 액션 버튼 모음.
 //   - 최상단: 미팅요청 (onNavigate prop 시 노출, 내부 #meeting 탭으로 이동)
-//   - 중간:   안드로이드 앱 다운로드 (URL 미설정 시 숨김)
+//   - 중간:   안드로이드 앱 다운로드
+//             · Android 기기  → Play Store / APK URL 직접 오픈
+//             · PC / iOS 등   → 카카오톡 공유 다이얼로그 (Kakao SDK)
 //   - 하단:   카카오톡 오픈채팅방 입장 (항상 표시)
 //
 // URL은 app_settings 의 chatroom_url / android_app_url 키.
 
 import { useEffect, useState } from 'react';
 import { addClickLog } from '../lib/utils';
+
+// Kakao SDK 타입 선언 (전역)
+declare global {
+  interface Window {
+    Kakao?: {
+      isInitialized(): boolean;
+      init(appKey: string): void;
+      Share: {
+        sendDefault(params: Record<string, unknown>): void;
+      };
+    };
+  }
+}
+
+/** Android 기기 여부 판별 */
+function isAndroid(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  return /Android/i.test(navigator.userAgent);
+}
 
 const FALLBACK_CHATROOM = 'https://open.kakao.com/';
 
@@ -140,7 +161,44 @@ export default function FloatingActions({ onNavigate }: Props = {}) {
           }
           onClick={() => {
             addClickLog('안드로이드 앱 FAB');
-            window.open(androidUrl, '_blank', 'noopener,noreferrer');
+
+            // Android 기기: 스토어/APK URL 직접 오픈
+            if (isAndroid()) {
+              window.open(androidUrl, '_blank', 'noopener,noreferrer');
+              return;
+            }
+
+            // PC / iOS: 카카오톡 공유
+            const kakao = window.Kakao;
+            if (!kakao) {
+              // SDK 미로드 시 폴백 — 직접 링크
+              window.open(androidUrl, '_blank', 'noopener,noreferrer');
+              return;
+            }
+            if (!kakao.isInitialized()) {
+              kakao.init(process.env.NEXT_PUBLIC_KAKAO_JS_KEY || '');
+            }
+            kakao.Share.sendDefault({
+              objectType: 'feed',
+              content: {
+                title: '이랜드리테일 AI 캠퍼스 앱',
+                description: '모바일에서도 AI 캠퍼스를 이용해 보세요',
+                imageUrl: `${window.location.origin}/icon-512.png`,
+                link: {
+                  mobileWebUrl: androidUrl,
+                  webUrl: androidUrl,
+                },
+              },
+              buttons: [
+                {
+                  title: '앱 설치하기',
+                  link: {
+                    mobileWebUrl: androidUrl,
+                    webUrl: androidUrl,
+                  },
+                },
+              ],
+            });
           }}
         />
       )}
