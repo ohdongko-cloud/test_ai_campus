@@ -24,6 +24,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (Array.isArray(body.stages))           add('stages', JSON.stringify(body.stages));
   if (Number.isFinite(body.order))          add('order_idx', Number(body.order));
   if (typeof body.isRequired === 'boolean') add('is_required', body.isRequired);
+  if (typeof body.duration === 'string')    add('duration', body.duration || null);
 
   if (sets.length === 0) return NextResponse.json({ ok: true });
 

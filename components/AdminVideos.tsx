@@ -33,11 +33,12 @@ function LevelEditRow({ level, onSave, onCancel }: {
 
 function VideoEditRow({ video, onSave, onCancel }: {
   video: Video;
-  onSave: (id: string, title: string, youtubeUrl: string) => void;
+  onSave: (id: string, title: string, youtubeUrl: string, duration: string) => void;
   onCancel: () => void;
 }) {
   const [title, setTitle] = useState(video.title);
   const [url, setUrl] = useState(video.youtubeUrl);
+  const [duration, setDuration] = useState(video.duration || '');
   const trimmedTitle = title.trim();
   const vid = extractVideoId(url);
   const canSave = !!trimmedTitle && !!vid;
@@ -62,8 +63,14 @@ function VideoEditRow({ video, onSave, onCancel }: {
           </p>
         )}
       </div>
+      <input
+        value={duration}
+        onChange={e => setDuration(e.target.value)}
+        placeholder="재생시간 (예: 40:27)"
+        className="border border-gray-300 rounded px-2 py-1 text-xs w-28 focus:outline-none"
+      />
       <button
-        onClick={() => canSave && onSave(video.id, trimmedTitle, url)}
+        onClick={() => canSave && onSave(video.id, trimmedTitle, url, duration.trim())}
         disabled={!canSave}
         className={`text-xs px-2 py-1 rounded border ${canSave ? 'text-blue-600 hover:text-blue-800 border-blue-200 hover:bg-blue-50' : 'text-gray-300 border-gray-100 cursor-not-allowed'}`}
       >저장</button>
@@ -277,11 +284,11 @@ export default function AdminVideos() {
     }
   };
 
-  const handleSaveVideo = async (id: string, newTitle: string, newUrl: string) => {
+  const handleSaveVideo = async (id: string, newTitle: string, newUrl: string, newDuration: string) => {
     try {
       const res = await adminFetch(`/api/admin/videos/${encodeURIComponent(id)}`, {
         method: 'PATCH',
-        body: JSON.stringify({ title: newTitle, youtubeUrl: newUrl }),
+        body: JSON.stringify({ title: newTitle, youtubeUrl: newUrl, duration: newDuration }),
       });
       if (!res.ok) throw new Error(await res.text());
       setEditVideoId(null);

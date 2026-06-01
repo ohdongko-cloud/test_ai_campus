@@ -20,6 +20,7 @@ export interface Video {
   stages?: VideoStage[];
   order?: number;
   isRequired?: boolean; // 필수 시청 영상 — 카드 우상단 빨간 뱃지 노출
+  duration?: string;    // 재생시간 표시용 (예: "40:27", "1:20:45")
 }
 
 export interface Reservation {

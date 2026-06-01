@@ -466,6 +466,23 @@ export default function VideoPage() {
               필수 시청
             </span>
           )}
+          {/* 재생시간 뱃지 — 우하단 */}
+          {v.duration && (
+            <span
+              aria-label={`재생시간 ${v.duration}`}
+              style={{
+                position: 'absolute', bottom: 8, right: 8, zIndex: 5,
+                background: 'rgba(0,0,0,0.72)', color: '#fff',
+                fontSize: 11, fontWeight: 600,
+                padding: '3px 7px', borderRadius: 4,
+                fontFamily: T.fontEn, whiteSpace: 'nowrap',
+                userSelect: 'none', pointerEvents: 'none',
+                letterSpacing: '0.03em',
+              }}
+            >
+              {v.duration}
+            </span>
+          )}
         </div>
 
         {/* 카드 본문 */}
