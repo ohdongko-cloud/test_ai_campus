@@ -5,7 +5,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
 } from 'recharts';
-import { getVideos, getReservations, getServices, aggregateClickLog, getClickLogInRange } from '../lib/utils';
+import { getReservations, getServices, aggregateClickLog, getClickLogInRange } from '../lib/utils';
 import { Video, ClickLog } from '../lib/types';
 
 const PIE_COLORS: Record<string, string> = {
@@ -91,18 +91,24 @@ export default function AdminStats() {
     setPerDayData(sorted);
   }, []);
 
-  const load = useCallback(() => {
-    const vids = getVideos();
+  const load = useCallback(async () => {
+    // 영상 목록은 DB API에서 직접 조회 (localStorage 기반 getVideos() 사용 X)
+    try {
+      const vRes = await fetch('/api/videos');
+      const vids: Video[] = vRes.ok ? await vRes.json() : [];
+      setVideos(vids);
+
+      const levelMap: Record<string, number> = {};
+      vids.forEach(v => { levelMap[v.level] = (levelMap[v.level] || 0) + 1; });
+      setLevelData(Object.entries(levelMap).map(([name, value]) => ({ name, value })));
+    } catch {
+      setVideos([]);
+    }
+
     const res = getReservations();
     const svc = getServices();
-
-    setVideos(vids);
     setReservationCount(res.length);
     setServiceCount(svc.length);
-
-    const levelMap: Record<string, number> = { '기초': 0, '중급': 0, '고급': 0, '응용': 0 };
-    vids.forEach(v => { if (levelMap[v.level] !== undefined) levelMap[v.level]++; });
-    setLevelData(Object.entries(levelMap).map(([name, value]) => ({ name, value })));
 
     computeClickStats(startDate, endDate, selectedButtons);
 
