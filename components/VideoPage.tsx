@@ -1221,12 +1221,12 @@ export default function VideoPage() {
               aria-label="학습 단계"
               style={{
                 display: isFullscreen ? 'none' : 'flex',
+                flexDirection: 'column',
                 position: isMobile ? 'absolute' : 'relative',
                 top: 0, right: 0, bottom: 0, zIndex: 7,
                 width: sidebarOpen ? (isMobile ? '85%' : 320) : 36,
                 background: T.surface,
                 borderLeft: `1px solid ${T.border}`,
-                display: 'flex', flexDirection: 'column',
                 transition: 'width .2s ease',
                 overflow: 'hidden',
                 flexShrink: 0,
