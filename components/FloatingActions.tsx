@@ -94,6 +94,7 @@ interface Props {
 export default function FloatingActions({ onNavigate }: Props = {}) {
   const [chatroomUrl, setChatroomUrl] = useState<string>(FALLBACK_CHATROOM);
   const [androidUrl, setAndroidUrl] = useState<string>('');
+  const [showKakaoConfirm, setShowKakaoConfirm] = useState(false);
 
   useEffect(() => {
     fetch('/api/settings?keys=chatroom_url,android_app_url')
@@ -161,44 +162,12 @@ export default function FloatingActions({ onNavigate }: Props = {}) {
           }
           onClick={() => {
             addClickLog('안드로이드 앱 FAB');
-
-            // Android 기기: 스토어/APK URL 직접 오픈
+            // Android: 직접 오픈 / PC·iOS: 확인 팝업 먼저
             if (isAndroid()) {
               window.open(androidUrl, '_blank', 'noopener,noreferrer');
-              return;
+            } else {
+              setShowKakaoConfirm(true);
             }
-
-            // PC / iOS: 카카오톡 공유
-            const kakao = window.Kakao;
-            if (!kakao) {
-              // SDK 미로드 시 폴백 — 직접 링크
-              window.open(androidUrl, '_blank', 'noopener,noreferrer');
-              return;
-            }
-            if (!kakao.isInitialized()) {
-              kakao.init(process.env.NEXT_PUBLIC_KAKAO_JS_KEY || '');
-            }
-            kakao.Share.sendDefault({
-              objectType: 'feed',
-              content: {
-                title: '이랜드리테일 AI 캠퍼스 앱',
-                description: '모바일에서도 AI 캠퍼스를 이용해 보세요',
-                imageUrl: `${window.location.origin}/icon-512.png`,
-                link: {
-                  mobileWebUrl: androidUrl,
-                  webUrl: androidUrl,
-                },
-              },
-              buttons: [
-                {
-                  title: '앱 설치하기',
-                  link: {
-                    mobileWebUrl: androidUrl,
-                    webUrl: androidUrl,
-                  },
-                },
-              ],
-            });
           }}
         />
       )}
@@ -221,6 +190,84 @@ export default function FloatingActions({ onNavigate }: Props = {}) {
           window.open(chatroomUrl, '_blank', 'noopener,noreferrer');
         }}
       />
+
+      {/* 카카오 공유 확인 팝업 */}
+      {showKakaoConfirm && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 70,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'rgba(15,30,51,0.45)',
+          }}
+          onClick={() => setShowKakaoConfirm(false)}
+        >
+          <div
+            style={{
+              background: '#fff', borderRadius: 16,
+              boxShadow: '0 8px 32px rgba(15,30,51,0.18)',
+              padding: '28px 24px 20px', width: 300, margin: '0 16px',
+              fontFamily: '"Noto Sans KR","Inter",system-ui,sans-serif',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* 카카오 아이콘 */}
+            <div style={{ textAlign: 'center', marginBottom: 14 }}>
+              <div style={{
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                width: 48, height: 48, borderRadius: 14,
+                background: '#FEE500',
+              }}>
+                <svg width="26" height="26" viewBox="0 0 32 32" fill="none">
+                  <path d="M16 5C9.92 5 5 8.92 5 13.7c0 3.1 2.05 5.82 5.13 7.34l-.86 3.15a.5.5 0 0 0 .78.55l3.74-2.49c.74.12 1.51.18 2.21.18 6.08 0 11-3.92 11-8.7C27 8.92 22.08 5 16 5Z" fill="#181600"/>
+                </svg>
+              </div>
+            </div>
+            <p style={{ fontSize: 14, fontWeight: 700, color: '#0F1E33', textAlign: 'center', marginBottom: 6 }}>
+              카카오톡으로 공유
+            </p>
+            <p style={{ fontSize: 13, color: '#6B7A91', textAlign: 'center', lineHeight: 1.6, marginBottom: 20 }}>
+              설치 링크를 카카오톡을 통해<br />모바일로 공유하시겠습니까?
+            </p>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={() => {
+                  setShowKakaoConfirm(false);
+                  const kakao = window.Kakao;
+                  if (!kakao) { window.open(androidUrl, '_blank', 'noopener,noreferrer'); return; }
+                  if (!kakao.isInitialized()) kakao.init(process.env.NEXT_PUBLIC_KAKAO_JS_KEY || '');
+                  kakao.Share.sendDefault({
+                    objectType: 'feed',
+                    content: {
+                      title: '이랜드리테일 AI 캠퍼스 앱',
+                      description: '모바일에서도 AI 캠퍼스를 이용해 보세요',
+                      imageUrl: `${window.location.origin}/icon-512.png`,
+                      link: { mobileWebUrl: androidUrl, webUrl: androidUrl },
+                    },
+                    buttons: [{ title: '앱 설치하기', link: { mobileWebUrl: androidUrl, webUrl: androidUrl } }],
+                  });
+                }}
+                style={{
+                  flex: 1, height: 40, borderRadius: 8, border: 'none',
+                  background: '#FEE500', color: '#181600',
+                  fontSize: 14, fontWeight: 700, cursor: 'pointer',
+                }}
+              >
+                예
+              </button>
+              <button
+                onClick={() => setShowKakaoConfirm(false)}
+                style={{
+                  flex: 1, height: 40, borderRadius: 8,
+                  border: '1px solid #E5EAF1', background: 'transparent',
+                  color: '#6B7A91', fontSize: 14, fontWeight: 500, cursor: 'pointer',
+                }}
+              >
+                아니오
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style jsx>{`
         @media (max-width: 640px) {
