@@ -89,9 +89,14 @@ function findConflictingReservations(newSlot: BlockedSlot, reservations: Reserva
   });
 }
 
+type StatusFilter = 'all' | 'pending' | 'confirmed' | 'cancelled';
+
 export default function AdminMeetings() {
   const [reservations, setReservationsState] = useState<Reservation[]>([]);
   const [filter, setFilter] = useState<Filter>('전체');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [meetingSearch, setMeetingSearch] = useState('');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   // 차단 슬롯 상태
   const [blocked, setBlockedState] = useState<BlockedSlot[]>([]);
@@ -151,6 +156,27 @@ export default function AdminMeetings() {
     return true;
   }).sort((a, b) => b.registeredAt.localeCompare(a.registeredAt));
 
+  // 상태별 건수 (날짜범위 적용 후 기준)
+  const statusCount = {
+    all: filtered.length,
+    pending: filtered.filter(r => !r.status || r.status === 'pending').length,
+    confirmed: filtered.filter(r => r.status === 'confirmed').length,
+    cancelled: filtered.filter(r => r.status === 'cancelled').length,
+  };
+
+  // 카드 목록: 날짜범위 → 상태 → 검색어 순차 적용
+  const q = meetingSearch.trim().toLowerCase();
+  const displayList = filtered.filter(r => {
+    if (statusFilter === 'pending' && !(!r.status || r.status === 'pending')) return false;
+    if (statusFilter === 'confirmed' && r.status !== 'confirmed') return false;
+    if (statusFilter === 'cancelled' && r.status !== 'cancelled') return false;
+    if (q) {
+      const hay = `${r.name} ${r.email} ${r.role}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
   // 요일별 예약 건수
   const dayCount: Record<string, number> = { '월': 0, '화': 0, '수': 0, '목': 0, '금': 0 };
   filtered.forEach(r => {
@@ -185,7 +211,7 @@ export default function AdminMeetings() {
   };
 
   const handleExcel = () => {
-    const data = filtered.map(r => ({
+    const data = displayList.map(r => ({
       '이름': r.name,
       '직무/직급': r.role,
       '담당 업무 요약': r.taskSummary,
@@ -489,75 +515,126 @@ export default function AdminMeetings() {
         )}
       </div>
 
-      {/* 예약 목록 테이블 */}
-      <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-        <h3 className="text-base font-semibold text-gray-800 mb-4">예약 목록 ({filtered.length}건)</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-xs" style={{ minWidth: '900px' }}>
-            <thead>
-              <tr className="bg-gray-50">
-                {['상태', '신청일시', '이름', '직무·직급', '예약날짜', '예약시간', '이메일', '전화번호', '담당업무요약', '문의내용', '확정/취소', '삭제'].map(col => (
-                  <th key={col} className="border border-gray-200 px-3 py-2 text-left text-xs text-gray-600 font-semibold whitespace-nowrap">{col}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={12} className="border border-gray-200 px-4 py-8 text-center text-sm text-gray-400">
-                    예약 내역이 없습니다.
-                  </td>
-                </tr>
-              ) : (
-                filtered.map(r => (
-                  <tr key={r.id} className="hover:bg-gray-50 align-top">
-                    <td className="border border-gray-200 px-3 py-2 whitespace-nowrap">
-                      {r.status === 'confirmed' && <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-medium">확정</span>}
-                      {r.status === 'cancelled' && <span className="bg-red-100 text-red-600 px-2 py-0.5 rounded text-xs font-medium">취소</span>}
-                      {(!r.status || r.status === 'pending') && <span className="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded text-xs font-medium">검토중</span>}
-                    </td>
-                    <td className="border border-gray-200 px-3 py-2 whitespace-nowrap">{r.registeredAt}</td>
-                    <td className="border border-gray-200 px-3 py-2 whitespace-nowrap">{r.name}</td>
-                    <td className="border border-gray-200 px-3 py-2 whitespace-nowrap">{r.role}</td>
-                    <td className="border border-gray-200 px-3 py-2 whitespace-nowrap">{r.date}</td>
-                    <td className="border border-gray-200 px-3 py-2 whitespace-nowrap">{r.startTime} ~ {r.endTime}</td>
-                    <td className="border border-gray-200 px-3 py-2">{r.email}</td>
-                    <td className="border border-gray-200 px-3 py-2 whitespace-nowrap">{r.phone}</td>
-                    <td className="border border-gray-200 px-3 py-2 max-w-xs">{r.taskSummary}</td>
-                    <td className="border border-gray-200 px-3 py-2 max-w-xs">{r.inquiry}</td>
-                    <td className="border border-gray-200 px-3 py-2 whitespace-nowrap">
-                      <div className="flex flex-col gap-1">
-                        {r.status !== 'confirmed' && (
-                          <button onClick={() => handleStatusChange(r.id, 'confirmed')}
-                            className="bg-green-600 text-white px-2 py-1 rounded text-xs font-medium hover:bg-green-700 transition-colors">확정</button>
-                        )}
-                        {r.status !== 'cancelled' && (
-                          <button onClick={() => handleStatusChange(r.id, 'cancelled')}
-                            className="bg-white text-red-500 border border-red-300 px-2 py-1 rounded text-xs font-medium hover:bg-red-50 transition-colors">취소</button>
-                        )}
-                        {r.status === 'confirmed' && (
-                          <button onClick={() => handleStatusChange(r.id, 'pending')}
-                            className="bg-white text-gray-500 border border-gray-300 px-2 py-1 rounded text-xs font-medium hover:bg-gray-50 transition-colors">되돌리기</button>
-                        )}
+      {/* 예약 목록 (카드형) */}
+      <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm space-y-4">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <h3 className="text-base font-semibold text-gray-800">예약 목록 ({displayList.length}건)</h3>
+          <button
+            onClick={handleExcel}
+            className="bg-black text-white px-4 py-1.5 rounded text-xs font-medium hover:bg-gray-800 transition-colors"
+          >
+            엑셀 다운로드
+          </button>
+        </div>
+
+        {/* 상태 탭 */}
+        <div className="flex gap-2 flex-wrap">
+          {([
+            { key: 'all' as const, label: '전체', count: statusCount.all, color: 'blue' },
+            { key: 'pending' as const, label: '검토중', count: statusCount.pending, color: 'yellow' },
+            { key: 'confirmed' as const, label: '확정', count: statusCount.confirmed, color: 'green' },
+            { key: 'cancelled' as const, label: '취소', count: statusCount.cancelled, color: 'red' },
+          ]).map(t => {
+            const on = statusFilter === t.key;
+            return (
+              <button
+                key={t.key}
+                onClick={() => setStatusFilter(t.key)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
+                  on ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                {t.label} <span className={on ? 'text-blue-100' : 'text-gray-400'}>{t.count}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* 검색 */}
+        <input
+          type="text"
+          value={meetingSearch}
+          onChange={e => setMeetingSearch(e.target.value)}
+          placeholder="🔍 이름 · 이메일 · 직무 검색"
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+        />
+
+        {/* 카드 목록 */}
+        <div className="space-y-3">
+          {displayList.length === 0 ? (
+            <div className="text-center py-10 text-sm text-gray-400">조건에 맞는 예약이 없습니다.</div>
+          ) : (
+            displayList.map(r => {
+              const expanded = expandedId === r.id;
+              const statusBadge =
+                r.status === 'confirmed' ? <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-semibold">확정</span> :
+                r.status === 'cancelled' ? <span className="bg-red-100 text-red-600 px-2 py-0.5 rounded text-xs font-semibold">취소</span> :
+                <span className="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded text-xs font-semibold">검토중</span>;
+              return (
+                <div key={r.id} className="border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition-colors">
+                  {/* 헤더: 상태 + 이름·직무 + 신청일시 */}
+                  <div className="flex items-start justify-between gap-3 mb-2">
+                    <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                      {statusBadge}
+                      <span className="text-sm font-bold text-gray-900">{r.name}</span>
+                      <span className="text-xs text-gray-500">{r.role}</span>
+                    </div>
+                    <span className="text-xs text-gray-400 whitespace-nowrap shrink-0">신청 {r.registeredAt}</span>
+                  </div>
+
+                  {/* 날짜·시간·연락처 */}
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-600 mb-3">
+                    <span className="font-medium text-gray-800">📅 {r.date}</span>
+                    <span className="font-medium text-gray-800">⏰ {r.startTime} ~ {r.endTime}</span>
+                    <span>✉ {r.email}</span>
+                    <span>📞 {r.phone}</span>
+                  </div>
+
+                  {/* 상세 펼치기 */}
+                  {expanded && (
+                    <div className="bg-gray-50 border border-gray-100 rounded-lg p-3 mb-3 space-y-2 text-xs">
+                      <div>
+                        <span className="font-semibold text-gray-500 block mb-0.5">담당 업무 요약</span>
+                        <p className="text-gray-800 whitespace-pre-wrap leading-relaxed">{r.taskSummary || '—'}</p>
                       </div>
-                    </td>
-                    <td className="border border-gray-200 px-3 py-2">
-                      <button onClick={() => handleDelete(r.id)} className="text-red-500 hover:text-red-700">삭제</button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                      <div>
+                        <span className="font-semibold text-gray-500 block mb-0.5">문의 내용</span>
+                        <p className="text-gray-800 whitespace-pre-wrap leading-relaxed">{r.inquiry || '—'}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 액션 바 */}
+                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-gray-100">
+                    <button
+                      onClick={() => setExpandedId(expanded ? null : r.id)}
+                      className="text-xs font-medium text-blue-600 hover:text-blue-800"
+                    >
+                      {expanded ? '상세 접기 ▲' : '상세 펼치기 ▼'}
+                    </button>
+                    <div className="flex gap-1.5">
+                      {r.status !== 'confirmed' && (
+                        <button onClick={() => handleStatusChange(r.id, 'confirmed')}
+                          className="bg-green-600 text-white px-3 py-1.5 rounded text-xs font-medium hover:bg-green-700 transition-colors">확정</button>
+                      )}
+                      {r.status !== 'cancelled' && (
+                        <button onClick={() => handleStatusChange(r.id, 'cancelled')}
+                          className="bg-white text-red-500 border border-red-300 px-3 py-1.5 rounded text-xs font-medium hover:bg-red-50 transition-colors">취소</button>
+                      )}
+                      {r.status === 'confirmed' && (
+                        <button onClick={() => handleStatusChange(r.id, 'pending')}
+                          className="bg-white text-gray-500 border border-gray-300 px-3 py-1.5 rounded text-xs font-medium hover:bg-gray-50 transition-colors">되돌리기</button>
+                      )}
+                      <button onClick={() => handleDelete(r.id)}
+                        className="text-red-500 hover:text-red-700 border border-red-200 hover:bg-red-50 px-3 py-1.5 rounded text-xs font-medium transition-colors">삭제</button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
-
-      <button
-        onClick={handleExcel}
-        className="bg-black text-white px-5 py-2 rounded text-sm font-medium hover:bg-gray-800 transition-colors"
-      >
-        전체 목록 엑셀 다운로드
-      </button>
     </div>
   );
 }
