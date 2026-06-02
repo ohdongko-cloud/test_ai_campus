@@ -5,6 +5,7 @@ import { TabType } from '../lib/types';
 import { getUserInfo, clearUserInfo, UserInfo } from '../lib/utils';
 import WelcomePopup from '../components/WelcomePopup';
 import BookmarkPrompt, { BeforeInstallPromptEvent } from '../components/BookmarkPrompt';
+import MyPageModal from '../components/MyPageModal';
 import MainPage from '../components/MainPage';
 import VideoPage from '../components/VideoPage';
 import MeetingPage from '../components/MeetingPage';
@@ -43,6 +44,7 @@ export default function Page() {
   const [policyModal, setPolicyModal] = useState<'privacy' | 'terms' | null>(null);
   const [showBookmark, setShowBookmark] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [showMyPage, setShowMyPage] = useState(false);
 
   const handleAdminEntry = () => {
     if (hasAdminAccess) setIsAdmin(true);
@@ -113,6 +115,15 @@ export default function Page() {
     setUserInfo(null);
     setActiveTab('home');
     setMobileNav(false);
+    setShowWelcome(true);
+  };
+
+  // 회원 탈퇴 완료 — 서버 세션은 DELETE에서 이미 정리됨, 클라이언트만 정리
+  const handleAccountDeleted = () => {
+    clearUserInfo();
+    setUserInfo(null);
+    setShowMyPage(false);
+    setActiveTab('home');
     setShowWelcome(true);
   };
 
@@ -200,6 +211,15 @@ export default function Page() {
           localStorage.setItem('bookmark_prompted', '1');
         }}
       />
+
+      {/* ── 마이페이지 (비밀번호 변경 / 회원 탈퇴) ── */}
+      {showMyPage && userInfo && (
+        <MyPageModal
+          user={userInfo}
+          onClose={() => setShowMyPage(false)}
+          onAccountDeleted={handleAccountDeleted}
+        />
+      )}
 
       {/* ── 관리자 로그인 모달 ── */}
       {showAdminLogin && (
@@ -321,13 +341,17 @@ export default function Page() {
 
           {/* Right: user chip + admin button + hamburger */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-            {/* User chip */}
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 8,
-              padding: '4px 12px 4px 4px', borderRadius: 999,
-              border: '1px solid var(--color-line)', background: 'var(--color-surface)',
-              cursor: 'default',
-            }}>
+            {/* User chip — 로그인 시 클릭하면 마이페이지 */}
+            <button
+              onClick={() => userInfo && setShowMyPage(true)}
+              title={userInfo ? '마이페이지' : undefined}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '4px 12px 4px 4px', borderRadius: 999,
+                border: '1px solid var(--color-line)', background: 'var(--color-surface)',
+                cursor: userInfo ? 'pointer' : 'default',
+              }}
+            >
               <div style={{
                 width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
                 background: 'linear-gradient(135deg, var(--color-primary) 0%, #1B6CD6 100%)',
@@ -339,7 +363,7 @@ export default function Page() {
               <span className="hidden sm:block" style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-ink-2)' }}>
                 {displayName}
               </span>
-            </div>
+            </button>
 
             {/* Logout button (로그인 상태일 때만) */}
             {userInfo && (

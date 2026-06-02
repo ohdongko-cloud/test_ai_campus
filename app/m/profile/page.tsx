@@ -4,13 +4,20 @@ import { useEffect, useState } from 'react';
 import { M } from '../_styles/tokens';
 import MobileHeader from '../_components/MobileHeader';
 import { getUserInfo, clearUserInfo, type UserInfo } from '../../../lib/utils';
+import MyPageModal from '../../../components/MyPageModal';
 
 export default function MobileProfilePage() {
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
+  const [showMyPage, setShowMyPage] = useState(false);
 
   useEffect(() => {
     setUserInfo(getUserInfo());
   }, []);
+
+  const handleAccountDeleted = () => {
+    clearUserInfo();
+    window.location.href = '/m';
+  };
 
   const handleLogout = async () => {
     try {
@@ -51,6 +58,24 @@ export default function MobileProfilePage() {
             </div>
 
             <button
+              onClick={() => setShowMyPage(true)}
+              style={{
+                width: '100%',
+                padding: 16,
+                borderRadius: M.r3,
+                border: `1px solid ${M.border}`,
+                background: M.surface,
+                color: M.text,
+                fontSize: 14,
+                fontWeight: 700,
+                cursor: 'pointer',
+                marginBottom: 10,
+              }}
+            >
+              비밀번호 변경 · 회원 탈퇴
+            </button>
+
+            <button
               onClick={handleLogout}
               style={{
                 width: '100%',
@@ -71,6 +96,14 @@ export default function MobileProfilePage() {
           <p style={{ fontSize: 13, color: M.textMuted }}>로그인이 필요합니다.</p>
         )}
       </div>
+
+      {showMyPage && userInfo && (
+        <MyPageModal
+          user={userInfo}
+          onClose={() => setShowMyPage(false)}
+          onAccountDeleted={handleAccountDeleted}
+        />
+      )}
     </>
   );
 }
