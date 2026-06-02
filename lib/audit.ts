@@ -7,6 +7,9 @@ import { getClientIp } from './ratelimit';
 export type AuthLogType =
   | 'login_attempt' | 'login_success' | 'login_failure'
   | 'signup_request' | 'signup_verify_success' | 'signup_verify_failure' | 'signup_complete'
+  | 'reset_request' | 'reset_verify_success' | 'reset_verify_failure' | 'reset_password_success'
+  | 'change_password_success' | 'change_password_failure'
+  | 'account_delete'
   | 'admin_login_success' | 'admin_login_failure'
   | 'logout'
   | 'rate_limited';
