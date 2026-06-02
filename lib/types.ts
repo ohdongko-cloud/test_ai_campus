@@ -2,6 +2,8 @@ export interface VideoStage {
   id: string;
   title: string;
   description: string;
+  /** 스테이지 펼침 시 인라인 표시되는 이미지 URL(Vercel Blob). 순서 = 업로드 순. */
+  images?: string[];
 }
 
 export interface VideoLevel {

@@ -16,7 +16,6 @@ export async function POST(req: NextRequest) {
   const description = String(body.description || '');
   const youtubeUrl = String(body.youtubeUrl || '').trim();
   const stages = Array.isArray(body.stages) ? body.stages : [];
-  const orderIdx = Number.isFinite(body.order) ? Number(body.order) : 0;
   // 필수 시청 플래그: boolean만 허용, 누락 시 false
   const isRequired = typeof body.isRequired === 'boolean' ? body.isRequired : false;
 
@@ -29,6 +28,16 @@ export async function POST(req: NextRequest) {
   } catch (e) {
     if (e instanceof BadTextError) return NextResponse.json({ error: e.message }, { status: 400 });
     throw e;
+  }
+
+  // 신규 영상은 항상 목록 최상단으로 — 현재 MIN(order_idx) - 1 자동 부여.
+  // 클라이언트가 명시적으로 order 를 보냈으면 그 값을 우선 사용 (임포트/마이그레이션 호환).
+  let orderIdx: number;
+  if (Number.isFinite(body.order)) {
+    orderIdx = Number(body.order);
+  } else {
+    const minRow = await sql`SELECT COALESCE(MIN(order_idx), 0)::int AS m FROM videos`;
+    orderIdx = (minRow[0]?.m ?? 0) - 1;
   }
 
   try {

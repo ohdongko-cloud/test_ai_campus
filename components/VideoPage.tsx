@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { Video, VideoLevel, VideoStats, VideoComment } from '../lib/types';
 import { extractVideoId, getSessionId } from '../lib/utils';
 import { enableSecureScreen, disableSecureScreen } from '../lib/secureScreen';
+import StageImageLightbox from './StageImageLightbox';
 
 function youtubeThumb(youtubeUrl: string): string | null {
   const id = extractVideoId(youtubeUrl);
@@ -80,6 +81,8 @@ export default function VideoPage() {
   // 모바일은 항상 false 시작. selectedVideo 가 바뀌면 (다른 영상) 신규 stages 기반 재계산.
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarTab, setSidebarTab] = useState<'stages' | 'comments' | 'attachments'>('stages');
+  // 스테이지 인라인 이미지 라이트박스
+  const [lightbox, setLightbox] = useState<{ images: string[]; index: number } | null>(null);
   const [isMobile, setIsMobile] = useState(false);
 
   // ── 영상 보호용 워터마크 ──
@@ -1258,40 +1261,83 @@ export default function VideoPage() {
                           style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform .2s', flexShrink: 0 }}
                         ><path d="M6 9l6 6 6-6"/></svg>
                       </button>
-                      {isOpen && stage.description && (
+                      {isOpen && (stage.description || (stage.images && stage.images.length > 0)) && (
                         <div style={{ padding: '10px 14px 12px 14px', background: T.primarySoft }}>
-                          <div style={{ marginBottom: 8 }}>
-                            <button
-                              type="button"
-                              onClick={() => copyStageDescription(idx, stage.description)}
-                              style={{
-                                display: 'inline-flex', alignItems: 'center', gap: 6,
-                                minHeight: 28, padding: '4px 10px',
-                                background: copiedStageIdx === idx ? T.successBg : T.surface,
-                                border: `1px solid ${copiedStageIdx === idx ? T.success : T.border}`,
-                                color: copiedStageIdx === idx ? T.success : T.text,
-                                borderRadius: T.r, fontSize: 12, fontWeight: 600,
-                                cursor: 'pointer', fontFamily: T.fontKo,
-                              }}
-                              aria-label="스테이지 설명 전체 복사"
-                            >
-                              {copiedStageIdx === idx ? (
-                                <>
-                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5L20 7"/></svg>
-                                  복사됨
-                                </>
-                              ) : (
-                                <>
-                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 012-2h10"/></svg>
-                                  전체 복사
-                                </>
-                              )}
-                            </button>
-                          </div>
-                          <div style={{
-                            fontSize: 13, color: T.textBody, lineHeight: 1.65,
-                            whiteSpace: 'pre-wrap',
-                          }}>{stage.description}</div>
+                          {stage.description && (
+                            <>
+                              <div style={{ marginBottom: 8 }}>
+                                <button
+                                  type="button"
+                                  onClick={() => copyStageDescription(idx, stage.description)}
+                                  style={{
+                                    display: 'inline-flex', alignItems: 'center', gap: 6,
+                                    minHeight: 28, padding: '4px 10px',
+                                    background: copiedStageIdx === idx ? T.successBg : T.surface,
+                                    border: `1px solid ${copiedStageIdx === idx ? T.success : T.border}`,
+                                    color: copiedStageIdx === idx ? T.success : T.text,
+                                    borderRadius: T.r, fontSize: 12, fontWeight: 600,
+                                    cursor: 'pointer', fontFamily: T.fontKo,
+                                  }}
+                                  aria-label="스테이지 설명 전체 복사"
+                                >
+                                  {copiedStageIdx === idx ? (
+                                    <>
+                                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5L20 7"/></svg>
+                                      복사됨
+                                    </>
+                                  ) : (
+                                    <>
+                                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 012-2h10"/></svg>
+                                      전체 복사
+                                    </>
+                                  )}
+                                </button>
+                              </div>
+                              <div style={{
+                                fontSize: 13, color: T.textBody, lineHeight: 1.65,
+                                whiteSpace: 'pre-wrap',
+                              }}>{stage.description}</div>
+                            </>
+                          )}
+                          {/* ── 인라인 이미지 그리드 — 클릭 시 라이트박스 ── */}
+                          {stage.images && stage.images.length > 0 && (
+                            <div style={{
+                              marginTop: stage.description ? 12 : 0,
+                              display: 'grid', gap: 8,
+                              gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
+                            }}>
+                              {stage.images.map((url, ii) => (
+                                <button
+                                  key={url}
+                                  type="button"
+                                  onClick={() => setLightbox({ images: stage.images || [], index: ii })}
+                                  onContextMenu={e => e.preventDefault()}
+                                  style={{
+                                    padding: 0, border: 'none', background: 'transparent',
+                                    cursor: 'zoom-in', overflow: 'hidden', borderRadius: 8,
+                                    aspectRatio: '1 / 1',
+                                  }}
+                                  aria-label={`스테이지 이미지 ${ii + 1} 확대 보기`}
+                                >
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img
+                                    src={url}
+                                    alt={`스테이지 ${idx + 1} 이미지 ${ii + 1}`}
+                                    draggable={false}
+                                    onDragStart={e => e.preventDefault()}
+                                    style={{
+                                      width: '100%', height: '100%', objectFit: 'cover',
+                                      display: 'block', border: `1px solid ${T.border}`,
+                                      borderRadius: 8, userSelect: 'none',
+                                      transition: 'transform .2s',
+                                    }}
+                                    onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.04)'; }}
+                                    onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
+                                  />
+                                </button>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -1858,6 +1904,16 @@ export default function VideoPage() {
             );
           })()}
         </div>
+      )}
+
+      {/* 스테이지 인라인 이미지 라이트박스 — 모달 위에 표시 */}
+      {lightbox && (
+        <StageImageLightbox
+          images={lightbox.images}
+          index={lightbox.index}
+          onChangeIndex={(next) => setLightbox(prev => prev ? { ...prev, index: next } : null)}
+          onClose={() => setLightbox(null)}
+        />
       )}
     </div>
   );

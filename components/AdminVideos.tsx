@@ -95,7 +95,7 @@ function StageEditor({ videoId, initialStages, onSave }: {
   const [list, setList] = useState<VideoStage[]>(initialStages);
   const [saved, setSaved] = useState(false);
 
-  const add = () => setList(s => [...s, { id: generateId(), title: '', description: '' }]);
+  const add = () => setList(s => [...s, { id: generateId(), title: '', description: '', images: [] }]);
   const remove = (id: string) => setList(s => s.filter(x => x.id !== id));
   const update = (id: string, f: 'title' | 'description', v: string) =>
     setList(s => s.map(x => x.id === id ? { ...x, [f]: v } : x));
@@ -105,6 +105,58 @@ function StageEditor({ videoId, initialStages, onSave }: {
     const next = [...list]; [next[idx], next[ni]] = [next[ni], next[idx]]; setList(next);
   };
   const save = () => { onSave(videoId, list); setSaved(true); setTimeout(() => setSaved(false), 2000); };
+
+  // ── 이미지 관리 ──
+  const [uploadingStage, setUploadingStage] = useState<string | null>(null);
+  const handleAddImages = async (stage: VideoStage, files: FileList | File[]) => {
+    const arr = Array.from(files);
+    const current = stage.images || [];
+    if (current.length + arr.length > 10) {
+      window.alert('스테이지당 최대 10장까지 등록 가능합니다.');
+      return;
+    }
+    setUploadingStage(stage.id);
+    const newUrls: string[] = [];
+    for (const f of arr) {
+      try {
+        const fd = new FormData();
+        fd.append('file', f);
+        fd.append('stageId', stage.id);
+        const res = await adminFetch(`/api/admin/videos/${encodeURIComponent(videoId)}/stages/images`, {
+          method: 'POST',
+          body: fd,
+        });
+        if (!res.ok) {
+          const d = await res.json().catch(() => ({}));
+          window.alert(d?.error || `이미지 업로드 실패: ${f.name}`);
+          break;
+        }
+        const data = await res.json() as { url: string };
+        newUrls.push(data.url);
+      } catch {
+        window.alert('이미지 업로드에 실패했습니다.');
+        break;
+      }
+    }
+    setUploadingStage(null);
+    if (newUrls.length > 0) {
+      setList(s => s.map(x => x.id === stage.id
+        ? { ...x, images: [...(x.images || []), ...newUrls] }
+        : x));
+    }
+  };
+  const handleRemoveImage = async (stage: VideoStage, url: string) => {
+    // 화면에서 즉시 제거 + Blob 삭제는 fire-and-forget
+    setList(s => s.map(x => x.id === stage.id
+      ? { ...x, images: (x.images || []).filter(u => u !== url) }
+      : x));
+    try {
+      await adminFetch(`/api/admin/videos/${encodeURIComponent(videoId)}/stages/images`, {
+        method: 'DELETE',
+        body: JSON.stringify({ url }),
+      });
+    } catch { /* Blob 삭제 실패는 무시 — DB에선 이미 제거됨 */ }
+  };
 
   return (
     <div className="p-4 bg-blue-50 border-t border-blue-100 space-y-3">
@@ -130,7 +182,69 @@ function StageEditor({ videoId, initialStages, onSave }: {
             <textarea rows={3} value={s.description}
               onChange={e => update(s.id, 'description', e.target.value)}
               placeholder="세부 설명, 프롬프트, 단계별 가이드"
-              style={{ ...iStyle, resize: 'vertical' }} />
+              style={{ ...iStyle, resize: 'vertical', marginBottom: 8 }} />
+            {/* ── 인라인 이미지 영역 ── */}
+            <div className="mt-2">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[11px] font-semibold text-gray-600">
+                  📷 인라인 이미지 ({(s.images || []).length} / 10)
+                </span>
+                {uploadingStage === s.id && (
+                  <span className="text-[10px] text-blue-500">업로드 중...</span>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {(s.images || []).map((url, ii) => (
+                  <div key={url} className="relative" style={{ width: 80, height: 80 }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={url} alt={`stage-image-${ii}`} style={{
+                      width: '100%', height: '100%', objectFit: 'cover',
+                      borderRadius: 8, border: '1px solid #E5EAF1',
+                    }} />
+                    <button
+                      onClick={() => handleRemoveImage(s, url)}
+                      title="삭제"
+                      style={{
+                        position: 'absolute', top: -6, right: -6,
+                        width: 20, height: 20, borderRadius: '50%',
+                        background: '#EF4444', color: '#fff', border: 'none',
+                        cursor: 'pointer', fontSize: 11, fontWeight: 700,
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                      }}
+                    >✕</button>
+                  </div>
+                ))}
+                {(s.images || []).length < 10 && (
+                  <label
+                    style={{
+                      width: 80, height: 80, display: 'flex',
+                      alignItems: 'center', justifyContent: 'center',
+                      border: '2px dashed #D4DBE6', borderRadius: 8,
+                      cursor: uploadingStage === s.id ? 'wait' : 'pointer',
+                      color: '#6B7A91', fontSize: 11, fontWeight: 600,
+                      background: '#fff', textAlign: 'center', flexDirection: 'column' as const,
+                      gap: 2, opacity: uploadingStage === s.id ? 0.6 : 1,
+                    }}
+                  >
+                    <span style={{ fontSize: 18 }}>+</span>
+                    <span>이미지</span>
+                    <input
+                      type="file" accept="image/png,image/jpeg,image/webp,image/gif"
+                      multiple
+                      disabled={uploadingStage === s.id}
+                      onChange={e => {
+                        if (e.target.files) handleAddImages(s, e.target.files);
+                        e.target.value = ''; // reset
+                      }}
+                      style={{ display: 'none' }}
+                    />
+                  </label>
+                )}
+              </div>
+              <p className="text-[10px] text-gray-400 mt-1.5">
+                PNG/JPEG/WEBP/GIF · 한 장 최대 10MB · 변경 후 아래 [저장] 버튼 클릭
+              </p>
+            </div>
           </div>
         ))}
         {list.length === 0 && (
@@ -223,7 +337,7 @@ export default function AdminVideos() {
           description: desc,
           youtubeUrl,
           stages: newStages.filter(s => s.title.trim()),
-          order: videos.length,
+          // order 는 서버가 자동으로 MIN(order_idx) - 1 부여 (최상단)
           isRequired: newIsRequired,
         }),
       });
