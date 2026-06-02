@@ -12,7 +12,8 @@ export type AuthLogType =
   | 'account_delete'
   | 'admin_login_success' | 'admin_login_failure'
   | 'logout'
-  | 'rate_limited';
+  | 'rate_limited'
+  | 'attachment_download';
 
 export async function logAuth(opts: {
   type: AuthLogType;

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Video, VideoLevel, VideoStage } from '../lib/types';
 import { extractVideoId, generateId } from '../lib/utils';
 import { adminFetch, AdminAuthError } from '../lib/admin-client';
+import AdminVideoAttachments from './AdminVideoAttachments';
 
 const iStyle = {
   width: '100%', border: '1.5px solid #E2E8F0', borderRadius: 6,
@@ -156,6 +157,8 @@ export default function AdminVideos() {
   const [msg, setMsg] = useState('');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [editStagesId, setEditStagesId] = useState<string | null>(null);
+  const [editAttachmentsId, setEditAttachmentsId] = useState<string | null>(null);
+  const [attachmentCounts, setAttachmentCounts] = useState<Record<string, number>>({});
   const [editVideoId, setEditVideoId] = useState<string | null>(null);
   const [editLevelId, setEditLevelId] = useState<string | null>(null);
   // 재구성: 레벨 탭 필터 / 추가 드로어 / 레벨 관리 펼침
@@ -566,6 +569,10 @@ export default function AdminVideos() {
                         className="text-[11px] text-blue-600 hover:text-blue-800 px-2 py-1 rounded border border-blue-200 hover:bg-blue-50">
                         스테이지 편집
                       </button>
+                      <button onClick={() => setEditAttachmentsId(editAttachmentsId === v.id ? null : v.id)}
+                        className="text-[11px] text-purple-600 hover:text-purple-800 px-2 py-1 rounded border border-purple-200 hover:bg-purple-50">
+                        📎 첨부{attachmentCounts[v.id] ? ` (${attachmentCounts[v.id]})` : ''}
+                      </button>
                       <button onClick={() => setConfirmDeleteId(v.id)}
                         className="text-[11px] text-red-500 hover:text-red-700 px-2 py-1 rounded border border-red-200 hover:bg-red-50">삭제</button>
                     </div>
@@ -575,6 +582,13 @@ export default function AdminVideos() {
               {/* 스테이지 편집 패널 */}
               {editStagesId === v.id && !isEditing && (
                 <StageEditor videoId={v.id} initialStages={v.stages || []} onSave={updateVideoStages} />
+              )}
+              {/* 첨부파일 관리 패널 */}
+              {editAttachmentsId === v.id && !isEditing && (
+                <AdminVideoAttachments
+                  videoId={v.id}
+                  onCountChange={(n) => setAttachmentCounts(prev => ({ ...prev, [v.id]: n }))}
+                />
               )}
             </div>
           );

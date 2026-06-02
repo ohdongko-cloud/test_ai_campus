@@ -79,7 +79,7 @@ export default function VideoPage() {
   // 스테이지 사이드바 — 데스크탑 펼침/접힘, 모바일 오버레이.
   // 모바일은 항상 false 시작. selectedVideo 가 바뀌면 (다른 영상) 신규 stages 기반 재계산.
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarTab, setSidebarTab] = useState<'stages' | 'comments'>('stages');
+  const [sidebarTab, setSidebarTab] = useState<'stages' | 'comments' | 'attachments'>('stages');
   const [isMobile, setIsMobile] = useState(false);
 
   // ── 영상 보호용 워터마크 ──
@@ -373,6 +373,14 @@ export default function VideoPage() {
       .catch(() => { /* ignore */ });
   };
 
+  // ── 첨부파일 (영상 모달의 학습 자료 섹션 + 카드 뱃지용) ──
+  const [attachmentCounts, setAttachmentCounts] = useState<Record<string, number>>({});
+  interface AttachmentItem {
+    id: string; filename: string; sizeBytes: number; mimeType: string;
+    downloadCount: number; createdAt: string;
+  }
+  const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
+
   // ── 댓글 ──
   const [comments, setComments] = useState<VideoComment[]>([]);
   const [commentsLoading, setCommentsLoading] = useState(false);
@@ -383,6 +391,7 @@ export default function VideoPage() {
   useEffect(() => {
     if (!selectedVideo) {
       setComments([]);
+      setAttachments([]);
       setNewComment('');
       setNewPassword('');
       return;
@@ -393,6 +402,13 @@ export default function VideoPage() {
       .then((rows: VideoComment[]) => setComments(rows))
       .catch(() => setComments([]))
       .finally(() => setCommentsLoading(false));
+    // 학습 자료 (첨부파일) — 로그인 회원만 응답 받음. 비로그인은 401 → 빈 배열.
+    fetch(`/api/videos/${encodeURIComponent(selectedVideo.id)}/attachments`, {
+      credentials: 'include',
+    })
+      .then(r => r.ok ? r.json() : [])
+      .then((rows: AttachmentItem[]) => setAttachments(Array.isArray(rows) ? rows : []))
+      .catch(() => setAttachments([]));
   }, [selectedVideo?.id]);
 
   const submitComment = async () => {
@@ -656,6 +672,22 @@ export default function VideoPage() {
                 </svg>
                 {s.comments_count}
               </div>
+              {/* 학습 자료(첨부) 뱃지 — count > 0 일 때만 */}
+              {(v.attachmentCount ?? 0) > 0 && (
+                <div
+                  aria-label={`학습 자료 ${v.attachmentCount}개`}
+                  title="학습 자료 (첨부파일)"
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 4,
+                    color: T.primary, fontSize: 12, fontWeight: 700,
+                    fontFamily: T.fontKo,
+                  }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+                  </svg>
+                  {v.attachmentCount}
+                </div>
+              )}
             </div>
             <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: T.primary }}>
               시청하기
@@ -1268,6 +1300,73 @@ export default function VideoPage() {
               </div>
             );
 
+            // 사이드바 '학습 자료(첨부파일)' 탭 내용.
+            const attachmentsPanel = (
+              <div style={{ padding: 16 }}>
+                {attachments.length === 0 ? (
+                  <p style={{ fontSize: 12, color: T.textMuted, textAlign: 'center', padding: '24px 0' }}>
+                    등록된 학습 자료가 없습니다.
+                  </p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {attachments.map(att => {
+                      const ext = (att.filename.split('.').pop() || '').toLowerCase();
+                      const icon = ['pdf'].includes(ext) ? '📄'
+                                  : ['ppt','pptx'].includes(ext) ? '📊'
+                                  : ['doc','docx'].includes(ext) ? '📝'
+                                  : ['xls','xlsx','csv'].includes(ext) ? '📈'
+                                  : ['zip','rar','7z'].includes(ext) ? '🗜️'
+                                  : ['png','jpg','jpeg','gif','webp'].includes(ext) ? '🖼️'
+                                  : ['txt','md'].includes(ext) ? '📃'
+                                  : '📎';
+                      const sizeStr = att.sizeBytes < 1024 ? `${att.sizeBytes} B`
+                                    : att.sizeBytes < 1024*1024 ? `${(att.sizeBytes/1024).toFixed(1)} KB`
+                                    : `${(att.sizeBytes/1024/1024).toFixed(1)} MB`;
+                      return (
+                        <a
+                          key={att.id}
+                          href={`/api/videos/${encodeURIComponent(selectedVideo.id)}/attachments/${encodeURIComponent(att.id)}/download`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: 10,
+                            padding: '10px 12px', borderRadius: T.r2,
+                            border: `1px solid ${T.border}`, background: T.surface,
+                            textDecoration: 'none', color: T.text,
+                            transition: 'all .15s',
+                          }}
+                          onMouseEnter={e => {
+                            e.currentTarget.style.borderColor = T.primary;
+                            e.currentTarget.style.background = T.primarySoft;
+                          }}
+                          onMouseLeave={e => {
+                            e.currentTarget.style.borderColor = T.border;
+                            e.currentTarget.style.background = T.surface;
+                          }}
+                        >
+                          <span style={{ fontSize: 22 }}>{icon}</span>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 12.5, fontWeight: 600, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {att.filename}
+                            </div>
+                            <div style={{ fontSize: 10.5, color: T.textMuted, marginTop: 2 }}>
+                              {sizeStr} · 다운로드 {att.downloadCount}회
+                            </div>
+                          </div>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={T.primary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+                          </svg>
+                        </a>
+                      );
+                    })}
+                    <p style={{ fontSize: 10, color: T.textFaint, marginTop: 6, lineHeight: 1.5 }}>
+                      🔒 본 자료는 이랜드리테일 사내 한정입니다. 외부 공유 시 다운로드 이력이 추적됩니다.
+                    </p>
+                  </div>
+                )}
+              </div>
+            );
+
             // 사이드바 '댓글' 탭 내용 — 작성 폼 + 목록.
             const commentsPanel = (
               <div style={{ padding: 16 }}>
@@ -1718,10 +1817,11 @@ export default function VideoPage() {
                       </button>
                     </div>
 
-                    {/* ── 탭 헤더: 학습 단계 | 댓글 ── */}
+                    {/* ── 탭 헤더: 학습 단계 | 댓글 | 자료 ── */}
                     <div style={{ display: 'flex', flexShrink: 0, borderBottom: `1px solid ${T.border}` }}>
                       {([
                         { key: 'stages' as const, label: hasStages ? `학습 단계 (${selectedVideo.stages?.length})` : '학습 단계' },
+                        { key: 'attachments' as const, label: `📎 자료 (${attachments.length})` },
                         { key: 'comments' as const, label: `댓글 (${s.comments_count})` },
                       ]).map(t => {
                         const on = sidebarTab === t.key;
@@ -1746,7 +1846,9 @@ export default function VideoPage() {
 
                     {/* ── 탭 콘텐츠 ── */}
                     <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
-                      {sidebarTab === 'stages' ? stagesPanel : commentsPanel}
+                      {sidebarTab === 'stages' ? stagesPanel
+                        : sidebarTab === 'attachments' ? attachmentsPanel
+                        : commentsPanel}
                     </div>
                   </>
                 );
