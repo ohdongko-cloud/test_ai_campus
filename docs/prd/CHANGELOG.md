@@ -68,7 +68,7 @@
 
 | 커밋 | 메시지 | 비고 |
 |---|---|---|
-| `(다음)` | feat: 스테이지 인라인 이미지 + 신규 영상 최상단 정렬 | PRD `2026-05-30-stage-inline-images.md`, 어드민 업로드/삭제 + 사용자 펼침 시 인라인 그리드 + 라이트박스. 신규 영상 자동 MIN(order_idx)-1 |
+| `8653624` | feat: 스테이지 인라인 이미지 + 신규 영상 최상단 정렬 | PRD `2026-05-30-stage-inline-images.md`, 어드민 업로드/삭제 + 사용자 펼침 시 인라인 그리드 + 라이트박스. 신규 영상 자동 MIN(order_idx)-1 |
 | `84dced2` | feat: 강의 영상 첨부파일 업로드/다운로드 (Vercel Blob) | PRD `2026-05-30-video-attachments.md`, 신규 `video_attachments` 테이블, 어드민 인라인 패널 + 사용자 모달 "📎 자료" 탭 + 카드 뱃지 |
 | `c697422` | fix: 영상 모달 사이드바 위치 — 영상 옆(모달 우측 전체)으로 이동 | 본문 영역 분할 → 모달 전체 row 분할. 영상과 같은 행에서 사이드바 항상 보이게. 모달 maxWidth 에 sidebarW 자동 가산 |
 | `45000db` | feat: 관리자 가입자/방문자 통계 + 회원 관리 탭 | PRD `2026-05-30-admin-member-stats.md`, 신규 권한 'members', `/api/admin/stats/overview` + `/api/admin/members` API, AdminMembers 컴포넌트 |
