@@ -16,7 +16,7 @@ const T = {
   fontKo: '"Noto Sans KR", "Inter", system-ui, sans-serif',
 };
 
-type Step = 'email' | 'verify' | 'signup' | 'login' | 'welcome';
+type Step = 'email' | 'verify' | 'signup' | 'login' | 'welcome' | 'reset-verify' | 'reset-password';
 
 interface Props { onClose: (target?: 'home' | 'videos') => void; }
 
@@ -122,6 +122,12 @@ export default function WelcomePopup({ onClose }: Props) {
   // 로그인 폼
   const [loginPw, setLoginPw] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
+
+  // 비밀번호 재설정
+  const [resetCode, setResetCode] = useState('');
+  const [resetToken, setResetToken] = useState('');
+  const [resetPw, setResetPw] = useState('');
+  const [resetPwConfirm, setResetPwConfirm] = useState('');
 
   const resetError = () => setError('');
 
@@ -296,11 +302,76 @@ export default function WelcomePopup({ onClose }: Props) {
     }
   };
 
+  // 비밀번호 재설정 — 로그인 단계에서 진입 (email 이미 입력됨)
+  const handleResetRequest = async () => {
+    resetError();
+    setBusy(true);
+    try {
+      const res = await fetch('/api/users/reset-request', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { setError(data?.error || '인증 메일 발송에 실패했습니다.'); return; }
+      setStep('reset-verify');
+    } catch {
+      setError('서버에 연결할 수 없습니다.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleResetVerify = async () => {
+    resetError();
+    const c = resetCode.trim();
+    if (!/^\d{6}$/.test(c)) { setError('6자리 숫자 코드를 입력해주세요.'); return; }
+    setBusy(true);
+    try {
+      const res = await fetch('/api/users/reset-verify', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code: c }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.resetToken) { setError(data?.error || '인증에 실패했습니다.'); return; }
+      setResetToken(data.resetToken);
+      setStep('reset-password');
+    } catch {
+      setError('서버에 연결할 수 없습니다.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    resetError();
+    if (!isValidSimplePassword(resetPw)) { setError(PASSWORD_POLICY_MESSAGE); return; }
+    if (resetPw !== resetPwConfirm) { setError('비밀번호가 일치하지 않습니다.'); return; }
+    setBusy(true);
+    try {
+      const res = await fetch('/api/users/reset-password', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resetToken, password: resetPw, passwordConfirm: resetPwConfirm }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { setError(data?.error || '비밀번호 재설정에 실패했습니다.'); return; }
+      // 성공 → 로그인 단계로 복귀 + 안내
+      setLoginPw(''); setResetPw(''); setResetPwConfirm(''); setResetCode(''); setResetToken('');
+      setStep('login');
+      setError('비밀번호가 변경되었습니다. 새 비밀번호로 로그인해주세요.');
+    } catch {
+      setError('서버에 연결할 수 없습니다.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const goBack = () => {
     resetError();
     if (step === 'verify') { setStep('email'); setCode(''); }
     else if (step === 'signup') { setStep('verify'); }
     else if (step === 'login') { setStep('email'); setLoginPw(''); }
+    else if (step === 'reset-verify') { setStep('login'); setResetCode(''); }
+    else if (step === 'reset-password') { setStep('reset-verify'); }
   };
 
   return (
@@ -328,6 +399,8 @@ export default function WelcomePopup({ onClose }: Props) {
             {step === 'verify' && '인증 코드 입력'}
             {step === 'signup' && '회원 정보 입력'}
             {step === 'login' && '로그인'}
+            {step === 'reset-verify' && '비밀번호 재설정'}
+            {step === 'reset-password' && '새 비밀번호 설정'}
             {step === 'welcome' && (<>환영합니다, <span style={{ color: T.primary }}>{nickname}</span>님!</>)}
           </h2>
           <p style={{ margin: '6px 0 0', fontSize: 13, color: T.textMuted, lineHeight: 1.5 }}>
@@ -337,6 +410,10 @@ export default function WelcomePopup({ onClose }: Props) {
             </>)}
             {step === 'signup' && '닉네임과 소속 정보를 입력해주세요'}
             {step === 'login' && (<>{email} 비밀번호를 입력해주세요</>)}
+            {step === 'reset-verify' && (<>
+              <strong style={{ color: T.text }}>{email}</strong>로 전송된 6자리 코드를 입력하세요
+            </>)}
+            {step === 'reset-password' && '새로 사용할 비밀번호를 입력하세요'}
             {step === 'welcome' && '지금 바로 AI 학습을 시작해보세요.'}
           </p>
         </div>
@@ -468,6 +545,70 @@ export default function WelcomePopup({ onClose }: Props) {
             <button onClick={goBack} disabled={busy}
               style={{ ...ghostBtn, marginTop: 8, height: 36, fontSize: 12 }}>
               다른 이메일로 시도
+            </button>
+            <div style={{ textAlign: 'center', marginTop: 12 }}>
+              <button onClick={handleResetRequest} disabled={busy}
+                style={{ background: 'none', border: 'none', color: T.textMuted, fontSize: 12.5, cursor: 'pointer', textDecoration: 'underline', fontFamily: T.fontKo }}>
+                비밀번호를 잊으셨나요?
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* Step: reset-verify */}
+        {step === 'reset-verify' && (
+          <>
+            <label style={labelStyle}>인증 코드 (6자리) *</label>
+            <input type="text" inputMode="numeric" maxLength={6}
+              value={resetCode}
+              placeholder="123456"
+              onChange={e => setResetCode(e.target.value.replace(/\D/g, ''))}
+              onKeyDown={e => e.key === 'Enter' && !busy && handleResetVerify()}
+              style={{ ...inputStyle, fontSize: 18, letterSpacing: 4, textAlign: 'center', fontWeight: 600 }} autoFocus />
+            <p style={{ margin: '8px 0 0', fontSize: 12, color: T.textFaint }}>
+              코드가 안 왔다면 스팸함도 확인하시고, 10분 후에는 만료됩니다.
+            </p>
+            <button onClick={handleResetVerify} disabled={busy}
+              style={{ ...primaryBtn, marginTop: 16, opacity: busy ? 0.6 : 1 }}>
+              {busy ? '확인 중...' : '인증하기'}
+            </button>
+            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+              <button onClick={goBack} disabled={busy} style={{ ...ghostBtn, height: 36, fontSize: 12 }}>
+                뒤로
+              </button>
+              <button onClick={handleResetRequest} disabled={busy} style={{ ...ghostBtn, height: 36, fontSize: 12 }}>
+                코드 재발송
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* Step: reset-password */}
+        {step === 'reset-password' && (
+          <>
+            <div style={{ marginBottom: 4 }}>
+              <label style={labelStyle}>새 비밀번호 *</label>
+              <PasswordField value={resetPw} onChange={setResetPw} placeholder="예: Eland@2026" maxLength={16} autoFocus />
+              <p style={{ margin: '6px 0 12px', fontSize: 11, color: T.textMuted, lineHeight: 1.5 }}>
+                8~16자, 영문 / 숫자 / 특수문자를 각 1개 이상 포함해주세요.
+              </p>
+            </div>
+            <div style={{ marginBottom: 6 }}>
+              <label style={labelStyle}>새 비밀번호 확인 *</label>
+              <PasswordField
+                value={resetPwConfirm}
+                onChange={setResetPwConfirm}
+                placeholder="비밀번호를 다시 입력하세요"
+                maxLength={16}
+                onEnter={() => !busy && handleResetPassword()}
+              />
+              {resetPwConfirm && resetPw !== resetPwConfirm && (
+                <p style={errorStyle}>비밀번호가 일치하지 않습니다.</p>
+              )}
+            </div>
+            <button onClick={handleResetPassword} disabled={busy}
+              style={{ ...primaryBtn, marginTop: 16, opacity: busy ? 0.6 : 1 }}>
+              {busy ? '변경 중...' : '비밀번호 변경'}
             </button>
           </>
         )}
