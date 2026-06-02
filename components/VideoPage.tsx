@@ -79,6 +79,7 @@ export default function VideoPage() {
   // 스테이지 사이드바 — 데스크탑 펼침/접힘, 모바일 오버레이.
   // 모바일은 항상 false 시작. selectedVideo 가 바뀌면 (다른 영상) 신규 stages 기반 재계산.
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarTab, setSidebarTab] = useState<'stages' | 'comments'>('stages');
   const [isMobile, setIsMobile] = useState(false);
 
   // ── 영상 보호용 워터마크 ──
@@ -367,6 +368,7 @@ export default function VideoPage() {
     setVideosState(updated);
     setSelectedVideo({ ...video, viewCount: video.viewCount + 1 });
     setOpenStageIdx(null);
+    setSidebarTab('stages'); // 새 영상은 학습 단계 탭부터
     fetch(`/api/videos/${encodeURIComponent(video.id)}/view`, { method: 'POST' })
       .catch(() => { /* ignore */ });
   };
@@ -1139,6 +1141,25 @@ export default function VideoPage() {
           }}
           onClick={() => setSelectedVideo(null)}
         >
+          {/* 항상 보이는 고정 닫기 버튼 (뷰포트 우상단) — 전체화면 시 숨김 */}
+          {!isFullscreen && (
+            <button
+              onClick={e => { e.stopPropagation(); setSelectedVideo(null); }}
+              aria-label="닫기"
+              title="닫기"
+              style={{
+                position: 'fixed', top: 14, right: 16, zIndex: 1010,
+                width: 40, height: 40, borderRadius: '50%', border: 'none',
+                background: 'rgba(15,30,51,0.72)', color: '#fff', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+              }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M6 6l12 12M18 6l-12 12"/>
+              </svg>
+            </button>
+          )}
           {(() => {
             // 사이즈별 모달/영상 한계 — 한 곳에서 관리.
             const sizeConfig = {
@@ -1244,6 +1265,96 @@ export default function VideoPage() {
                     </div>
                   );
                 })}
+              </div>
+            );
+
+            // 사이드바 '댓글' 탭 내용 — 작성 폼 + 목록.
+            const commentsPanel = (
+              <div style={{ padding: 16 }}>
+                {/* 작성 폼 */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+                  <textarea
+                    value={newComment}
+                    onChange={e => setNewComment(e.target.value)}
+                    maxLength={1000}
+                    rows={3}
+                    placeholder="이 영상에 대한 의견을 남겨주세요."
+                    style={{
+                      width: '100%', padding: '8px 12px',
+                      border: `1px solid ${T.border}`, borderRadius: T.r,
+                      fontSize: 13, color: T.text, fontFamily: T.fontKo,
+                      resize: 'vertical', outline: 'none', background: T.surface,
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                  <input
+                    type="password"
+                    value={newPassword}
+                    onChange={e => setNewPassword(e.target.value)}
+                    placeholder="삭제용 비밀번호 (선택)"
+                    style={{
+                      width: '100%', padding: '7px 12px', boxSizing: 'border-box',
+                      border: `1px solid ${T.border}`, borderRadius: T.r,
+                      fontSize: 12, color: T.text, fontFamily: T.fontKo,
+                      outline: 'none', background: T.surface,
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={submitComment}
+                    disabled={!newComment.trim() || submitting}
+                    style={{
+                      padding: '8px 18px', borderRadius: T.r, border: 'none',
+                      background: !newComment.trim() || submitting ? T.borderStrong : T.primary,
+                      color: '#fff', fontSize: 13, fontWeight: 600, fontFamily: T.fontKo,
+                      cursor: !newComment.trim() || submitting ? 'not-allowed' : 'pointer',
+                    }}>
+                    {submitting ? '등록 중...' : '댓글 등록'}
+                  </button>
+                </div>
+
+                {/* 목록 */}
+                {commentsLoading ? (
+                  <div style={{ textAlign: 'center', padding: '20px 0', fontSize: 13, color: T.textMuted }}>
+                    댓글을 불러오는 중...
+                  </div>
+                ) : comments.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '20px 0', fontSize: 13, color: T.textFaint }}>
+                    아직 댓글이 없습니다.<br/>가장 먼저 의견을 남겨보세요.
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {comments.map(c => (
+                      <div key={c.id} style={{
+                        padding: '10px 12px', background: T.surfaceAlt,
+                        border: `1px solid ${T.border}`, borderRadius: T.r,
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+                          <div style={{
+                            flex: 1, fontSize: 13,
+                            color: c.is_deleted ? T.textFaint : T.textBody,
+                            fontStyle: c.is_deleted ? 'italic' : 'normal',
+                            lineHeight: 1.55, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                          }}>
+                            {c.is_deleted ? '삭제된 댓글입니다.' : c.content}
+                          </div>
+                          {!c.is_deleted && (
+                            <button type="button" onClick={() => deleteComment(c.id)}
+                              style={{
+                                background: 'transparent', border: 'none', color: T.textFaint,
+                                fontSize: 11, cursor: 'pointer', fontFamily: T.fontKo, padding: '2px 6px',
+                              }}>
+                              삭제
+                            </button>
+                          )}
+                        </div>
+                        <div style={{ fontSize: 11, color: T.textFaint, marginTop: 6 }}>
+                          {formatDate(c.created_at)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             );
             return (
@@ -1469,140 +1580,6 @@ export default function VideoPage() {
               🔒 본 영상은 이랜드리테일 사내 한정 자료입니다. 외부 공유·녹화·캡처를 금지합니다.
             </div>
 
-            {/* 본문: 영상 정보 + 댓글 (스테이지는 모달 우측 사이드바로 분리됨) */}
-            <div style={{ padding: '20px 24px', overflowY: 'auto', flex: '1 1 0', minHeight: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 16 }}>
-                <div style={{ flex: 1 }}>
-                  <h3 style={{
-                    margin: '0 0 8px', fontSize: 20, fontWeight: 700, color: T.text,
-                    fontFamily: T.fontKo, letterSpacing: '-0.02em',
-                  }}>{selectedVideo.title}</h3>
-                  <p style={{ margin: 0, fontSize: 14, color: T.textBody, lineHeight: 1.6 }}>
-                    {selectedVideo.description}
-                  </p>
-                </div>
-                <button
-                  onClick={() => setSelectedVideo(null)}
-                  style={{
-                    width: 32, height: 32, borderRadius: T.r, border: 'none',
-                    background: T.bg, color: T.textMuted, cursor: 'pointer', flexShrink: 0,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M6 6l12 12M18 6l-12 12"/>
-                  </svg>
-                </button>
-              </div>
-
-              {/* 학습 단계는 우측 사이드바(stagesPanel)로 분리됨 — 좌측 본문에는 영상 정보 + 댓글만. */}
-
-              {/* 댓글 패널 */}
-              <div style={{ borderTop: `1px solid ${T.border}`, paddingTop: 16, marginTop: 16 }}>
-                <div style={{
-                  fontSize: 13, fontWeight: 700, color: T.text, marginBottom: 12,
-                  display: 'flex', alignItems: 'center', gap: 6,
-                }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={T.primary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                  </svg>
-                  댓글 ({comments.filter(c => !c.is_deleted).length})
-                </div>
-
-                {/* 작성 폼 */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
-                  <textarea
-                    value={newComment}
-                    onChange={e => setNewComment(e.target.value)}
-                    maxLength={1000}
-                    rows={2}
-                    placeholder="이 영상에 대한 의견을 남겨주세요."
-                    style={{
-                      width: '100%', padding: '8px 12px',
-                      border: `1px solid ${T.border}`, borderRadius: T.r,
-                      fontSize: 13, color: T.text, fontFamily: T.fontKo,
-                      resize: 'vertical', outline: 'none', background: T.surface,
-                      boxSizing: 'border-box',
-                    }}
-                  />
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <input
-                      type="password"
-                      value={newPassword}
-                      onChange={e => setNewPassword(e.target.value)}
-                      placeholder="삭제용 비밀번호 (선택)"
-                      style={{
-                        flex: 1, padding: '7px 12px',
-                        border: `1px solid ${T.border}`, borderRadius: T.r,
-                        fontSize: 12, color: T.text, fontFamily: T.fontKo,
-                        outline: 'none', background: T.surface,
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={submitComment}
-                      disabled={!newComment.trim() || submitting}
-                      style={{
-                        padding: '7px 18px', borderRadius: T.r, border: 'none',
-                        background: !newComment.trim() || submitting ? T.borderStrong : T.primary,
-                        color: '#fff', fontSize: 13, fontWeight: 600, fontFamily: T.fontKo,
-                        cursor: !newComment.trim() || submitting ? 'not-allowed' : 'pointer',
-                        whiteSpace: 'nowrap',
-                      }}>
-                      {submitting ? '등록 중...' : '등록'}
-                    </button>
-                  </div>
-                </div>
-
-                {/* 댓글 목록 */}
-                {commentsLoading ? (
-                  <div style={{ textAlign: 'center', padding: '20px 0', fontSize: 13, color: T.textMuted }}>
-                    댓글을 불러오는 중...
-                  </div>
-                ) : comments.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '20px 0', fontSize: 13, color: T.textFaint }}>
-                    아직 댓글이 없습니다. 가장 먼저 의견을 남겨보세요.
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    {comments.map(c => (
-                      <div key={c.id} style={{
-                        padding: '10px 12px',
-                        background: T.surfaceAlt,
-                        border: `1px solid ${T.border}`,
-                        borderRadius: T.r,
-                      }}>
-                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
-                          <div style={{
-                            flex: 1, fontSize: 13,
-                            color: c.is_deleted ? T.textFaint : T.textBody,
-                            fontStyle: c.is_deleted ? 'italic' : 'normal',
-                            lineHeight: 1.55, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-                          }}>
-                            {c.is_deleted ? '삭제된 댓글입니다.' : c.content}
-                          </div>
-                          {!c.is_deleted && (
-                            <button
-                              type="button"
-                              onClick={() => deleteComment(c.id)}
-                              style={{
-                                background: 'transparent', border: 'none', color: T.textFaint,
-                                fontSize: 11, cursor: 'pointer', fontFamily: T.fontKo,
-                                padding: '2px 6px',
-                              }}>
-                              삭제
-                            </button>
-                          )}
-                        </div>
-                        <div style={{ fontSize: 11, color: T.textFaint, marginTop: 6 }}>
-                          {formatDate(c.created_at)}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
             {/* 좌측 패널 close */}
             </div>
             {/* ── 우측 스테이지 사이드바 — stages 유무 무관, 항상 렌더. 전체화면 시 숨김. ── */}
@@ -1671,20 +1648,27 @@ export default function VideoPage() {
                 const badge = getBadgeStyle(selectedVideo.level, levels);
                 return (
                   <>
-                    {/* ── 상단 stats 바: 레벨 · 조회수 · 좋아요 · 댓글 ── */}
+                    {/* ── 작은 영상 제목 (맥락 유지) ── */}
+                    <div style={{ padding: '12px 16px 10px 48px', borderBottom: `1px solid ${T.border}`, flexShrink: 0 }}>
+                      <div style={{
+                        fontSize: 13.5, fontWeight: 700, color: T.text, lineHeight: 1.4,
+                        display: '-webkit-box', WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical' as const, overflow: 'hidden',
+                      }}>{selectedVideo.title}</div>
+                    </div>
+
+                    {/* ── stats 바: 레벨 · 조회수 · 좋아요 · 댓글(버튼) ── */}
                     <div style={{
-                      padding: '10px 16px 10px 48px',
+                      padding: '10px 16px',
                       borderBottom: `1px solid ${T.border}`,
                       background: T.surface, flexShrink: 0,
                       display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap',
                     }}>
-                      {/* 레벨 */}
                       <span style={{
                         display: 'inline-flex', alignItems: 'center', height: 20, padding: '0 8px',
                         fontSize: 11, background: badge.bg, color: badge.fg,
                         borderRadius: 999, fontWeight: 600,
                       }}>{selectedVideo.level}</span>
-                      {/* 조회수 */}
                       <span style={{ fontSize: 11, color: T.textMuted, fontWeight: 500 }}>
                         조회 {selectedVideo.viewCount.toLocaleString()}
                       </span>
@@ -1713,33 +1697,56 @@ export default function VideoPage() {
                         </svg>
                         {s.likes_count}
                       </button>
-                      {/* 댓글 수 */}
-                      <div style={{
-                        display: 'inline-flex', alignItems: 'center', gap: 4,
-                        color: T.textMuted, fontSize: 11, fontWeight: 600,
-                      }}>
+                      {/* 댓글 버튼 → 댓글 탭 전환 */}
+                      <button
+                        type="button"
+                        onClick={() => setSidebarTab('comments')}
+                        aria-label="댓글 보기"
+                        style={{
+                          display: 'inline-flex', alignItems: 'center', gap: 4,
+                          padding: '3px 8px', borderRadius: 999, cursor: 'pointer',
+                          background: sidebarTab === 'comments' ? T.primaryLight : T.surface,
+                          border: `1px solid ${sidebarTab === 'comments' ? T.primary : T.border}`,
+                          color: sidebarTab === 'comments' ? T.primary : T.textBody,
+                          fontSize: 11, fontWeight: 600, fontFamily: T.fontKo,
+                        }}
+                      >
                         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                         </svg>
                         {s.comments_count}
-                      </div>
+                      </button>
                     </div>
-                    {/* ── 학습 단계 헤더 ── */}
-                    <div style={{
-                      display: 'flex', alignItems: 'center', gap: 8,
-                      padding: '10px 16px 10px 48px',
-                      borderBottom: `1px solid ${T.border}`,
-                      background: T.surfaceAlt, flexShrink: 0,
-                    }}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={T.primary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
-                      </svg>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>
-                        {hasStages ? `학습 단계 (${selectedVideo.stages?.length}단계)` : '학습 단계'}
-                      </span>
+
+                    {/* ── 탭 헤더: 학습 단계 | 댓글 ── */}
+                    <div style={{ display: 'flex', flexShrink: 0, borderBottom: `1px solid ${T.border}` }}>
+                      {([
+                        { key: 'stages' as const, label: hasStages ? `학습 단계 (${selectedVideo.stages?.length})` : '학습 단계' },
+                        { key: 'comments' as const, label: `댓글 (${s.comments_count})` },
+                      ]).map(t => {
+                        const on = sidebarTab === t.key;
+                        return (
+                          <button
+                            key={t.key}
+                            onClick={() => setSidebarTab(t.key)}
+                            style={{
+                              flex: 1, padding: '11px 8px', border: 'none', cursor: 'pointer',
+                              background: on ? T.surface : T.surfaceAlt,
+                              color: on ? T.primary : T.textMuted,
+                              fontSize: 12.5, fontWeight: on ? 700 : 500, fontFamily: T.fontKo,
+                              borderBottom: on ? `2px solid ${T.primary}` : '2px solid transparent',
+                              marginBottom: -1, transition: 'all .12s',
+                            }}
+                          >
+                            {t.label}
+                          </button>
+                        );
+                      })}
                     </div>
+
+                    {/* ── 탭 콘텐츠 ── */}
                     <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
-                      {stagesPanel}
+                      {sidebarTab === 'stages' ? stagesPanel : commentsPanel}
                     </div>
                   </>
                 );
