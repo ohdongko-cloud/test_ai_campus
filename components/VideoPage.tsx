@@ -63,7 +63,7 @@ export default function VideoPage() {
   const [levels, setLevels] = useState<VideoLevel[]>([]);
   const [search, setSearch] = useState('');
   const [levelFilter, setLevelFilter] = useState('전체');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
   const [hoverCard, setHoverCard] = useState<string | null>(null);
   const [openStageIdx, setOpenStageIdx] = useState<number | null>(null);
