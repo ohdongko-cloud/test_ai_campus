@@ -16,8 +16,18 @@
 3. ✅ **adminFetch 가 FormData 에 Content-Type:json 강제** → multipart 깨짐 → binary body 예외 처리 (커밋 `1ef87ad`)
 4. ✅ **Blob 스토어가 Private 인데 코드는 access:'public'** → "Cannot use public access on a private store" 에러.
    → **Public 스토어 `test-ai-campus-blob_public` 새로 생성함** (Access: Public 확인됨)
-5. ⚠️ **새 Public 스토어 연결 시 read-write 토큰 체크박스 누락** → `BLOB_READ_WRITE_TOKEN` 빈 값이었음.
-   → 사용자가 토큰 추가함 (UI 에 "Added just now" + Sensitive 로 표시됨). **값 유효성 미검증 상태.**
+5. ⚠️ **새 Public 스토어 연결 + 토큰 추가함** (UI 에 "Added just now" + Sensitive 표시).
+
+## ⚠️ 토큰 검증 관련 — 중요한 정정
+
+`vercel env pull` 로는 토큰 값을 검증할 수 **없음**.
+- CLI v52, v54 모두 `BLOB_READ_WRITE_TOKEN` 을 길이 0 으로 받아옴.
+- 그러나 **DATABASE_URL, JWT_SECRET, RESEND_API_KEY 등 다른 Sensitive 변수도 전부 길이 0** 으로 나옴.
+- 이 변수들은 운영에서 정상 동작 중(로그인/DB 다 됨) → **env pull 이 Sensitive 변수 값을 평문 반환 안 하는 게 Vercel 보안 정책(정상 동작)**.
+- 즉 "토큰이 비어있다"는 로컬 판단은 **검증 불가**였음. 실제론 값이 있을 가능성 높음.
+
+**→ 토큰 유효성은 오직 운영 endpoint 호출로만 확인 가능:**
+`https://retail-ai-campus.vercel.app/api/admin/debug/blob` (관리자 로그인 상태)
 
 ## ⚠️ 핵심 인프라 사실 (헷갈리기 쉬움)
 
