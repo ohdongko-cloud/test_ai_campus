@@ -36,11 +36,23 @@ export async function isAdminAuthenticated(): Promise<boolean> {
 
 /**
  * 어드민 API 호출. 쿠키 자동 포함. 401 시 AdminAuthError throw.
+ *
+ * 주의: FormData/Blob/ArrayBuffer 등 binary body 는 fetch 가 자동으로
+ *      적절한 Content-Type(multipart boundary 포함)을 설정한다. JSON 으로
+ *      덮어쓰면 multipart parsing 이 깨져 file 필드를 잃는다.
  */
 export async function adminFetch(input: string, init: RequestInit = {}): Promise<Response> {
   const headers = new Headers(init.headers);
   if (init.body && !headers.has('Content-Type')) {
-    headers.set('Content-Type', 'application/json');
+    const body = init.body as BodyInit;
+    const isBinary =
+      body instanceof FormData ||
+      body instanceof Blob ||
+      body instanceof ArrayBuffer ||
+      (typeof URLSearchParams !== 'undefined' && body instanceof URLSearchParams);
+    if (!isBinary) {
+      headers.set('Content-Type', 'application/json');
+    }
   }
   const res = await fetch(input, { ...init, headers, credentials: 'include' });
   if (res.status === 401) throw new AdminAuthError();
