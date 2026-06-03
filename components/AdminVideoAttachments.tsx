@@ -93,12 +93,18 @@ export default function AdminVideoAttachments({ videoId, onCountChange }: Props)
           body: fd,
         });
         if (!res.ok) {
-          const d = await res.json().catch(() => ({}));
-          throw new Error(d?.error || `업로드 실패: ${f.name}`);
+          const text = await res.text().catch(() => '');
+          let serverMsg = '';
+          try { serverMsg = JSON.parse(text)?.error || text; } catch { serverMsg = text; }
+          throw new Error(
+            `[${res.status}] ${f.name}: ${serverMsg || '서버 오류'}` +
+            (res.status === 500 ? ' (Vercel Blob 토큰/연결 확인 필요)' : ''),
+          );
         }
         uploaded += 1;
         setProgress(Math.round((uploaded / arr.length) * 100));
       } catch (e) {
+        // 인라인 에러로 표시 (alert 가 빨리 사라지는 환경 대비). 사용자가 직접 닫을 때까지 유지.
         setError(e instanceof Error ? e.message : '업로드에 실패했습니다.');
         break;
       }
@@ -133,8 +139,13 @@ export default function AdminVideoAttachments({ videoId, onCountChange }: Props)
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 rounded p-2 text-xs">
-          {error}
+        <div className="bg-red-50 border border-red-200 text-red-700 rounded p-2 text-xs flex items-start gap-2">
+          <span className="flex-1 whitespace-pre-wrap break-all">{error}</span>
+          <button
+            onClick={() => setError(null)}
+            className="text-red-400 hover:text-red-600 font-bold text-base leading-none px-1"
+            aria-label="에러 닫기"
+          >×</button>
         </div>
       )}
 
