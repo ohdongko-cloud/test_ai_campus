@@ -7,7 +7,7 @@ import { reportError } from '../../../../../../lib/error-report';
 import {
   MAX_ATTACHMENT_SIZE_BYTES,
   MAX_ATTACHMENTS_PER_VIDEO,
-  isAllowedMime,
+  isAllowedFile,
 } from '../../../../../../lib/attachments';
 
 // POST /api/admin/videos/[id]/attachments
@@ -56,9 +56,12 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     return NextResponse.json({ error: '빈 파일은 업로드할 수 없습니다.' }, { status: 400 });
   }
 
-  // MIME 화이트리스트
-  if (!isAllowedMime(file.type)) {
-    return NextResponse.json({ error: `지원하지 않는 파일 형식입니다: ${file.type || 'unknown'}` }, { status: 415 });
+  // MIME + 확장자 화이트리스트 (둘 중 하나라도 통과)
+  if (!isAllowedFile(file.name, file.type)) {
+    return NextResponse.json(
+      { error: `지원하지 않는 파일 형식입니다 (${file.type || '확장자: ' + (file.name.split('.').pop() || 'unknown')}).` },
+      { status: 415 },
+    );
   }
 
   // 파일명 안전화 (충돌 회피 + 한글 보존)

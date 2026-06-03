@@ -9,7 +9,7 @@ import {
   MAX_ATTACHMENTS_PER_VIDEO,
   formatBytes,
   iconForFilename,
-  isAllowedMime,
+  isAllowedFile,
 } from '../lib/attachments';
 
 interface AttachmentRow {
@@ -75,8 +75,8 @@ export default function AdminVideoAttachments({ videoId, onCountChange }: Props)
         setError(`${f.name}: 파일 크기가 50MB 한도를 초과합니다.`);
         return;
       }
-      if (!isAllowedMime(f.type)) {
-        setError(`${f.name}: 지원하지 않는 파일 형식입니다 (${f.type || 'unknown'}).`);
+      if (!isAllowedFile(f.name, f.type)) {
+        setError(`${f.name}: 지원하지 않는 파일 형식입니다 (${f.type || '확장자: ' + (f.name.split('.').pop() || 'unknown')}).`);
         return;
       }
     }

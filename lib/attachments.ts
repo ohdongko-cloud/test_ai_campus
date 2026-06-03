@@ -14,6 +14,8 @@ export const ALLOWED_MIME_TYPES = new Set<string>([
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   'application/zip',
   'application/x-zip-compressed',
+  'application/x-zip',
+  'application/octet-stream', // 일부 브라우저(OS)는 office/zip 등을 octet-stream 으로 보냄
   'text/plain',
   'text/markdown',
   'text/csv',
@@ -23,6 +25,28 @@ export const ALLOWED_MIME_TYPES = new Set<string>([
   'image/webp',
 ]);
 
+// 확장자 화이트리스트 — MIME 이 비어있거나 octet-stream 등 비표준일 때 fallback.
+// 일부 브라우저/OS 가 .pptx 를 빈 string, application/x-mspowerpoint, application/octet-stream 등으로
+// 보내는 경우가 있어 MIME 단독 체크로는 거부될 수 있음. 확장자도 함께 보면 견고.
+export const ALLOWED_EXTENSIONS = new Set<string>([
+  'pdf',
+  'ppt', 'pptx',
+  'doc', 'docx',
+  'xls', 'xlsx',
+  'zip',
+  'txt', 'md', 'csv',
+  'png', 'jpg', 'jpeg', 'gif', 'webp',
+]);
+
+/** MIME 또는 확장자 중 하나라도 화이트리스트에 있으면 허용. 둘 다 미상이면 거부. */
+export function isAllowedFile(filename: string, mime: string): boolean {
+  const m = (mime || '').toLowerCase();
+  if (m && ALLOWED_MIME_TYPES.has(m)) return true;
+  const ext = (filename.split('.').pop() || '').toLowerCase();
+  return ALLOWED_EXTENSIONS.has(ext);
+}
+
+/** @deprecated isAllowedFile(filename, mime) 사용. MIME 만 체크하면 일부 브라우저에서 false negative. */
 export function isAllowedMime(type: string): boolean {
   return ALLOWED_MIME_TYPES.has((type || '').toLowerCase());
 }
