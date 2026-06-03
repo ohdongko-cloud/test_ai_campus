@@ -35,6 +35,10 @@ export default function AdminVideoAttachments({ videoId, onCountChange }: Props)
   const [error, setError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  // onCountChange 는 부모에서 인라인 함수로 전달돼 매 렌더마다 참조가 바뀜.
+  // load 의존성에 포함하면 무한 fetch 루프가 발생 → ref 로 우회.
+  const onCountChangeRef = useRef(onCountChange);
+  useEffect(() => { onCountChangeRef.current = onCountChange; }, [onCountChange]);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -46,14 +50,14 @@ export default function AdminVideoAttachments({ videoId, onCountChange }: Props)
       })
       .then(d => {
         setItems(d);
-        onCountChange?.(d.length);
+        onCountChangeRef.current?.(d.length);
       })
       .catch(e => {
         if (e instanceof AdminAuthError) setError('관리자 세션이 만료되었습니다.');
         else setError('첨부파일 목록을 불러오지 못했습니다.');
       })
       .finally(() => setLoading(false));
-  }, [videoId, onCountChange]);
+  }, [videoId]);
 
   useEffect(() => { load(); }, [load]);
 
