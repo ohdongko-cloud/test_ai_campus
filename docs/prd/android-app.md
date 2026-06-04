@@ -2,7 +2,7 @@
 
 - 최초 작성: 2026-05-29
 - 최종 갱신: 2026-05-29
-- 현재 버전: **versionCode 10 / versionName "1.0.9"**
+- 현재 버전: **versionCode 11 / versionName "1.0.10"**
 - 작성자/소유자: ohdongko + Claude
 - 범위: 안드로이드 앱(Capacitor + WebView) 운영 사양·정책·변경 이력
 
@@ -36,16 +36,16 @@
 
 | 항목 | 값 |
 |---|---|
-| versionCode | 10 |
-| versionName | 1.0.9 |
+| versionCode | 11 |
+| versionName | 1.0.10 |
 | applicationId | `kr.co.eland.aicampus` |
 | minSdkVersion | 24 (Android 7.0) |
 | compileSdkVersion | 36 |
 | targetSdkVersion | 36 |
 | Capacitor 버전 | 8.x |
-| 배포 상태 | **빌드 완료** (1.0.9 .aab 생성됨, Play Console 업로드 대기 — 웹 최신 반영) |
+| 배포 상태 | **빌드 완료** (1.0.10 .aab 생성됨, Play Console 업로드 대기 — 모바일 UI 미반영 핫픽스) |
 | 배포 트랙 | Closed Testing 예정 |
-| 산출물 | `android/app/build/outputs/bundle/release/app-release.aab` (1.0.9 ≈ 3.90 MB) |
+| 산출물 | `android/app/build/outputs/bundle/release/app-release.aab` (1.0.10 ≈ 3.90 MB) |
 
 ## 3. 앱 식별 정보
 
@@ -227,6 +227,19 @@ test_ai_campus/
 | Capacitor 7 + targetSdk 36 호환 | 새 SDK 정책(예: 백그라운드 제한) 추적 필요 | Google Play 정책 알림 구독 |
 
 ## 11. 변경 이력
+
+### v1.0.10 — 2026-06-05 (모바일 UI 미반영 핫픽스 — 비번 정책·비번 재설정·영상 스테이지·첨부)
+
+**versionCode**: 11 / **versionName**: 1.0.10
+
+데스크톱 웹에 추가된 기능 중 모바일 라우트(`/m/*`)에 자동 반영되지 않은 항목을 수동 동기화. 외부 URL 로딩은 데스크톱 라우트만 자동 반영하므로 모바일 컴포넌트는 별도 업데이트 필요했음.
+
+- 수정 — `MobileWelcome` 비밀번호 정책: 8자 → **8~16자 + 영문/숫자/특수문자 각 1개 이상** (`isValidSimplePassword` 헬퍼 적용). 이전엔 모바일 가입 시 서버 거부 가능성.
+- 신규 — `MobileWelcome` **비밀번호 재설정 플로우** 2단계 신규 (`reset-verify`, `reset-password`). `/api/users/reset-request`·`/api/users/reset-verify`·`/api/users/reset-password` 연동. 로그인 화면 "비밀번호를 잊으셨나요?" 버튼.
+- 신규 — `app/m/video/[id]/page.tsx` **3-탭 구조**: 정보 / 학습 단계 / 자료. 학습 단계는 stages 배열 아코디언, 자료는 `/api/videos/[id]/attachments` lazy fetch + 다운로드 링크.
+- 변경 — YouTube embed에 `vq=hd1080` 옵션 추가 (데스크톱 v1.0.8 변경 반영).
+- 후속 보류 — v1.0.11: 영상 모달 댓글 탭, 레벨 테스트 모바일 진입점.
+- 영향 파일: `app/m/_components/MobileWelcome.tsx`, `app/m/video/[id]/page.tsx`, `android/app/build.gradle`, `docs/prd/android-app.md`.
 
 ### v1.0.9 — 2026-06-02 (웹 최신 반영 재빌드 — 마이페이지·비번 재설정·첨부파일·레벨테스트 포함)
 
