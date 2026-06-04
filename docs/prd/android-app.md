@@ -2,7 +2,7 @@
 
 - 최초 작성: 2026-05-29
 - 최종 갱신: 2026-05-29
-- 현재 버전: **versionCode 11 / versionName "1.0.10"**
+- 현재 버전: **versionCode 12 / versionName "1.0.11"**
 - 작성자/소유자: ohdongko + Claude
 - 범위: 안드로이드 앱(Capacitor + WebView) 운영 사양·정책·변경 이력
 
@@ -36,16 +36,16 @@
 
 | 항목 | 값 |
 |---|---|
-| versionCode | 11 |
-| versionName | 1.0.10 |
+| versionCode | 12 |
+| versionName | 1.0.11 |
 | applicationId | `kr.co.eland.aicampus` |
 | minSdkVersion | 24 (Android 7.0) |
 | compileSdkVersion | 36 |
 | targetSdkVersion | 36 |
 | Capacitor 버전 | 8.x |
-| 배포 상태 | **빌드 완료** (1.0.10 .aab 생성됨, Play Console 업로드 대기 — 모바일 UI 미반영 핫픽스) |
+| 배포 상태 | **빌드 완료** (1.0.11 .aab 생성됨, Play Console 업로드 대기) |
 | 배포 트랙 | Closed Testing 예정 |
-| 산출물 | `android/app/build/outputs/bundle/release/app-release.aab` (1.0.10 ≈ 3.90 MB) |
+| 산출물 | `android/app/build/outputs/bundle/release/app-release.aab` (1.0.11 ≈ 3.90 MB) |
 
 ## 3. 앱 식별 정보
 
@@ -227,6 +227,14 @@ test_ai_campus/
 | Capacitor 7 + targetSdk 36 호환 | 새 SDK 정책(예: 백그라운드 제한) 추적 필요 | Google Play 정책 알림 구독 |
 
 ## 11. 변경 이력
+
+### v1.0.11 — 2026-06-05 (versionCode-only 재빌드)
+
+**versionCode**: 12 / **versionName**: 1.0.11
+
+- 변경 — 코드/리소스 변경 없음. **versionCode 증가만** 수행.
+- 사유 — Play Console에 새 빌드 번호로 등록하기 위함.
+- 영향 파일: `android/app/build.gradle`(versionCode/Name), `docs/prd/android-app.md`(본 PRD).
 
 ### v1.0.10 — 2026-06-05 (모바일 UI 미반영 핫픽스 — 비번 정책·비번 재설정·영상 스테이지·첨부)
 
