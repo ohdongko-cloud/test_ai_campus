@@ -2,7 +2,7 @@
 
 - 최초 작성: 2026-05-29
 - 최종 갱신: 2026-05-29
-- 현재 버전: **versionCode 9 / versionName "1.0.8"**
+- 현재 버전: **versionCode 10 / versionName "1.0.9"**
 - 작성자/소유자: ohdongko + Claude
 - 범위: 안드로이드 앱(Capacitor + WebView) 운영 사양·정책·변경 이력
 
@@ -36,16 +36,16 @@
 
 | 항목 | 값 |
 |---|---|
-| versionCode | 9 |
-| versionName | 1.0.8 |
+| versionCode | 10 |
+| versionName | 1.0.9 |
 | applicationId | `kr.co.eland.aicampus` |
 | minSdkVersion | 24 (Android 7.0) |
 | compileSdkVersion | 36 |
 | targetSdkVersion | 36 |
 | Capacitor 버전 | 8.x |
-| 배포 상태 | **빌드 완료** (1.0.8 .aab 생성됨, Play Console 업로드 대기 — 웹 최신 반영) |
+| 배포 상태 | **빌드 완료** (1.0.9 .aab 생성됨, Play Console 업로드 대기 — 웹 최신 반영) |
 | 배포 트랙 | Closed Testing 예정 |
-| 산출물 | `android/app/build/outputs/bundle/release/app-release.aab` (1.0.8 ≈ 3.90 MB) |
+| 산출물 | `android/app/build/outputs/bundle/release/app-release.aab` (1.0.9 ≈ 3.90 MB) |
 
 ## 3. 앱 식별 정보
 
@@ -227,6 +227,21 @@ test_ai_campus/
 | Capacitor 7 + targetSdk 36 호환 | 새 SDK 정책(예: 백그라운드 제한) 추적 필요 | Google Play 정책 알림 구독 |
 
 ## 11. 변경 이력
+
+### v1.0.9 — 2026-06-02 (웹 최신 반영 재빌드 — 마이페이지·비번 재설정·첨부파일·레벨테스트 포함)
+
+**versionCode**: 10 / **versionName**: 1.0.9
+
+- 변경 — 안드로이드 네이티브/모바일 UI 코드 변경 없음. **Play Console에 새 빌드로 등록하기 위한 versionCode 증가**만 수행.
+- 사유 — 외부 URL 로딩 방식이라 웹 변경은 자동 반영되지만, 비공개 테스트 트랙에서 "업데이트 있음" 인식을 받기 위해 새 .aab 발행.
+- 포함된 웹 개선 (v1.0.8 이후 25+ 커밋):
+  - 계정 셀프서비스: 마이페이지(비번 변경/회원 탈퇴), 비밀번호 재설정 UI + API 5종 + DB M003
+  - 강의 영상: 첨부파일 업로드/다운로드(Vercel Blob), 스테이지 인라인 이미지, 시청 모달 UX 개선, 기본 보기 리스트로
+  - 레벨 테스트: 강의 첫 진입 적응형 1문제씩 + 맞춤 추천
+  - 관리자: 영상 드래그&드롭 순서 변경, 토스트 피드백
+  - 로그인: 비밀번호 16자 허용
+  - 첨부파일 업로드 다수 버그픽스 (FormData multipart, office 파일, 무한 fetch 루프)
+- 영향 파일: `android/app/build.gradle`(versionCode/Name), `docs/prd/android-app.md`(본 PRD).
 
 ### v1.0.8 — 2026-05-31 (웹 최신 반영 재빌드)
 
