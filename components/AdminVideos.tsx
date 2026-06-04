@@ -300,9 +300,11 @@ export default function AdminVideos() {
 
   const load = async () => {
     try {
+      // 캐시 우회 — mutation 직후 CDN 캐시(옛 응답) 대신 최신 DB 상태 반영
+      const bust = `_=${Date.now()}`;
       const [vRes, lRes] = await Promise.all([
-        fetch('/api/videos'),
-        fetch('/api/video-levels'),
+        fetch(`/api/videos?${bust}`, { cache: 'no-store' }),
+        fetch(`/api/video-levels?${bust}`, { cache: 'no-store' }),
       ]);
       const vids = vRes.ok ? await vRes.json() : [];
       const lvls = lRes.ok ? await lRes.json() : [];
@@ -503,6 +505,25 @@ export default function AdminVideos() {
     }
   };
 
+  // 레벨 순서 변경 (위/아래) — 낙관적 업데이트 + 실패 시 롤백
+  const moveLevel = async (idx: number, dir: -1 | 1) => {
+    const ni = idx + dir;
+    if (ni < 0 || ni >= levels.length) return;
+    const next = [...levels];
+    [next[idx], next[ni]] = [next[ni], next[idx]];
+    setLevelsState(next);
+    try {
+      const res = await adminFetch('/api/admin/video-levels/reorder', {
+        method: 'POST',
+        body: JSON.stringify({ ids: next.map(l => l.id) }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+    } catch (e) {
+      handleAdminError(e, '레벨 순서 변경에 실패했습니다.');
+      await load(); // 롤백
+    }
+  };
+
   // ── Stage helpers for add form ──
   const addNewStage = () => setNewStages(s => [...s, { id: generateId(), title: '', description: '' }]);
   const removeNewStage = (id: string) => setNewStages(s => s.filter(x => x.id !== id));
@@ -586,12 +607,20 @@ export default function AdminVideos() {
         {showLevelMgmt && (
           <div className="px-5 pb-5 border-t border-gray-100 pt-4">
             <div className="space-y-2 mb-4">
-              {levels.map(lv => (
+              {levels.map((lv, idx) => (
                 <div key={lv.id} className="flex items-center gap-2 p-2.5 border border-gray-100 rounded-lg bg-gray-50">
                   {editLevelId === lv.id ? (
                     <LevelEditRow level={lv} onSave={handleSaveLevel} onCancel={() => setEditLevelId(null)} />
                   ) : (
                     <>
+                      {/* 순서 변경 */}
+                      <div className="flex flex-col gap-0.5 shrink-0">
+                        <button onClick={() => moveLevel(idx, -1)} disabled={idx === 0}
+                          title="위로" className="text-gray-400 hover:text-gray-700 disabled:opacity-20 text-xs leading-none">▲</button>
+                        <button onClick={() => moveLevel(idx, 1)} disabled={idx === levels.length - 1}
+                          title="아래로" className="text-gray-400 hover:text-gray-700 disabled:opacity-20 text-xs leading-none">▼</button>
+                      </div>
+                      <span className="text-xs text-gray-400 font-mono w-4 shrink-0 text-center">{idx + 1}</span>
                       <span className="text-xs font-bold text-gray-800 w-16 shrink-0">{lv.name}</span>
                       <span className="text-xs text-gray-400 flex-1">{lv.description}</span>
                       <button onClick={() => setEditLevelId(lv.id)}
