@@ -24,8 +24,8 @@ const CAP_Q: Record<string, string> = {
 const VER_Q: Record<string, string> = {
   V1: 'DB 마이그레이션', V2: '환경변수 세팅', V3: '.env 푸시 가능? (정답:아니오)',
 };
-const CAP_A: Record<string, string> = { done: '✅ 해봤음', know: '📖 알고만', none: '❌ 모름' };
-const VER_A: Record<string, string> = { yes: '예', no: '아니오', unknown: '잘 모름' };
+// 모든 답변 통일: 예 / 아니오 / 모름
+const A_LABEL: Record<string, string> = { yes: '예', no: '아니오', unknown: '모름' };
 
 function fmtDate(iso: string): string {
   try {
@@ -163,14 +163,14 @@ export default function AdminLevelTests() {
                             {Object.entries(CAP_Q).map(([k, q]) => (
                               <div key={k} className="flex justify-between gap-3">
                                 <span className="text-gray-500">{q}</span>
-                                <span className="text-gray-800 font-medium whitespace-nowrap">{CAP_A[r.answers?.[k]] || '-'}</span>
+                                <span className="text-gray-800 font-medium whitespace-nowrap">{A_LABEL[r.answers?.[k]] || '–'}</span>
                               </div>
                             ))}
                             {Object.entries(VER_Q).map(([k, q]) => (
                               <div key={k} className="flex justify-between gap-3">
                                 <span className="text-gray-500">{q}</span>
                                 <span className={`font-medium whitespace-nowrap ${k === 'V3' && r.answers?.[k] === 'yes' ? 'text-red-600' : 'text-gray-800'}`}>
-                                  {VER_A[r.answers?.[k]] || '-'}
+                                  {A_LABEL[r.answers?.[k]] || '–'}
                                 </span>
                               </div>
                             ))}

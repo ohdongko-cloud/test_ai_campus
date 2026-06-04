@@ -19,37 +19,35 @@ interface Props {
   onSkip: () => void;
 }
 
-// 역량 문항 (해봤음/알고있음/모름)
-const CAP = [
-  { id: 'C1', text: 'AI 활용 사례를 접했고, PRD(요구사항 문서)가 뭔지 안다' },
-  { id: 'C2', text: '클로드 코드·코덱스로 직접 구현을 시켜봤다 (프로젝트 생성/지침/스킬 + 웹·PPT·엑셀 애드온)' },
-  { id: 'C3', text: '웹 서비스 배포 + 데이터베이스 연동을 해봤다' },
-  { id: 'C4', text: '로그 확인·봇 공격 차단·이메일 발송(SMTP)·SNS 로그인 중 해본 게 있다' },
-  { id: 'C5', text: '안드로이드/앱스토어 앱 또는 AI API 에이전트를 제작·운영해봤다' },
-  { id: 'C6', text: '하나의 업무를 완전 자동화해본 경험이 있다' },
-] as const;
+type Stage = '기초' | '중급' | '고급' | '마무리';
 
-const CAP_OPTS = [
-  { v: 'done', label: '✅ 해봤음' },
-  { v: 'know', label: '📖 알고만 있음' },
-  { v: 'none', label: '❌ 모름' },
+interface Question { id: string; stage: Stage; text: string; }
+
+// 모든 답변은 예(yes) / 아니오(no) / 모름(unknown) 으로 통일.
+const QUESTIONS: Question[] = [
+  { id: 'C1', stage: '기초', text: 'AI 활용 사례를 접해봤고, PRD(요구사항 문서)가 뭔지 아나요?' },
+  { id: 'C2', stage: '기초', text: '클로드 코드·코덱스로 직접 구현을 시켜본 적 있나요? (프로젝트 생성·지침·스킬, 웹·PPT·엑셀 애드온 포함)' },
+  { id: 'C3', stage: '중급', text: '웹 서비스 배포 + 데이터베이스 연동을 해본 적 있나요?' },
+  { id: 'C4', stage: '중급', text: '로그 확인·봇 공격 차단·이메일 발송(SMTP)·SNS 로그인 중 해본 게 있나요?' },
+  { id: 'V1', stage: '중급', text: 'DB 마이그레이션을 할 줄 아나요?' },
+  { id: 'V2', stage: '중급', text: '배포 시 환경변수 세팅을 해봤고 할 줄 아나요?' },
+  { id: 'C5', stage: '고급', text: '안드로이드/앱스토어 앱 또는 AI API 에이전트를 제작·운영해본 적 있나요?' },
+  { id: 'C6', stage: '고급', text: '하나의 업무를 완전 자동화해본 경험이 있나요?' },
+  { id: 'V3', stage: '마무리', text: '(상식) .env 파일을 GitHub에 그대로 푸시해도 되나요?' },
 ];
 
-// 검증 문항 (예/아니오/잘 모름)
-const VER = [
-  { id: 'V1', text: 'DB 마이그레이션을 할 줄 안다' },
-  { id: 'V2', text: '배포 시 환경변수 세팅을 해봤고 할 줄 안다' },
-  { id: 'V3', text: '(상식) .env 파일을 GitHub에 그대로 푸시해도 된다?' },
-] as const;
+const SEQ = QUESTIONS.map(q => q.id);
+const Q_BY_ID: Record<string, Question> = Object.fromEntries(QUESTIONS.map(q => [q.id, q]));
 
-const VER_OPTS = [
+const OPTIONS = [
   { v: 'yes', label: '예' },
   { v: 'no', label: '아니오' },
-  { v: 'unknown', label: '잘 모름' },
+  { v: 'unknown', label: '모름' },
 ];
 
-const LEVEL_ORDER = ['새싹', '초급', '중급', '고급'];
+const STAGE_PROGRESS: Record<Stage, number> = { '기초': 20, '중급': 55, '고급': 80, '마무리': 100 };
 
+const LEVEL_ORDER = ['새싹', '초급', '중급', '고급'];
 const LEVEL_DESC: Record<string, { emoji: string; desc: string }> = {
   '새싹': { emoji: '🌱', desc: 'AI를 막 시작한 단계예요. 사례와 기본 개념(PRD·NOA)부터 차근차근 시작해요!' },
   '초급': { emoji: '🚀', desc: 'AI 도구로 직접 만들어보기 시작한 단계! 구현 실습 위주로 추천해요.' },
@@ -57,82 +55,75 @@ const LEVEL_DESC: Record<string, { emoji: string; desc: string }> = {
   '고급': { emoji: '🏆', desc: '앱·에이전트·자동화까지 경험한 단계. 심화 레퍼런스를 추천해요!' },
 };
 
-function computeResult(
-  cap: Record<string, string>,
-  ver: Record<string, string>,
-): LevelResult {
+// 적응형 다음 질문 — 어차피 결과를 못 바꾸는 상위 질문은 생략.
+function nextId(id: string, answers: Record<string, string>): string | null {
+  if (id === 'V3') return null;
+  // 초급 게이트: 직접 구현(C2)을 안 해봤으면 → 바로 마무리(보안)
+  if (id === 'C2' && answers.C2 !== 'yes') return 'V3';
+  // 중급 게이트: 배포+DB(C3)도 로그/봇/SMTP/SNS(C4)도 안 해봤으면 → 마무리로
+  if (id === 'C4' && answers.C3 !== 'yes' && answers.C4 !== 'yes') return 'V3';
+  const i = SEQ.indexOf(id);
+  return SEQ[i + 1] ?? null;
+}
+
+function computeResult(a: Record<string, string>): LevelResult {
   let level: string;
-  if (cap.C6 === 'done' || cap.C5 === 'done') level = '고급';
-  else if (cap.C3 === 'done' || cap.C4 === 'done') level = '중급';
-  else if (cap.C2 === 'done') level = '초급';
+  if (a.C6 === 'yes' || a.C5 === 'yes') level = '고급';
+  else if (a.C3 === 'yes' || a.C4 === 'yes') level = '중급';
+  else if (a.C2 === 'yes') level = '초급';
   else level = '새싹';
 
   // 검증 보정: 중급·고급인데 V1·V2 둘 다 '예'가 아니면 한 단계 하향
-  if ((level === '중급' || level === '고급') && !(ver.V1 === 'yes' && ver.V2 === 'yes')) {
+  if ((level === '중급' || level === '고급') && !(a.V1 === 'yes' && a.V2 === 'yes')) {
     level = LEVEL_ORDER[Math.max(0, LEVEL_ORDER.indexOf(level) - 1)];
   }
-  // 보안 플래그: V3에 '예'(틀림) → 보안 인지 부족
-  const securityFlag = ver.V3 === 'yes';
+  const securityFlag = a.V3 === 'yes'; // .env 푸시해도 된다 = 틀림
   return { level, securityFlag };
 }
 
 export default function LevelTest({ onComplete, onSkip }: Props) {
-  const [cap, setCap] = useState<Record<string, string>>({});
-  const [ver, setVer] = useState<Record<string, string>>({});
+  const [path, setPath] = useState<string[]>(['C1']);
+  const [pos, setPos] = useState(0);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [picking, setPicking] = useState<string | null>(null);
   const [result, setResult] = useState<LevelResult | null>(null);
 
-  const total = CAP.length + VER.length;
-  const answered = Object.keys(cap).length + Object.keys(ver).length;
-  const allDone = answered === total;
+  const currentId = path[pos];
+  const q = Q_BY_ID[currentId];
 
-  const submit = () => {
-    const r = computeResult(cap, ver);
+  const finish = (a: Record<string, string>) => {
+    const r = computeResult(a);
     setResult(r);
-    // 검증내역 기록 (fire-and-forget)
     fetch('/api/level-test', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ level: r.level, answers: { ...cap, ...ver }, securityFlag: r.securityFlag }),
-    }).catch(() => { /* 기록 실패는 무시 */ });
+      body: JSON.stringify({ level: r.level, answers: a, securityFlag: r.securityFlag }),
+    }).catch(() => { /* 기록 실패 무시 */ });
   };
 
-  const OptionRow = ({
-    qid, text, opts, value, onPick,
-  }: {
-    qid: string; text: string; opts: { v: string; label: string }[];
-    value: string | undefined; onPick: (v: string) => void;
-  }) => (
-    <div style={{ marginBottom: 14 }}>
-      <div style={{ fontSize: 13.5, fontWeight: 600, color: T.text, marginBottom: 8, lineHeight: 1.5 }}>{text}</div>
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-        {opts.map(o => {
-          const on = value === o.v;
-          return (
-            <button
-              key={o.v}
-              onClick={() => onPick(o.v)}
-              style={{
-                flex: '1 1 0', minWidth: 88, padding: '8px 10px', borderRadius: T.r,
-                border: `1.5px solid ${on ? T.primary : T.border}`,
-                background: on ? T.primaryLight : T.surface,
-                color: on ? T.primary : T.textBody,
-                fontSize: 12.5, fontWeight: on ? 700 : 500, cursor: 'pointer', fontFamily: T.fontKo,
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {o.label}
-            </button>
-          );
-        })}
-      </div>
-      {qid === 'V3' && value === 'yes' && (
-        <div style={{ fontSize: 11.5, color: T.danger, marginTop: 5 }}>
-          ⚠️ .env에는 비밀번호·토큰이 들어있어 GitHub에 올리면 안 돼요. 보안 공통 영상을 꼭 확인하세요!
-        </div>
-      )}
-    </div>
-  );
+  const pick = (value: string) => {
+    if (picking) return;
+    setPicking(value);
+    const newAnswers = { ...answers, [currentId]: value };
+    // 선택을 잠깐 보여준 뒤 자동으로 다음 문제
+    setTimeout(() => {
+      setAnswers(newAnswers);
+      const next = nextId(currentId, newAnswers);
+      if (next) {
+        setPath([...path.slice(0, pos + 1), next]);
+        setPos(pos + 1);
+      } else {
+        finish(newAnswers);
+      }
+      setPicking(null);
+    }, 220);
+  };
+
+  const back = () => { if (pos > 0 && !picking) setPos(pos - 1); };
+
+  const selectedValue = picking ?? answers[currentId];
+  const questionNo = pos + 1;
 
   return (
     <div
@@ -145,20 +136,17 @@ export default function LevelTest({ onComplete, onSkip }: Props) {
     >
       <div
         style={{
-          background: T.surface, borderRadius: T.r3, width: '100%', maxWidth: 480,
-          maxHeight: 'calc(100vh - 32px)', overflowY: 'auto',
-          boxShadow: '0 16px 48px rgba(15,30,51,0.24)',
+          background: T.surface, borderRadius: T.r3, width: '100%', maxWidth: 460,
+          boxShadow: '0 16px 48px rgba(15,30,51,0.24)', overflow: 'hidden',
         }}
       >
         {result ? (
-          // ── 결과 화면 ──
+          // ── 결과 ──
           <div style={{ padding: '32px 28px', textAlign: 'center' }}>
             <div style={{ fontSize: 56, marginBottom: 8 }}>{LEVEL_DESC[result.level].emoji}</div>
             <div style={{ fontSize: 14, color: T.textMuted, marginBottom: 4 }}>당신의 레벨은</div>
-            <div style={{ fontSize: 34, fontWeight: 800, color: T.primary, marginBottom: 14 }}>
-              {result.level}
-            </div>
-            <p style={{ fontSize: 14, color: T.textBody, lineHeight: 1.6, margin: '0 0 8px' }}>
+            <div style={{ fontSize: 34, fontWeight: 800, color: T.primary, marginBottom: 14 }}>{result.level}</div>
+            <p style={{ fontSize: 14, color: T.textBody, lineHeight: 1.6, margin: 0 }}>
               {LEVEL_DESC[result.level].desc}
             </p>
             {result.securityFlag && (
@@ -181,69 +169,96 @@ export default function LevelTest({ onComplete, onSkip }: Props) {
             </button>
           </div>
         ) : (
-          // ── 문항 화면 ──
+          // ── 한 문제씩 ──
           <>
-            <div style={{ padding: '24px 28px 0' }}>
-              <h2 style={{ margin: 0, fontSize: 19, fontWeight: 800, color: T.text }}>
-                1분 레벨 테스트 🎯
-              </h2>
-              <p style={{ margin: '6px 0 0', fontSize: 13, color: T.textMuted, lineHeight: 1.5 }}>
-                간단히 답하면 <b>나에게 맞는 강의</b>를 추천해드려요. 솔직하게 골라주세요!
+            <div style={{ padding: '22px 28px 0' }}>
+              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: T.text }}>1분 레벨 테스트 🎯</h2>
+              <p style={{ margin: '5px 0 0', fontSize: 12.5, color: T.textMuted }}>
+                해당하면 <b>예</b>, 아니면 <b>아니오</b>, 애매하면 <b>모름</b>을 골라주세요.
               </p>
-              {/* 진행도 */}
+              {/* 진행바 */}
               <div style={{ marginTop: 14, height: 6, background: T.bg, borderRadius: 999, overflow: 'hidden' }}>
-                <div style={{
-                  width: `${(answered / total) * 100}%`, height: '100%',
-                  background: T.primary, transition: 'width .2s',
-                }} />
-              </div>
-              <div style={{ fontSize: 11, color: T.textFaint, marginTop: 4, textAlign: 'right' }}>
-                {answered} / {total}
+                <div style={{ width: `${STAGE_PROGRESS[q.stage]}%`, height: '100%', background: T.primary, transition: 'width .25s' }} />
               </div>
             </div>
 
-            <div style={{ padding: '16px 28px 8px' }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: T.textMuted, letterSpacing: '0.04em', marginBottom: 10 }}>
-                💡 알고 있거나 직접 해본 적 있나요?
+            <div style={{ padding: '20px 28px 8px' }}>
+              {/* 단계 칩 + 번호 */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                <span style={{
+                  fontSize: 11, fontWeight: 700, color: T.primary, background: T.primaryLight,
+                  padding: '3px 10px', borderRadius: 999,
+                }}>{q.stage}</span>
+                <span style={{ fontSize: 12, color: T.textFaint, fontWeight: 600 }}>질문 {questionNo}</span>
               </div>
-              {CAP.map(q => (
-                <OptionRow key={q.id} qid={q.id} text={q.text} opts={CAP_OPTS}
-                  value={cap[q.id]} onPick={v => setCap(s => ({ ...s, [q.id]: v }))} />
-              ))}
 
-              <div style={{ fontSize: 12, fontWeight: 700, color: T.textMuted, letterSpacing: '0.04em', margin: '8px 0 10px', paddingTop: 8, borderTop: `1px solid ${T.border}` }}>
-                ✔️ 추가 확인
+              {/* 질문 (번호 포함) */}
+              <div style={{ fontSize: 16, fontWeight: 700, color: T.text, lineHeight: 1.5, marginBottom: 18, minHeight: 72 }}>
+                <span style={{ color: T.primary, marginRight: 6 }}>Q{questionNo}.</span>{q.text}
               </div>
-              {VER.map(q => (
-                <OptionRow key={q.id} qid={q.id} text={q.text} opts={VER_OPTS}
-                  value={ver[q.id]} onPick={v => setVer(s => ({ ...s, [q.id]: v }))} />
-              ))}
+
+              {/* 선택지 — 이모지 없음, 선택 시에만 ✓ */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {OPTIONS.map(o => {
+                  const on = selectedValue === o.v;
+                  return (
+                    <button
+                      key={o.v}
+                      onClick={() => pick(o.v)}
+                      disabled={!!picking}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        width: '100%', padding: '14px 16px', borderRadius: T.r2,
+                        border: `1.5px solid ${on ? T.primary : T.border}`,
+                        background: on ? T.primaryLight : T.surface,
+                        color: on ? T.primary : T.textBody,
+                        fontSize: 15, fontWeight: on ? 700 : 500, cursor: picking ? 'default' : 'pointer',
+                        fontFamily: T.fontKo, textAlign: 'left', transition: 'all .12s',
+                      }}
+                    >
+                      <span style={{
+                        width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
+                        border: `2px solid ${on ? T.primary : '#C7D0DD'}`,
+                        background: on ? T.primary : 'transparent',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        {on && (
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M5 12l5 5L20 7" />
+                          </svg>
+                        )}
+                      </span>
+                      {o.label}
+                      {o.v === 'unknown' && q.id === 'V3' && (
+                        <span style={{ marginLeft: 'auto', fontSize: 11, color: T.textFaint }}>괜찮아요!</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
-            <div style={{
-              position: 'sticky', bottom: 0, background: T.surface,
-              borderTop: `1px solid ${T.border}`, padding: '14px 28px', display: 'flex', gap: 10,
-            }}>
+            {/* 하단 */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 28px 20px' }}>
+              <button
+                onClick={back}
+                disabled={pos === 0 || !!picking}
+                style={{
+                  border: 'none', background: 'transparent', cursor: pos === 0 ? 'default' : 'pointer',
+                  color: pos === 0 ? T.textFaint : T.textMuted, fontSize: 13, fontWeight: 600,
+                  fontFamily: T.fontKo, opacity: pos === 0 ? 0.4 : 1,
+                }}
+              >
+                ← 이전
+              </button>
               <button
                 onClick={onSkip}
                 style={{
-                  flex: '0 0 90px', height: 46, borderRadius: T.r,
-                  border: `1px solid ${T.border}`, background: 'transparent',
-                  color: T.textMuted, fontSize: 14, fontWeight: 500, cursor: 'pointer', fontFamily: T.fontKo,
+                  border: 'none', background: 'transparent', cursor: 'pointer',
+                  color: T.textFaint, fontSize: 13, fontWeight: 500, fontFamily: T.fontKo,
                 }}
               >
                 건너뛰기
-              </button>
-              <button
-                onClick={submit}
-                disabled={!allDone}
-                style={{
-                  flex: 1, height: 46, borderRadius: T.r, border: 'none',
-                  background: allDone ? T.primary : '#AFC0D6', color: '#fff',
-                  fontSize: 15, fontWeight: 700, cursor: allDone ? 'pointer' : 'not-allowed', fontFamily: T.fontKo,
-                }}
-              >
-                {allDone ? '결과 보기' : `${total - answered}개 남음`}
               </button>
             </div>
           </>
