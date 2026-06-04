@@ -59,6 +59,22 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // M004: level_tests 테이블 (레벨 테스트 검증내역)
+  try {
+    await sql`
+      CREATE TABLE IF NOT EXISTS level_tests (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        email TEXT,
+        level TEXT NOT NULL,
+        answers JSONB NOT NULL,
+        security_flag BOOLEAN NOT NULL DEFAULT false,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      )`;
+    results.push({ id: 'M004', status: 'ok', message: 'level_tests 테이블 생성 완료' });
+  } catch (e) {
+    results.push({ id: 'M004', status: 'error', message: String(e) });
+  }
+
   const hasError = results.some(r => r.status === 'error');
   return NextResponse.json({ ok: !hasError, results }, { status: hasError ? 500 : 200 });
 }

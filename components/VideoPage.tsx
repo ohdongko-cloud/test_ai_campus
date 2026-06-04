@@ -4,6 +4,10 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { Video, VideoLevel, VideoStats, VideoComment } from '../lib/types';
 import { extractVideoId, getSessionId } from '../lib/utils';
 import { enableSecureScreen, disableSecureScreen } from '../lib/secureScreen';
+import LevelTest, { LevelResult } from './LevelTest';
+
+// 레벨 테스트 결과와 무관하게 항상 추천에 포함되는 콘텐츠 레벨
+const ALWAYS_RECOMMENDED = ['공통', '레퍼런스'];
 import StageImageLightbox from './StageImageLightbox';
 
 function youtubeThumb(youtubeUrl: string): string | null {
@@ -65,6 +69,9 @@ export default function VideoPage() {
   const [search, setSearch] = useState('');
   const [levelFilter, setLevelFilter] = useState('전체');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
+  // 레벨 테스트
+  const [userLevel, setUserLevel] = useState<string | null>(null);
+  const [showLevelTest, setShowLevelTest] = useState(false);
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
   const [hoverCard, setHoverCard] = useState<string | null>(null);
   const [openStageIdx, setOpenStageIdx] = useState<number | null>(null);
@@ -113,6 +120,35 @@ export default function VideoPage() {
       })
       .catch(() => {});
   }, []);
+
+  // 레벨 테스트: 저장된 레벨 복원 + 첫 진입 시 테스트 노출
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('videoLevel');
+      if (saved) {
+        setUserLevel(saved);
+        setLevelFilter('추천');
+      }
+      if (!localStorage.getItem('levelTestDone')) {
+        setShowLevelTest(true);
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  const handleLevelComplete = (r: LevelResult) => {
+    try {
+      localStorage.setItem('videoLevel', r.level);
+      localStorage.setItem('levelTestDone', '1');
+    } catch { /* ignore */ }
+    setUserLevel(r.level);
+    setLevelFilter('추천');
+    setShowLevelTest(false);
+  };
+
+  const handleLevelSkip = () => {
+    try { localStorage.setItem('levelTestDone', '1'); } catch { /* ignore */ }
+    setShowLevelTest(false);
+  };
 
   const submitRequest = async () => {
     if (!reqTitle.trim() || !reqContent.trim()) return;
@@ -351,8 +387,14 @@ export default function VideoPage() {
 
   const levelNames = levels.map(l => l.name);
 
+  // 추천 = 본인 레벨 + 공통 + 레퍼런스
+  const recommendedLevels = userLevel ? [userLevel, ...ALWAYS_RECOMMENDED] : ALWAYS_RECOMMENDED;
+
   const filtered = videos.filter(v => {
-    const matchLevel = levelFilter === '전체' || v.level === levelFilter;
+    const matchLevel =
+      levelFilter === '전체' ? true
+      : levelFilter === '추천' ? recommendedLevels.includes(v.level)
+      : v.level === levelFilter;
     const matchSearch =
       v.title.toLowerCase().includes(search.toLowerCase()) ||
       v.description.toLowerCase().includes(search.toLowerCase());
@@ -485,6 +527,7 @@ export default function VideoPage() {
   };
 
   const sidebarItems = [
+    ...(userLevel ? [{ id: '추천', count: videos.filter(v => recommendedLevels.includes(v.level)).length }] : []),
     { id: '전체', count: videos.length },
     ...levelNames.map(name => ({ id: name, count: levelCounts[name] || 0 })),
   ];
@@ -877,25 +920,43 @@ export default function VideoPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
               {sidebarItems.map(lv => {
                 const on = levelFilter === lv.id;
+                const isReco = lv.id === '추천';
                 return (
                   <button
                     key={lv.id}
                     onClick={() => setLevelFilter(lv.id)}
                     style={{
                       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      padding: '10px 12px', borderRadius: T.r, border: 'none',
-                      background: on ? T.primaryLight : 'transparent',
-                      color: on ? T.primary : T.textBody,
-                      cursor: 'pointer', fontSize: 14, fontWeight: on ? 600 : 500,
+                      padding: '10px 12px', borderRadius: T.r,
+                      border: isReco ? `1px solid ${on ? T.primary : T.secondaryLight}` : 'none',
+                      background: on ? T.primaryLight : (isReco ? T.secondaryLight : 'transparent'),
+                      color: on ? T.primary : (isReco ? T.secondaryDark : T.textBody),
+                      cursor: 'pointer', fontSize: 14, fontWeight: on || isReco ? 600 : 500,
                       fontFamily: T.fontKo, transition: 'background .12s',
                     }}
                   >
-                    <span>{lv.id}</span>
+                    <span>{isReco ? `⭐ 추천${userLevel ? ` (${userLevel})` : ''}` : lv.id}</span>
                     <span style={{ fontSize: 12, color: on ? T.primary : T.textFaint, fontWeight: 600 }}>{lv.count}</span>
                   </button>
                 );
               })}
             </div>
+
+            {/* 레벨 테스트 다시하기 */}
+            <button
+              onClick={() => setShowLevelTest(true)}
+              style={{
+                marginTop: 10, width: '100%', padding: '8px 12px',
+                border: `1px dashed ${T.border}`, borderRadius: T.r, background: 'transparent',
+                color: T.textMuted, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                fontFamily: T.fontKo, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+              </svg>
+              레벨 테스트 다시하기
+            </button>
 
             {/* 학습 팁 */}
             <div style={{
@@ -1023,6 +1084,11 @@ export default function VideoPage() {
           )}
         </div>
       </div>
+
+      {/* 레벨 테스트 모달 */}
+      {showLevelTest && (
+        <LevelTest onComplete={handleLevelComplete} onSkip={handleLevelSkip} />
+      )}
 
       {/* 강의 요청 모달 */}
       {showRequest && (

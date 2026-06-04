@@ -5,6 +5,7 @@ import { AdminTabType } from '../lib/types';
 import AdminStats from './AdminStats';
 import AdminVideos from './AdminVideos';
 import AdminLectureRequests from './AdminLectureRequests';
+import AdminLevelTests from './AdminLevelTests';
 import AdminMeetings from './AdminMeetings';
 import AdminChatroom from './AdminChatroom';
 import AdminServices from './AdminServices';
@@ -30,6 +31,7 @@ const TABS: TabInfo[] = [
   { key: 'stats',    label: '통계 현황',         perm: 'stats' },
   { key: 'videos',   label: '영상 관리',         perm: 'videos' },
   { key: 'lectureRequests', label: '강의 요청',  perm: 'videos' },
+  { key: 'levelTests', label: '레벨 테스트',     perm: 'members' },
   { key: 'meetings', label: '미팅 관리',         perm: 'meetings' },
   { key: 'chatroom', label: '오픈채팅방 관리',   perm: 'chatroom' },
   { key: 'services', label: '서비스 공유 관리',  perm: 'services' },
@@ -87,6 +89,7 @@ export default function AdminDashboard({ onExit }: Props) {
       case 'stats': return <AdminStats />;
       case 'videos': return <AdminVideos />;
       case 'lectureRequests': return <AdminLectureRequests />;
+      case 'levelTests': return <AdminLevelTests />;
       case 'meetings': return <AdminMeetings />;
       case 'chatroom': return <AdminChatroom />;
       case 'services': return <AdminServices />;
