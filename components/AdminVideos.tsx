@@ -87,10 +87,11 @@ function VideoEditRow({ video, onSave, onCancel }: {
   );
 }
 
-function StageEditor({ videoId, initialStages, onSave }: {
+function StageEditor({ videoId, initialStages, onSave, onToast }: {
   videoId: string;
   initialStages: VideoStage[];
   onSave: (id: string, stages: VideoStage[]) => void;
+  onToast: (text: string, type?: 'success' | 'error') => void;
 }) {
   const [list, setList] = useState<VideoStage[]>(initialStages);
   const [saved, setSaved] = useState(false);
@@ -112,11 +113,12 @@ function StageEditor({ videoId, initialStages, onSave }: {
     const arr = Array.from(files);
     const current = stage.images || [];
     if (current.length + arr.length > 10) {
-      window.alert('스테이지당 최대 10장까지 등록 가능합니다.');
+      onToast('스테이지당 최대 10장까지 등록 가능합니다.', 'error');
       return;
     }
     setUploadingStage(stage.id);
     const newUrls: string[] = [];
+    let failed = false;
     for (const f of arr) {
       try {
         const fd = new FormData();
@@ -128,13 +130,15 @@ function StageEditor({ videoId, initialStages, onSave }: {
         });
         if (!res.ok) {
           const d = await res.json().catch(() => ({}));
-          window.alert(d?.error || `이미지 업로드 실패: ${f.name}`);
+          onToast(d?.error || `이미지 업로드 실패: ${f.name}`, 'error');
+          failed = true;
           break;
         }
         const data = await res.json() as { url: string };
         newUrls.push(data.url);
       } catch {
-        window.alert('이미지 업로드에 실패했습니다.');
+        onToast('이미지 업로드에 실패했습니다.', 'error');
+        failed = true;
         break;
       }
     }
@@ -143,6 +147,7 @@ function StageEditor({ videoId, initialStages, onSave }: {
       setList(s => s.map(x => x.id === stage.id
         ? { ...x, images: [...(x.images || []), ...newUrls] }
         : x));
+      if (!failed) onToast(`이미지 ${newUrls.length}장이 추가되었습니다.`);
     }
   };
   const handleRemoveImage = async (stage: VideoStage, url: string) => {
@@ -150,6 +155,7 @@ function StageEditor({ videoId, initialStages, onSave }: {
     setList(s => s.map(x => x.id === stage.id
       ? { ...x, images: (x.images || []).filter(u => u !== url) }
       : x));
+    onToast('이미지가 삭제되었습니다.');
     try {
       await adminFetch(`/api/admin/videos/${encodeURIComponent(videoId)}/stages/images`, {
         method: 'DELETE',
@@ -268,7 +274,7 @@ function StageEditor({ videoId, initialStages, onSave }: {
 export default function AdminVideos() {
   const [videos, setVideosState] = useState<Video[]>([]);
   const [levels, setLevelsState] = useState<VideoLevel[]>([]);
-  const [msg, setMsg] = useState('');
+  const [toast, setToast] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [editStagesId, setEditStagesId] = useState<string | null>(null);
   const [editAttachmentsId, setEditAttachmentsId] = useState<string | null>(null);
@@ -313,14 +319,18 @@ export default function AdminVideos() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const flash = (t: string) => { setMsg(t); setTimeout(() => setMsg(''), 3000); };
+  // 자동으로 사라지는 토스트 (성공 2.5초 / 실패 3.5초). 닫기 버튼 없음.
+  const flash = (t: string, type: 'success' | 'error' = 'success') => {
+    setToast({ text: t, type });
+    setTimeout(() => setToast(null), type === 'error' ? 3500 : 2500);
+  };
 
   // 어드민 호출 공통 에러 처리
   const handleAdminError = async (e: unknown, fallback: string) => {
     if (e instanceof AdminAuthError) {
-      flash('관리자 세션이 만료되었습니다. 다시 로그인해주세요.');
+      flash('관리자 세션이 만료되었습니다. 다시 로그인해주세요.', 'error');
     } else {
-      flash(fallback);
+      flash(fallback, 'error');
     }
   };
 
@@ -434,6 +444,7 @@ export default function AdminVideos() {
       });
       if (!res.ok) throw new Error(await res.text());
       await load();
+      flash('저장되었습니다.');
     } catch (e) {
       handleAdminError(e, '스테이지 저장에 실패했습니다.');
     }
@@ -504,8 +515,30 @@ export default function AdminVideos() {
 
   return (
     <div className="space-y-6">
-      {msg && (
-        <div className="bg-green-50 border border-green-200 text-green-800 rounded p-3 text-sm">{msg}</div>
+      {/* 자동으로 사라지는 저장 토스트 — 화면 상단 중앙 고정, 닫기 버튼 없음 */}
+      {toast && (
+        <div
+          style={{
+            position: 'fixed', top: 20, left: '50%', transform: 'translateX(-50%)',
+            zIndex: 9999, pointerEvents: 'none',
+          }}
+        >
+          <div
+            role="status"
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '11px 20px', borderRadius: 999,
+              fontSize: 14, fontWeight: 700, color: '#fff',
+              background: toast.type === 'success' ? '#1E9E6A' : '#D8364C',
+              boxShadow: '0 8px 24px rgba(15,30,51,0.22)',
+              animation: 'av-toast-in .22s ease',
+            }}
+          >
+            <span style={{ fontSize: 16 }}>{toast.type === 'success' ? '✓' : '⚠'}</span>
+            {toast.text}
+          </div>
+          <style>{`@keyframes av-toast-in{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}`}</style>
+        </div>
       )}
 
       {/* 삭제 확인 팝업 */}
@@ -695,7 +728,7 @@ export default function AdminVideos() {
               </div>
               {/* 스테이지 편집 패널 */}
               {editStagesId === v.id && !isEditing && (
-                <StageEditor videoId={v.id} initialStages={v.stages || []} onSave={updateVideoStages} />
+                <StageEditor videoId={v.id} initialStages={v.stages || []} onSave={updateVideoStages} onToast={flash} />
               )}
               {/* 첨부파일 관리 패널 */}
               {editAttachmentsId === v.id && !isEditing && (
