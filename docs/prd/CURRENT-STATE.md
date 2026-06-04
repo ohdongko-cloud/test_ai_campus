@@ -4,7 +4,7 @@
 - 최종 갱신: 2026-05-30
 - 현재 버전: **v1.0-rc** (시연 직전)
 - 운영 URL: https://retail-ai-campus.vercel.app
-- 작성자/소유자: ohdongko + Claude
+- 작성자/소유자: <오너> + Claude
 
 > **이 문서의 목적**
 > 새 작업 세션을 시작할 때 "지금 라이브는 어떤 상태인가"를 1분 안에 파악할 수 있게 한다.
@@ -100,8 +100,8 @@
 | 변수 | 용도 | 비고 |
 |---|---|---|
 | `DATABASE_URL` | Neon 연결 문자열 (Pooled) | 필수 |
-| `ADMIN_PASSWORD` | 관리자 로그인 (master 권한) | 필수, 운영에서 `admin2026` 사용 시 503 |
-| `MASTER_ADMIN_EMAILS` | 마스터 관리자 이메일 화이트리스트 | `ohdongko@gmail.com` |
+| `ADMIN_PASSWORD` | 관리자 로그인 (master 권한) | 필수, 운영에서 `<기본-비밀번호>` 사용 시 503 |
+| `MASTER_ADMIN_EMAILS` | 마스터 관리자 이메일 화이트리스트 | `<마스터-이메일>` |
 | `JWT_SECRET` | 세션 토큰 서명 | 32바이트+ hex |
 | `RESEND_API_KEY` / `EMAIL_FROM` | 이메일 발송 | Resend 무료 한도 주의 |
 | `UPSTASH_REDIS_REST_URL` / `_TOKEN` | 레이트리밋 | 미설정 시 in-memory fallback |
@@ -154,7 +154,7 @@
 | 모니터링 | Sentry — 운영 이슈 자동 수집 + Slack 미설정 |
 | 부하 검증 | `scripts/load-test.mjs` (Node 18+ 내장 fetch) |
 | 안드로이드 | Capacitor .aab 빌드 완료 (versionCode 1), Play Console 업로드 대기 |
-| 마스터 관리자 | `ohdongko@gmail.com` (회원 로그인만으로 자동 부여) |
+| 마스터 관리자 | `<마스터-이메일>` (회원 로그인만으로 자동 부여) |
 
 ---
 

@@ -1,7 +1,7 @@
 # PRD: 관리자 역할·권한 시스템 + 홈 워딩 3건
 
 - 작성일: 2026-05-26
-- 작성자: Claude (요청자: ohdongko)
+- 작성자: Claude (요청자: <오너>)
 - 범위: 권한 모델 (DB + API + UI) + 마스터/위임 관리자 관리 UI + 홈 카드 텍스트 3건
 
 ---
@@ -153,7 +153,7 @@ CREATE INDEX IF NOT EXISTS users_role_idx ON users (role) WHERE role = 'admin';
 ```
 
 ### 환경변수 (Vercel)
-- `MASTER_ADMIN_EMAILS` — 신규 (쉼표 구분, 예: `ohdongko@gmail.com,owner@eland.co.kr`). 한시적으로 `ohdongko@gmail.com` 포함.
+- `MASTER_ADMIN_EMAILS` — 신규 (쉼표 구분, 예: `<마스터-이메일>,owner@eland.co.kr`). 한시적으로 `<마스터-이메일>` 포함.
 
 ### 데이터 이행
 - 기존 회원 모두 `role='user'` 기본값으로 유지.
@@ -219,8 +219,8 @@ CREATE INDEX IF NOT EXISTS users_role_idx ON users (role) WHERE role = 'admin';
 
 1. SQL 마이그레이션 (`apply-role-permissions.mjs`).
 2. 코드 push → Vercel 자동 배포.
-3. Vercel env `MASTER_ADMIN_EMAILS=ohdongko@gmail.com` 추가 → Redeploy.
-4. ohdongko@gmail.com 로그인 → 관리자 모드 → "관리자 관리"에서 다른 직원 권한 부여 시나리오 테스트.
+3. Vercel env `MASTER_ADMIN_EMAILS=<마스터-이메일>` 추가 → Redeploy.
+4. <마스터-이메일> 로그인 → 관리자 모드 → "관리자 관리"에서 다른 직원 권한 부여 시나리오 테스트.
 
 ## 12. 미해결 질문
 

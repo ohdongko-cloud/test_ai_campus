@@ -1,7 +1,7 @@
 # PRD: 스테이지 인라인 이미지 (펼침 시 자동 노출)
 
 - 작성일: 2026-05-30
-- 작성자: ohdongko + Claude
+- 작성자: <오너> + Claude
 - 관련 시스템: `videos.stages` JSONB, `components/AdminVideos.tsx`(StageEditor), `components/VideoPage.tsx`(stagesPanel)
 - 영향 버전: v1.0-rc → v1.0-rc+1
 

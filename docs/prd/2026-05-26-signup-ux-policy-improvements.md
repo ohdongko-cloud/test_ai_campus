@@ -1,7 +1,7 @@
 # PRD: 회원가입 UX·정책 개선
 
 - 작성일: 2026-05-26
-- 작성자: Claude (요청자: ohdongko)
+- 작성자: Claude (요청자: <오너>)
 - 범위: WelcomePopup + 비번 정책 + 가입 직후 분기
 
 ---

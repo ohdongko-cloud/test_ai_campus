@@ -1,7 +1,7 @@
 # PRD: 관리자 일괄 임포트 도구 (PC localStorage → DB)
 
 - 작성일: 2026-05-26
-- 작성자: Claude (요청자: ohdongko)
+- 작성자: Claude (요청자: <오너>)
 - 범위: 어드민 UI 모달 + 단일 서버 엔드포인트
 - 관련 파일: `app/api/admin/import/route.ts` (신규), `components/AdminDashboard.tsx` (수정), `components/AdminImport.tsx` (신규)
 

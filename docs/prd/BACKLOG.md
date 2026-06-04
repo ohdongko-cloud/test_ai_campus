@@ -45,7 +45,7 @@
 - [ ] `scripts/load-test.mjs` 로 500명 동접 시뮬레이션 1회 (실측치 확보)
 
 ### 5. 보안 마무리
-- [ ] `ADMIN_PASSWORD` 운영 값 점검 (현재 strong random 인지 확인, 만약 `admin2026`이면 503 응답 — env에서 즉시 교체)
+- [ ] `ADMIN_PASSWORD` 운영 값 점검 (현재 strong random 인지 확인, 만약 `<기본-비밀번호>`이면 503 응답 — env에서 즉시 교체)
 - [ ] `JWT_SECRET` 32바이트+ 검증
 - [ ] `CRON_SECRET` 강도 검증
 - [ ] master/admin 권한 분리 — 위임 관리자(`AdminUsersManage.tsx`)에 권한 부여 시 audit 로그 추가

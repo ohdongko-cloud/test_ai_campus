@@ -1,7 +1,7 @@
 # PRD: 1,800명 공개 오픈 대비 보안·로깅·회원/로그인 개편
 
 - 작성일: 2026-05-26
-- 작성자: Claude (요청자: ohdongko)
+- 작성자: Claude (요청자: <오너>)
 - 배포 일정: 1주일 뒤 전 직원(1,800명) 공개 오픈
 - 범위: P0 보안 보강 + 접속·인증 로그 + 회원가입 이메일 인증 + 회원 필드 변경 + 간편 비번 + 자동로그인
 
@@ -13,7 +13,7 @@
 
 ### 현재 진단된 문제
 **A. 보안 (P0~P1)**
-- 관리자 비번이 `admin2026` 기본값 그대로 코드에 노출, 평문 헤더로 매 요청 전송, 레이트리밋 0.
+- 관리자 비번이 `<기본-비밀번호>` 기본값 그대로 코드에 노출, 평문 헤더로 매 요청 전송, 레이트리밋 0.
 - `/api/users/exists` 이메일 enumeration 자유 — 1,800명 이메일 추측 가능.
 - 회원 로그인이 세션 토큰 없음 → 클라이언트 표시만으로 "로그인 상태" 처리.
 - 댓글 in-memory 레이트리밋이 Vercel serverless에서 작동 안 함 → 봇 분당 수천 댓글 가능.
@@ -75,7 +75,7 @@
 ## 4. 기능 요구사항
 
 ### F0. 환경변수
-- `ADMIN_PASSWORD` — 강한 비번 (런타임에 기본값 `admin2026`이면 console.error + 운영에선 startup throw).
+- `ADMIN_PASSWORD` — 강한 비번 (런타임에 기본값 `<기본-비밀번호>`이면 console.error + 운영에선 startup throw).
 - `JWT_SECRET` — 32 바이트 hex 이상.
 - `RESEND_API_KEY` — Resend API 토큰.
 - `EMAIL_FROM` — 발신 표시 (예: `AI 캠퍼스 <onboarding@resend.dev>`).

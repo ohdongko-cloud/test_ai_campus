@@ -1,7 +1,7 @@
 # PRD: 댓글 한글 깨짐 진단·정리·방어
 
 - 작성일: 2026-05-26
-- 작성자: Claude (요청자: ohdongko)
+- 작성자: Claude (요청자: <오너>)
 - 범위: DB 일회성 cleanup + API 입력 가드
 - 관련 파일: `app/api/videos/[id]/comments/route.ts`, `app/api/comments/route.ts`, `scripts/cleanup-broken-encoding.mjs` (신규)
 

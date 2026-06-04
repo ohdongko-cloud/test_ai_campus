@@ -1,7 +1,7 @@
 # PRD: 관리자 영상 편집 + 스테이지 설명 전체 복사
 
 - 작성일: 2026-05-26
-- 작성자: Claude (요청자: ohdongko)
+- 작성자: Claude (요청자: <오너>)
 - 관련 파일: [components/AdminVideos.tsx](../../components/AdminVideos.tsx), [components/VideoPage.tsx](../../components/VideoPage.tsx)
 - 범위: 클라이언트 UI (localStorage 기반, 서버 변경 없음)
 

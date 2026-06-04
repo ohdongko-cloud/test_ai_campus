@@ -1,7 +1,7 @@
 # PRD: localStorage → Neon DB 전면 이관
 
 - 작성일: 2026-05-26
-- 작성자: Claude (요청자: ohdongko)
+- 작성자: Claude (요청자: <오너>)
 - 범위: 클라이언트 데이터 9 도메인 전부 + 어드민 인증 강화 + 일회성 임포트 도구
 - 관련 파일: 거의 모든 컴포넌트 + `lib/utils.ts` + 신규 API 라우트 다수 + `supabase/schema.sql`
 
@@ -59,7 +59,7 @@
 ## 4. 기능 요구사항
 
 ### F0. 공통 인프라
-- F0.1. 환경변수 `ADMIN_PASSWORD` 도입. `.env.local`(개발) / Vercel(운영). 기본값은 기존 `admin2026`로 시드.
+- F0.1. 환경변수 `ADMIN_PASSWORD` 도입. `.env.local`(개발) / Vercel(운영). 기본값은 기존 `<기본-비밀번호>`로 시드.
 - F0.2. 서버 헬퍼 `lib/admin-auth.ts`: `requireAdmin(req: Request)` 함수. 요청 헤더 `X-Admin-Password`가 환경변수와 일치하면 통과, 아니면 401.
 - F0.3. 클라이언트 헬퍼 `lib/admin-client.ts`: 로그인 시 password를 `sessionStorage`에 저장(휘발), `adminFetch()`가 자동으로 `X-Admin-Password` 헤더 부착. 페이지 새로고침해도 같은 탭에서는 유지, 탭 닫으면 재로그인.
 - F0.4. 기존 `app/page.tsx`의 `ADMIN_PASSWORD` 상수 → `sessionStorage` 저장 시점만 변경, 서버 검증은 첫 API 호출 시 확인.
@@ -263,7 +263,7 @@ CREATE INDEX IF NOT EXISTS click_log_button_idx ON click_log (button, created_at
 
 ## 8. 보안 / 권한
 
-- 어드민 비번은 `ADMIN_PASSWORD` 환경변수. 기본값은 기존 `admin2026`로 시드(Vercel 환경변수 설정 후 임의 강력 비번으로 교체 권장).
+- 어드민 비번은 `ADMIN_PASSWORD` 환경변수. 기본값은 기존 `<기본-비밀번호>`로 시드(Vercel 환경변수 설정 후 임의 강력 비번으로 교체 권장).
 - 모든 `/api/admin/*` 라우트는 `requireAdmin(req)` 검증 후 진행. 미인증 시 401.
 - 사용자용 GET 라우트는 PII 노출 최소화. 예약은 `name/email/phone`을 사용자 GET에서 제외, 어드민 GET에서만 전체 노출.
 - `app_settings`는 키 화이트리스트(`chatroom_url/chatroom_password/chatroom_rules/noa_url`)만 GET 공개.

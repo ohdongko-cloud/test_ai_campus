@@ -1,7 +1,7 @@
 # PRD: 관리자 — 가입자/방문자 통계 + 회원 목록 표
 
 - 작성일: 2026-05-30
-- 작성자: ohdongko + Claude
+- 작성자: <오너> + Claude
 - 관련 시스템: `components/AdminStats.tsx`, `components/AdminDashboard.tsx`, `app/api/admin/users/route.ts` (참조), `users` + `auth_logs` 테이블
 - 영향 버전: v1.0-rc → v1.0-rc+1
 

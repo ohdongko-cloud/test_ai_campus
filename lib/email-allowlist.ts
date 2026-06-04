@@ -4,14 +4,14 @@
 // 예외 허용 이메일 목록(쉼표 구분)을 환경변수로 오버라이드 가능 — 운영자 도구.
 //
 // 환경변수: NEXT_PUBLIC_EMAIL_DOMAIN_EXCEPTIONS
-//   예) "ohdongko@gmail.com,other.tester@gmail.com"
+//   예) "tester1@gmail.com,tester2@gmail.com"
 //
 // `NEXT_PUBLIC_` 접두사로 클라이언트 측 사전 검증과 서버 측 최종 검증이 같은
 // 목록을 공유. 서버는 어차피 재검증하므로 보안 모델 위반 아님.
 
-// 하드코딩된 기본 예외 (Resend 발신 제약 등으로 한시적 허용).
-// 도메인 검증(Resend) 완료 후 비울 것.
-const DEFAULT_EXCEPTIONS = ['ohdongko@gmail.com'];
+// 하드코딩된 기본 예외는 두지 않는다 (소스에 개인 이메일 노출 방지).
+// 한시적 예외가 필요하면 NEXT_PUBLIC_EMAIL_DOMAIN_EXCEPTIONS 환경변수로 관리.
+const DEFAULT_EXCEPTIONS: string[] = [];
 
 function readExceptions(): Set<string> {
   const raw = process.env.NEXT_PUBLIC_EMAIL_DOMAIN_EXCEPTIONS || '';

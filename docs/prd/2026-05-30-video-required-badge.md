@@ -1,7 +1,7 @@
 # PRD: 영상 카드 "필수 시청" 뱃지
 
 - 작성일: 2026-05-30
-- 작성자: ohdongko + Claude
+- 작성자: <오너> + Claude
 - 관련 시스템: `videos` 테이블, `/api/videos`, `/api/admin/videos`, `VideoPage.tsx`, `AdminVideos.tsx`
 - 영향 버전: v1.0-rc → v1.0-rc+1
 

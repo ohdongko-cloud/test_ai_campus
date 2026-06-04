@@ -3,7 +3,7 @@
 - 최초 작성: 2026-05-29
 - 최종 갱신: 2026-05-29
 - 현재 버전: **versionCode 12 / versionName "1.0.11"**
-- 작성자/소유자: ohdongko + Claude
+- 작성자/소유자: <오너> + Claude
 - 범위: 안드로이드 앱(Capacitor + WebView) 운영 사양·정책·변경 이력
 
 > **운영 규칙 (필수)**

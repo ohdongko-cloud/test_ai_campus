@@ -1,7 +1,7 @@
 # PRD: 영상 카드 썸네일 + 좋아요 + 댓글
 
 - 작성일: 2026-05-26
-- 작성자: Claude (요청자: ohdongko)
+- 작성자: Claude (요청자: <오너>)
 - 관련 파일: [components/VideoPage.tsx](../../components/VideoPage.tsx), [supabase/schema.sql](../../supabase/schema.sql), `app/api/videos/...` (신규)
 - 범위: 클라이언트 UI + Neon DB (스키마 확장) + Next.js API 라우트 신규
 

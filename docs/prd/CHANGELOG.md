@@ -2,7 +2,7 @@
 
 - 최초 작성: 2026-05-30
 - 최종 갱신: 2026-05-30
-- 작성자/소유자: ohdongko + Claude
+- 작성자/소유자: <오너> + Claude
 - 운영 URL: https://retail-ai-campus.vercel.app
 - GitHub: https://github.com/ohdongko-cloud/test_ai_campus
 - 범위: 모든 PRD/기능/버전을 시간순으로 통합 관리하는 **living document**

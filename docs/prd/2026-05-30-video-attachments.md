@@ -1,7 +1,7 @@
 # PRD: 강의 영상 첨부파일 업로드 / 다운로드
 
 - 작성일: 2026-05-30
-- 작성자: ohdongko + Claude
+- 작성자: <오너> + Claude
 - 관련 시스템: `videos` 테이블, `components/AdminVideos.tsx`, `components/VideoPage.tsx`
 - 영향 버전: v1.0-rc → v1.0-rc+1
 - 상태: **DRAFT — 사용자 컨펌 대기**

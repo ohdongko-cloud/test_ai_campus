@@ -1,7 +1,7 @@
 # PRD: 서비스 공유 페이지 레이아웃 변경 (목록 먼저 + 등록 모달)
 
 - 작성일: 2026-05-30
-- 작성자: ohdongko + Claude
+- 작성자: <오너> + Claude
 - 관련 시스템: `components/SharePage.tsx`, `components/LegalModal.tsx` (참조)
 - 영향 버전: v1.0-rc → v1.0-rc+1
 

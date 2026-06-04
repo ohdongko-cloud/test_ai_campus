@@ -1,7 +1,7 @@
 # PRD: 미팅요청 플로팅 버튼 추가
 
 - 작성일: 2026-05-26
-- 작성자: Claude (요청자: ohdongko)
+- 작성자: Claude (요청자: <오너>)
 - 범위: FloatingActions 컴포넌트 확장 / 트렌디한 신규 SVG 아이콘
 
 ---

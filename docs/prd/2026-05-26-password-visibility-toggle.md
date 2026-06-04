@@ -1,7 +1,7 @@
 # PRD: 비밀번호 보기 토글 (눈 아이콘)
 
 - 작성일: 2026-05-26
-- 작성자: Claude (요청자: ohdongko)
+- 작성자: Claude (요청자: <오너>)
 - 범위: 클라이언트 UI (WelcomePopup.tsx)
 
 ---

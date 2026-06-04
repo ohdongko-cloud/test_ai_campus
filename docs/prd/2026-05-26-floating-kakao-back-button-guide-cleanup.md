@@ -1,7 +1,7 @@
 # PRD: 플로팅 카톡 버튼 + 뒤로가기 동작 + 가이드 헤더 정리
 
 - 작성일: 2026-05-26
-- 작성자: Claude (요청자: ohdongko)
+- 작성자: Claude (요청자: <오너>)
 - 범위: 카카오톡 FAB(Floating Action Button) 추가 / 탭 hash 라우팅 / 가이드 stats 제거
 
 ---
