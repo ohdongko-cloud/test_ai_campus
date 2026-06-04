@@ -298,6 +298,12 @@ export default function AdminVideos() {
   const [newLvName, setNewLvName] = useState('');
   const [newLvDesc, setNewLvDesc] = useState('');
 
+  // 드래그 순서변경 상태
+  const [dragLv, setDragLv] = useState<number | null>(null);
+  const [overLv, setOverLv] = useState<number | null>(null);
+  const [dragVid, setDragVid] = useState<number | null>(null);
+  const [overVid, setOverVid] = useState<number | null>(null);
+
   const load = async () => {
     try {
       // 캐시 우회 — mutation 직후 CDN 캐시(옛 응답) 대신 최신 DB 상태 반영
@@ -406,6 +412,25 @@ export default function AdminVideos() {
     } catch (e) {
       handleAdminError(e, '순서 변경에 실패했습니다.');
       await load(); // 롤백
+    }
+  };
+
+  // 드래그로 영상 순서 변경 (from → to, splice-insert)
+  const reorderVideos = async (from: number, to: number) => {
+    if (from === to) return;
+    const next = [...videos];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    setVideosState(next);
+    try {
+      const res = await adminFetch('/api/admin/videos/reorder', {
+        method: 'POST',
+        body: JSON.stringify({ ids: next.map(v => v.id) }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+    } catch (e) {
+      handleAdminError(e, '순서 변경에 실패했습니다.');
+      await load();
     }
   };
 
@@ -524,6 +549,25 @@ export default function AdminVideos() {
     }
   };
 
+  // 드래그로 레벨 순서 변경 (from → to)
+  const reorderLevels = async (from: number, to: number) => {
+    if (from === to) return;
+    const next = [...levels];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    setLevelsState(next);
+    try {
+      const res = await adminFetch('/api/admin/video-levels/reorder', {
+        method: 'POST',
+        body: JSON.stringify({ ids: next.map(l => l.id) }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+    } catch (e) {
+      handleAdminError(e, '레벨 순서 변경에 실패했습니다.');
+      await load();
+    }
+  };
+
   // ── Stage helpers for add form ──
   const addNewStage = () => setNewStages(s => [...s, { id: generateId(), title: '', description: '' }]);
   const removeNewStage = (id: string) => setNewStages(s => s.filter(x => x.id !== id));
@@ -607,13 +651,31 @@ export default function AdminVideos() {
         {showLevelMgmt && (
           <div className="px-5 pb-5 border-t border-gray-100 pt-4">
             <div className="space-y-2 mb-4">
-              {levels.map((lv, idx) => (
-                <div key={lv.id} className="flex items-center gap-2 p-2.5 border border-gray-100 rounded-lg bg-gray-50">
-                  {editLevelId === lv.id ? (
+              {levels.map((lv, idx) => {
+                const editing = editLevelId === lv.id;
+                return (
+                <div
+                  key={lv.id}
+                  draggable={!editing}
+                  onDragStart={() => setDragLv(idx)}
+                  onDragEnter={() => { if (dragLv !== null) setOverLv(idx); }}
+                  onDragOver={e => e.preventDefault()}
+                  onDrop={() => { if (dragLv !== null) reorderLevels(dragLv, idx); setDragLv(null); setOverLv(null); }}
+                  onDragEnd={() => { setDragLv(null); setOverLv(null); }}
+                  className="flex items-center gap-2 p-2.5 border border-gray-100 rounded-lg bg-gray-50"
+                  style={{
+                    opacity: dragLv === idx ? 0.4 : 1,
+                    boxShadow: overLv === idx && dragLv !== null && dragLv !== idx ? 'inset 0 2px 0 #004A99' : undefined,
+                    cursor: editing ? 'default' : 'grab',
+                  }}
+                >
+                  {editing ? (
                     <LevelEditRow level={lv} onSave={handleSaveLevel} onCancel={() => setEditLevelId(null)} />
                   ) : (
                     <>
-                      {/* 순서 변경 */}
+                      {/* 드래그 핸들 */}
+                      <span className="text-gray-300 select-none shrink-0" title="드래그하여 순서 변경" style={{ cursor: 'grab', fontSize: 13, lineHeight: 1 }}>⠿</span>
+                      {/* 순서 변경 (버튼) */}
                       <div className="flex flex-col gap-0.5 shrink-0">
                         <button onClick={() => moveLevel(idx, -1)} disabled={idx === 0}
                           title="위로" className="text-gray-400 hover:text-gray-700 disabled:opacity-20 text-xs leading-none">▲</button>
@@ -630,7 +692,8 @@ export default function AdminVideos() {
                     </>
                   )}
                 </div>
-              ))}
+                );
+              })}
             </div>
             <div className="flex gap-2 items-end">
               <div className="flex-1">
@@ -680,11 +743,25 @@ export default function AdminVideos() {
           const isEditing = editVideoId === v.id;
           const thumb = ytThumb(v.youtubeUrl);
           return (
-            <div key={v.id} className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+            <div
+              key={v.id}
+              draggable={canReorder && !isEditing}
+              onDragStart={() => setDragVid(idx)}
+              onDragEnter={() => { if (dragVid !== null) setOverVid(idx); }}
+              onDragOver={e => { if (canReorder) e.preventDefault(); }}
+              onDrop={() => { if (dragVid !== null) reorderVideos(dragVid, idx); setDragVid(null); setOverVid(null); }}
+              onDragEnd={() => { setDragVid(null); setOverVid(null); }}
+              className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm"
+              style={{
+                opacity: dragVid === idx ? 0.4 : 1,
+                boxShadow: overVid === idx && dragVid !== null && dragVid !== idx ? 'inset 0 3px 0 #004A99' : undefined,
+              }}
+            >
               <div className="flex items-center gap-3 p-3">
-                {/* 순서 변경 (전체 보기에서만) */}
+                {/* 순서 변경 (전체 보기에서만) — 드래그 핸들 + ▲▼ */}
                 {canReorder && (
-                  <div className="flex flex-col gap-0.5 shrink-0">
+                  <div className="flex flex-col items-center gap-0.5 shrink-0" style={{ cursor: isEditing ? 'default' : 'grab' }}>
+                    <span className="text-gray-300 select-none" title="드래그하여 순서 변경" style={{ fontSize: 13, lineHeight: 1 }}>⠿</span>
                     <button onClick={() => moveVideo(idx, -1)} disabled={idx === 0 || isEditing}
                       className="text-gray-400 hover:text-gray-700 disabled:opacity-20 text-xs leading-none">▲</button>
                     <span className="text-[10px] text-gray-400 font-mono text-center leading-none">{idx + 1}</span>
