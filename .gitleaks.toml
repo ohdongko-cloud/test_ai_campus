@@ -1,0 +1,30 @@
+# gitleaks 설정 — pre-commit hook(.husky/pre-commit)에서 사용.
+# 기본 룰셋(API 키/토큰/비번 패턴)에 더해, 본 프로젝트의 자리표시자·예시값을 허용한다.
+
+[extend]
+useDefault = true   # gitleaks 내장 기본 룰 사용
+
+[allowlist]
+description = "프로젝트 자리표시자 / 예시값 / 센티넬 허용 (오탐 방지)"
+
+# 자리표시자·예시값·약한 기본값(센티넬)은 시크릿이 아님 → 허용
+regexes = [
+  '''<오너>''',
+  '''<관리자-이메일>''',
+  '''<마스터-이메일>''',
+  '''<기본-비밀번호>''',
+  '''change-me-to-[a-z-]+''',
+  '''admin@example\.com''',
+  '''tester@example\.com''',
+  '''vercel_blob_rw_xxxxxxxx''',
+  '''re_xxxxxxxxxxxxx''',
+  '''npg_q6IG0yWhdFEn''',          # .env.local.example 의 더미 패턴(실값 아님)
+  '''admin2026''',                  # lib/admin-auth.ts 센티넬(약한 기본값 감지용 상수)
+]
+
+# 예시/잠금 파일은 스캔에서 제외
+paths = [
+  '''\.env\.local\.example$''',
+  '''\.gitleaks\.toml$''',
+  '''package-lock\.json$''',
+]

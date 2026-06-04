@@ -1,0 +1,23 @@
+#!/usr/bin/env sh
+# ── 커밋 직전 시크릿 스캔 (gitleaks) ──
+# 스테이지된 변경(staged)에서 API 키·토큰·비밀번호 패턴을 탐지하면 커밋을 차단한다.
+# gitleaks 미설치 시: 경고만 출력하고 통과(개발 흐름 막지 않음) — 설치를 강력 권장.
+#
+# gitleaks 설치 (택1):
+#   Windows: winget install gitleaks   또는   scoop install gitleaks
+#   macOS:   brew install gitleaks
+#   직접:    https://github.com/gitleaks/gitleaks/releases
+
+if command -v gitleaks >/dev/null 2>&1; then
+  gitleaks protect --staged --redact --no-banner
+  status=$?
+  if [ $status -ne 0 ]; then
+    echo ""
+    echo "🚫 gitleaks: 스테이지된 변경에서 시크릿(키/토큰/비밀번호)이 감지되었습니다."
+    echo "   커밋이 차단되었습니다. 위 항목을 제거하거나, 오탐이면 .gitleaks.toml allowlist 에 추가하세요."
+    exit 1
+  fi
+else
+  echo "⚠️  gitleaks 미설치 — 시크릿 스캔을 건너뜁니다."
+  echo "   설치 권장:  winget install gitleaks  (Windows)  /  brew install gitleaks  (macOS)"
+fi
