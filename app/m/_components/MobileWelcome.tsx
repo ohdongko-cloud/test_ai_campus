@@ -3,14 +3,20 @@
 import { useState } from 'react';
 import { M } from '../_styles/tokens';
 import { setUserInfo } from '../../../lib/utils';
+import { isValidSimplePassword, PASSWORD_POLICY_MESSAGE } from '../../../lib/password';
 
-type Step = 'email' | 'verify' | 'signup' | 'login';
+type Step =
+  | 'email'
+  | 'verify'
+  | 'signup'
+  | 'login'
+  | 'reset-verify'
+  | 'reset-password';
 
 interface Props {
   onSuccess: () => void;
 }
 
-const PW_POLICY = '비밀번호는 8자 이상이어야 합니다.';
 const DOMAIN_REJECT = '회사 이메일(@eland.co.kr)로 가입할 수 있습니다.';
 
 function isAllowedEmail(e: string) {
@@ -23,20 +29,31 @@ export default function MobileWelcome({ onSuccess }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
+  // Common
   const [email, setEmail] = useState('');
+  const [pw, setPw] = useState('');
+
+  // Signup
   const [code, setCode] = useState('');
   const [signupToken, setSignupToken] = useState('');
   const [nickname, setNickname] = useState('');
   const [corp, setCorp] = useState('');
   const [org, setOrg] = useState('');
   const [pos, setPos] = useState('');
-  const [pw, setPw] = useState('');
   const [pw2, setPw2] = useState('');
+
+  // Login
   const [rememberMe, setRememberMe] = useState(true);
+
+  // Password reset
+  const [resetCode, setResetCode] = useState('');
+  const [resetToken, setResetToken] = useState('');
+  const [resetPw, setResetPw] = useState('');
+  const [resetPw2, setResetPw2] = useState('');
 
   const resetError = () => setError('');
 
-  // Step 1: 이메일 → exists → signup-request or login
+  // ── Step 1: 이메일 → exists → signup-request or login ──
   const handleEmailNext = async () => {
     resetError();
     const e = email.toLowerCase().trim();
@@ -74,7 +91,7 @@ export default function MobileWelcome({ onSuccess }: Props) {
     }
   };
 
-  // Step 2: 인증 코드 → signupToken
+  // ── Step 2: 인증 코드 → signupToken ──
   const handleVerify = async () => {
     resetError();
     const c = code.trim();
@@ -103,14 +120,14 @@ export default function MobileWelcome({ onSuccess }: Props) {
     }
   };
 
-  // Step 3: 회원가입 완료
+  // ── Step 3: 회원가입 완료 ──
   const handleSignup = async () => {
     resetError();
     if (!nickname.trim()) return setError('닉네임을 입력해주세요.');
     if (!corp.trim()) return setError('법인을 입력해주세요.');
     if (!org.trim()) return setError('조직(브랜드/팀)을 입력해주세요.');
     if (!pos.trim()) return setError('직무를 입력해주세요.');
-    if (pw.length < 8) return setError(PW_POLICY);
+    if (!isValidSimplePassword(pw)) return setError(PASSWORD_POLICY_MESSAGE);
     if (pw !== pw2) return setError('비밀번호가 일치하지 않습니다.');
 
     setBusy(true);
@@ -152,7 +169,7 @@ export default function MobileWelcome({ onSuccess }: Props) {
     }
   };
 
-  // Step 4: 로그인
+  // ── Step 4: 로그인 ──
   const handleLogin = async () => {
     resetError();
     if (!pw) return setError('비밀번호를 입력해주세요.');
@@ -181,6 +198,96 @@ export default function MobileWelcome({ onSuccess }: Props) {
         userId: data.userId,
       });
       onSuccess();
+    } catch {
+      setError('서버에 연결할 수 없습니다.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // ── Step 5: 비밀번호 재설정 요청 (이메일로 6자리 코드 발송) ──
+  const handleResetRequest = async () => {
+    resetError();
+    setBusy(true);
+    try {
+      const res = await fetch('/api/users/reset-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data?.error || '인증 메일 발송에 실패했습니다.');
+        return;
+      }
+      setResetCode('');
+      setStep('reset-verify');
+    } catch {
+      setError('서버에 연결할 수 없습니다.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // ── Step 6: 재설정 코드 인증 → resetToken ──
+  const handleResetVerify = async () => {
+    resetError();
+    const c = resetCode.trim();
+    if (!/^\d{6}$/.test(c)) {
+      setError('6자리 숫자 코드를 입력해주세요.');
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await fetch('/api/users/reset-verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code: c }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.resetToken) {
+        setError(data?.error || '인증에 실패했습니다.');
+        return;
+      }
+      setResetToken(data.resetToken);
+      setResetPw('');
+      setResetPw2('');
+      setStep('reset-password');
+    } catch {
+      setError('서버에 연결할 수 없습니다.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // ── Step 7: 새 비밀번호 설정 → 로그인 단계 복귀 ──
+  const handleResetPassword = async () => {
+    resetError();
+    if (!isValidSimplePassword(resetPw)) return setError(PASSWORD_POLICY_MESSAGE);
+    if (resetPw !== resetPw2) return setError('비밀번호가 일치하지 않습니다.');
+    setBusy(true);
+    try {
+      const res = await fetch('/api/users/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          resetToken,
+          password: resetPw,
+          passwordConfirm: resetPw2,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data?.error || '비밀번호 재설정에 실패했습니다.');
+        return;
+      }
+      setPw('');
+      setResetCode('');
+      setResetToken('');
+      setResetPw('');
+      setResetPw2('');
+      setStep('login');
+      setError('비밀번호가 변경되었습니다. 새 비밀번호로 로그인해주세요.');
     } catch {
       setError('서버에 연결할 수 없습니다.');
     } finally {
@@ -290,8 +397,23 @@ export default function MobileWelcome({ onSuccess }: Props) {
               <Input label="법인" type="text" value={corp} onChange={setCorp} placeholder="이랜드리테일" />
               <Input label="조직(브랜드/팀)" type="text" value={org} onChange={setOrg} placeholder="DX센터" />
               <Input label="직무" type="text" value={pos} onChange={setPos} placeholder="AI 엔지니어" />
-              <Input label="비밀번호 (8자 이상)" type="password" value={pw} onChange={setPw} placeholder="" />
-              <Input label="비밀번호 확인" type="password" value={pw2} onChange={setPw2} placeholder="" />
+              <Input
+                label="비밀번호"
+                type="password"
+                value={pw}
+                onChange={setPw}
+                placeholder="예: Eland@2026"
+                maxLength={16}
+              />
+              <Input
+                label="비밀번호 확인"
+                type="password"
+                value={pw2}
+                onChange={setPw2}
+                placeholder=""
+                maxLength={16}
+              />
+              <PolicyHint>{PASSWORD_POLICY_MESSAGE}</PolicyHint>
               <Err msg={error} />
               <PrimaryButton onClick={handleSignup} busy={busy}>
                 가입 완료
@@ -309,6 +431,7 @@ export default function MobileWelcome({ onSuccess }: Props) {
                 value={pw}
                 onChange={setPw}
                 placeholder=""
+                maxLength={16}
                 autoFocus
               />
               <label
@@ -335,15 +458,80 @@ export default function MobileWelcome({ onSuccess }: Props) {
               <PrimaryButton onClick={handleLogin} busy={busy}>
                 로그인
               </PrimaryButton>
-              <Hint>
-                비밀번호를 잊으셨습니까?{' '}
-                <a href="mailto:oh_dongha01@eland.co.kr" style={{ color: M.primary }}>
-                  oh_dongha01@eland.co.kr
-                </a>
-              </Hint>
+              <button
+                type="button"
+                onClick={handleResetRequest}
+                disabled={busy}
+                style={{
+                  width: '100%',
+                  height: 40,
+                  marginTop: 8,
+                  background: 'transparent',
+                  border: 'none',
+                  color: M.primary,
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: busy ? 'not-allowed' : 'pointer',
+                  opacity: busy ? 0.5 : 1,
+                  fontFamily: M.fontKo,
+                }}
+              >
+                비밀번호를 잊으셨나요?
+              </button>
               <SecondaryButton onClick={() => { setStep('email'); setPw(''); }}>
                 이메일 다시 입력
               </SecondaryButton>
+            </>
+          )}
+
+          {step === 'reset-verify' && (
+            <>
+              <Title>비밀번호 재설정</Title>
+              <Sub>{email} 으로 발송된 6자리 코드를 입력해주세요</Sub>
+              <Input
+                label="인증 코드"
+                type="text"
+                value={resetCode}
+                onChange={(v) => setResetCode(v.replace(/\D/g, '').slice(0, 6))}
+                placeholder="000000"
+                autoFocus
+              />
+              <Err msg={error} />
+              <PrimaryButton onClick={handleResetVerify} busy={busy}>
+                인증하기
+              </PrimaryButton>
+              <SecondaryButton onClick={() => { setStep('login'); resetError(); }}>
+                로그인으로 돌아가기
+              </SecondaryButton>
+            </>
+          )}
+
+          {step === 'reset-password' && (
+            <>
+              <Title>새 비밀번호 설정</Title>
+              <Sub>{email}</Sub>
+              <Input
+                label="새 비밀번호"
+                type="password"
+                value={resetPw}
+                onChange={setResetPw}
+                placeholder="예: Eland@2026"
+                maxLength={16}
+                autoFocus
+              />
+              <Input
+                label="새 비밀번호 확인"
+                type="password"
+                value={resetPw2}
+                onChange={setResetPw2}
+                placeholder=""
+                maxLength={16}
+              />
+              <PolicyHint>{PASSWORD_POLICY_MESSAGE}</PolicyHint>
+              <Err msg={error} />
+              <PrimaryButton onClick={handleResetPassword} busy={busy}>
+                비밀번호 변경
+              </PrimaryButton>
             </>
           )}
         </div>
@@ -361,6 +549,9 @@ function Sub({ children }: { children: React.ReactNode }) {
 }
 function Hint({ children }: { children: React.ReactNode }) {
   return <p style={{ fontSize: 12, color: M.textMuted, margin: '12px 0 0', textAlign: 'center' }}>{children}</p>;
+}
+function PolicyHint({ children }: { children: React.ReactNode }) {
+  return <p style={{ fontSize: 11, color: M.textMuted, margin: '-4px 0 12px', lineHeight: 1.4 }}>{children}</p>;
 }
 function Err({ msg }: { msg: string }) {
   if (!msg) return null;
@@ -381,7 +572,7 @@ function Err({ msg }: { msg: string }) {
   );
 }
 function Input({
-  label, type, value, onChange, placeholder, autoFocus,
+  label, type, value, onChange, placeholder, autoFocus, maxLength,
 }: {
   label: string;
   type: 'text' | 'email' | 'password';
@@ -389,6 +580,7 @@ function Input({
   onChange: (v: string) => void;
   placeholder?: string;
   autoFocus?: boolean;
+  maxLength?: number;
 }) {
   return (
     <label style={{ display: 'block', marginBottom: 12 }}>
@@ -401,6 +593,7 @@ function Input({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         autoFocus={autoFocus}
+        maxLength={maxLength}
         autoComplete={type === 'password' ? 'current-password' : type === 'email' ? 'email' : undefined}
         style={{
           width: '100%',
