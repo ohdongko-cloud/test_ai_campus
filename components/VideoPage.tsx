@@ -129,7 +129,11 @@ export default function VideoPage() {
         setUserLevel(saved);
         setLevelFilter('추천');
       }
+      // 자동 노출은 '최초 진입 1회'만 — 뜨는 순간 카운트(저장).
+      // 답을 안 하고 닫거나 탭을 종료해도 다음부터 자동으로 안 뜸.
+      // (원하면 사이드바 '레벨 테스트 다시하기'로 언제든 수동 응시 가능)
       if (!localStorage.getItem('levelTestDone')) {
+        localStorage.setItem('levelTestDone', '1');
         setShowLevelTest(true);
       }
     } catch { /* ignore */ }
