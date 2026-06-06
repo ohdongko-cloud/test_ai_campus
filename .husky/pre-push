@@ -1,0 +1,34 @@
+#!/usr/bin/env sh
+# ── 푸시 직전 게이트 (빌드 + 시크릿) ──
+# main 푸시는 Vercel 운영 자동배포(임직원 ~1,800명)를 트리거하므로, 푸시 전에
+#   ① 타입 에러(tsc --noEmit)  ② 푸시 범위의 시크릿(gitleaks)
+# 을 검사해 둘 중 하나라도 걸리면 푸시를 차단한다. (CLAUDE.md 빌드 게이트 / /security-gate 보강)
+#
+# 전체 보안 점검(PII·§6 정책 매핑)은 푸시 전에 /security-gate 스킬로 수행 권장.
+
+echo "▶ pre-push ①  타입체크 (tsc --noEmit)…"
+if ! npx --no-install tsc --noEmit; then
+  echo ""
+  echo "🚫 타입 에러가 있어 푸시를 차단합니다. 'npx tsc --noEmit'를 통과시킨 뒤 다시 푸시하세요."
+  exit 1
+fi
+
+if command -v gitleaks >/dev/null 2>&1; then
+  echo "▶ pre-push ②  gitleaks 시크릿 스캔…"
+  if git rev-parse --verify --quiet origin/main >/dev/null 2>&1; then
+    scan_opts="--log-opts=origin/main..HEAD"   # 푸시될 커밋 범위만
+  else
+    scan_opts=""                                # 업스트림 없으면 작업트리 기준
+  fi
+  if ! gitleaks detect --redact --no-banner $scan_opts; then
+    echo ""
+    echo "🚫 gitleaks: 푸시 범위에서 시크릿(키/토큰/비밀번호)이 감지되어 푸시를 차단합니다."
+    echo "   해당 항목을 제거하거나, 오탐이면 .gitleaks.toml allowlist 에 추가하세요."
+    exit 1
+  fi
+else
+  echo "⚠️  gitleaks 미설치 — 푸시 시크릿 스캔을 건너뜁니다(pre-commit이 스테이지는 검사)."
+  echo "   설치 권장:  winget install gitleaks  (Windows)  /  brew install gitleaks  (macOS)"
+fi
+
+echo "✅ pre-push 게이트 통과 — 푸시를 진행합니다."

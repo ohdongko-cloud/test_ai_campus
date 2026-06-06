@@ -24,8 +24,11 @@ yarn-error.log*
 # vercel
 .vercel
 
-# claude code
-.claude/
+# claude code — 로컬 설정은 제외하되, 공유 자산(스킬/커맨드/공용 설정)은 추적
+.claude/*
+!.claude/skills/
+!.claude/commands/
+!.claude/settings.json
 
 # typescript
 *.tsbuildinfo
@@ -53,3 +56,6 @@ design_handoff_ai_campus/
 
 # 로컬 프리뷰 목업 (임시)
 .preview/
+
+# PPT 생성 작업 디렉터리 (임시 — 제안서 덱 빌드용)
+.pptx-build/
