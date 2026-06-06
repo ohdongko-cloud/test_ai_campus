@@ -11,10 +11,21 @@ export async function GET(req: Request) {
   if (!session) return NextResponse.json({ user: null });
 
   try {
-    const rows = await sql`
-      SELECT id, name, corporation_name, organization_name, position, email
-      FROM users WHERE id = ${session.uid} LIMIT 1`;
-    const u = rows[0];
+    // 레벨테스트 컬럼(M005)은 마이그레이션 전일 수 있어 방어적으로 조회.
+    // 컬럼이 없으면 기존 컬럼만으로 폴백 → 배포 순서와 무관하게 /me 안전.
+    let u: Record<string, unknown> | undefined;
+    try {
+      const rows = await sql`
+        SELECT id, name, corporation_name, organization_name, position, email,
+               video_level, level_test_done_at
+        FROM users WHERE id = ${session.uid} LIMIT 1`;
+      u = rows[0];
+    } catch {
+      const rows = await sql`
+        SELECT id, name, corporation_name, organization_name, position, email
+        FROM users WHERE id = ${session.uid} LIMIT 1`;
+      u = rows[0];
+    }
     if (!u) return NextResponse.json({ user: null });
 
     const ctx = await getAdminContext(req);
@@ -33,6 +44,9 @@ export async function GET(req: Request) {
         isAdmin,
         isMaster,
         permissions: ctx?.role === 'admin' ? (ctx.permissions || {}) : null,
+        // 레벨테스트 (계정 기준 최초 1회 노출 판단용)
+        videoLevel: u.video_level ?? null,
+        levelTestDone: u.level_test_done_at != null,
       },
     });
   } catch {

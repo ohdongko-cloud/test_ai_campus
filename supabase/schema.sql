@@ -55,6 +55,8 @@ CREATE TABLE IF NOT EXISTS users (
   position          TEXT NOT NULL,
   email             TEXT NOT NULL,
   password_hash     TEXT NOT NULL,
+  video_level         TEXT DEFAULT NULL,        -- 레벨테스트 선택 레벨 (계정 기준 복원용)
+  level_test_done_at  TIMESTAMPTZ DEFAULT NULL, -- 레벨테스트 최초 노출/완료 시각 (1회 노출 판단)
   created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
 );

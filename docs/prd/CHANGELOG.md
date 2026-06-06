@@ -1,7 +1,7 @@
 # PRD: 이랜드리테일 AI 캠퍼스 — 마스터 변경 이력 (CHANGELOG)
 
 - 최초 작성: 2026-05-30
-- 최종 갱신: 2026-05-30
+- 최종 갱신: 2026-06-06
 - 작성자/소유자: <오너> + Claude
 - 운영 URL: https://retail-ai-campus.vercel.app
 - GitHub: https://github.com/ohdongko-cloud/test_ai_campus
@@ -57,12 +57,19 @@
 | 14 | [2026-05-26-floating-meeting-fab.md](./2026-05-26-floating-meeting-fab.md) | 미팅요청 플로팅 버튼 (FAB 3단 적층) |
 | 15 | [2026-05-26-footer-policy-and-admin-button.md](./2026-05-26-footer-policy-and-admin-button.md) | 푸터 정책 모달 + 관리자 버튼 위치 이동 |
 | 16 | [android-app.md](./android-app.md) | 안드로이드 앱 (living document, versionCode별 갱신) |
+| 17 | [2026-06-06-level-test-once-server-side.md](./2026-06-06-level-test-once-server-side.md) | 레벨테스트 최초 1회 노출 보장(서버/DB 기준) |
 
 > ※ 테스트 계정(`test@eland.co.kr` / `000000`)과 15 페르소나 리서치는 별도 PRD 없이 본 CHANGELOG와 `public/research/` 폴더로 관리.
 
 ---
 
 ## 3. 변경 이력 (시간순 — 최신이 위)
+
+### Phase 7 (안드로이드 + 공개 오픈) — 2026-06
+
+| 커밋 | 메시지 | 비고 |
+|---|---|---|
+| `6e2e67d` | fix(level-test): 레벨테스트 최초 노출을 계정(서버) 기준 1회로 교정 | PRD `2026-06-06-level-test-once-server-side.md`, M005(users.video_level/level_test_done_at) + /api/users/me 확장 + /api/level-test/seen 신규 + VideoPage 서버 기준 노출. 기기 변경 시 재노출 버그 해결 |
 
 ### v1.0-rc (Phase 6 — 시연 준비) — 2026-05-30
 

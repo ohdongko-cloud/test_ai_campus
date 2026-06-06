@@ -8,6 +8,9 @@ import { requireMaster } from '../../../../lib/admin-auth';
  * 현재 포함된 마이그레이션:
  *   M001: videos.duration TEXT 컬럼 추가
  *   M002: lecture_requests 테이블 생성 (강의 요청)
+ *   M003: email_verifications.purpose 컬럼 추가
+ *   M004: level_tests 테이블 생성 (레벨 테스트 검증내역)
+ *   M005: users.video_level / users.level_test_done_at 컬럼 추가
  */
 export async function POST(req: NextRequest) {
   const authCheck = await requireMaster(req);
@@ -73,6 +76,20 @@ export async function POST(req: NextRequest) {
     results.push({ id: 'M004', status: 'ok', message: 'level_tests 테이블 생성 완료' });
   } catch (e) {
     results.push({ id: 'M004', status: 'error', message: String(e) });
+  }
+
+  // M005: users.video_level / users.level_test_done_at (레벨테스트 계정 기준 1회 노출)
+  try {
+    await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS video_level TEXT DEFAULT NULL`;
+    await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS level_test_done_at TIMESTAMPTZ DEFAULT NULL`;
+    results.push({ id: 'M005', status: 'ok', message: 'users.video_level / level_test_done_at 컬럼 추가 완료' });
+  } catch (e) {
+    const msg = String(e);
+    if (msg.includes('already exists')) {
+      results.push({ id: 'M005', status: 'skip', message: '이미 존재하는 컬럼' });
+    } else {
+      results.push({ id: 'M005', status: 'error', message: msg });
+    }
   }
 
   const hasError = results.some(r => r.status === 'error');

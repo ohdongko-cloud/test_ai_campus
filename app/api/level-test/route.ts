@@ -27,8 +27,16 @@ export async function POST(req: NextRequest) {
     await sql`
       INSERT INTO level_tests (email, level, answers, security_flag)
       VALUES (${email}, ${level}, ${JSON.stringify(answers)}::jsonb, ${securityFlag})`;
+    // 로그인 사용자면 계정에 선택 레벨 + 완료시각 저장(최초값 보존)
+    if (session?.uid) {
+      await sql`
+        UPDATE users
+        SET video_level = ${level},
+            level_test_done_at = COALESCE(level_test_done_at, now())
+        WHERE id = ${session.uid}`;
+    }
     return NextResponse.json({ ok: true });
-  } catch (e) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+  } catch {
+    return NextResponse.json({ error: '서버 오류가 발생했습니다.' }, { status: 500 });
   }
 }

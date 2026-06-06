@@ -121,22 +121,57 @@ export default function VideoPage() {
       .catch(() => {});
   }, []);
 
-  // 레벨 테스트: 저장된 레벨 복원 + 첫 진입 시 테스트 노출
+  // 레벨 테스트: 계정(서버) 기준으로 최초 1회만 노출.
+  // localStorage는 기기/브라우저별이라 기기가 바뀌면 재노출되던 버그를,
+  // users.level_test_done_at(서버) 기준 판단으로 교정한다.
+  // (원하면 사이드바 '레벨 테스트 다시하기'로 언제든 수동 응시 가능)
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem('videoLevel');
-      if (saved) {
-        setUserLevel(saved);
-        setLevelFilter('추천');
+    let cancelled = false;
+
+    // 서버 조회 실패 시 폴백: 기존 localStorage 기준(과노출 방지 우선)
+    const localFallback = () => {
+      try {
+        const saved = localStorage.getItem('videoLevel');
+        if (saved) {
+          setUserLevel(saved);
+          setLevelFilter('추천');
+        }
+        if (!localStorage.getItem('levelTestDone')) {
+          localStorage.setItem('levelTestDone', '1');
+          setShowLevelTest(true);
+        }
+      } catch { /* ignore */ }
+    };
+
+    (async () => {
+      try {
+        const res = await fetch('/api/users/me', { cache: 'no-store' });
+        const data = await res.json();
+        const user = data?.user;
+        if (cancelled) return;
+        if (!user) { localFallback(); return; }
+
+        // 저장된 레벨 복원
+        if (user.videoLevel) {
+          setUserLevel(user.videoLevel);
+          setLevelFilter('추천');
+          try { localStorage.setItem('videoLevel', user.videoLevel); } catch { /* ignore */ }
+        }
+
+        // 계정 기준 최초 진입에만 노출 + 즉시 '본 것으로' 서버 기록
+        if (!user.levelTestDone) {
+          setShowLevelTest(true);
+          try { localStorage.setItem('levelTestDone', '1'); } catch { /* ignore */ }
+          fetch('/api/level-test/seen', { method: 'POST' }).catch(() => {});
+        } else {
+          try { localStorage.setItem('levelTestDone', '1'); } catch { /* ignore */ }
+        }
+      } catch {
+        if (!cancelled) localFallback();
       }
-      // 자동 노출은 '최초 진입 1회'만 — 뜨는 순간 카운트(저장).
-      // 답을 안 하고 닫거나 탭을 종료해도 다음부터 자동으로 안 뜸.
-      // (원하면 사이드바 '레벨 테스트 다시하기'로 언제든 수동 응시 가능)
-      if (!localStorage.getItem('levelTestDone')) {
-        localStorage.setItem('levelTestDone', '1');
-        setShowLevelTest(true);
-      }
-    } catch { /* ignore */ }
+    })();
+
+    return () => { cancelled = true; };
   }, []);
 
   const handleLevelComplete = (r: LevelResult) => {
