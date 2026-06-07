@@ -1,73 +1,62 @@
 ---
 name: security-gate
 description: >-
-  푸시 전 마지막 보안 게이트. 변경·푸시 범위에서 시크릿·토큰·PII·실명·기본비번 유출과
-  §6 보안정책 위반(인증·권한·레이트리밋·PII 응답 제외·에러 통일·enumeration 방지)을 검사해
-  통과/차단을 판정한다. 사용 시점: 푸시 직전, "보안 검토 / 시크릿 스캔 / security review"
-  요청 시, 또는 /ship 내부 게이트로 호출될 때. gitleaks 와 .gitleaks.toml allowlist 를 사용한다.
+  푸시 전 마지막 보안 게이트. 변경·푸시 범위에서 시크릿·토큰·자격증명·PII 유출과 보안 위반(인증·인가
+  누락, 레이트리밋, 입력검증/인젝션, 에러 누출, 안전하지 않은 기본값)을 검사해 통과/차단을 판정한다.
+  repo에 보안정책(CLAUDE.md)이 있으면 그 항목에 매핑하고, gitleaks가 있으면 사용한다. 사용 시점:
+  푸시 직전, "보안 검토 / 시크릿 스캔 / security review" 요청 시, 또는 /ship 내부 게이트로 호출될 때.
 argument-hint: "[선택: 검토 범위 메모]"
 ---
 
-# /security-gate — 푸시 전 보안 검토
+# /security-gate — 푸시 전 보안 검토 (범용)
 
-푸시 직전 보안 위반을 **차단**하는 게이트. 기준은 `CLAUDE.md`의 **§6 보안 정책**과 **특화 체크 9**.
-판정은 ✅ 통과 / 🚫 차단 둘 중 하나. **차단이면 푸시·`/ship`을 진행하지 않는다.**
+푸시 직전 보안 위반을 **차단**하는 게이트. 판정은 ✅ 통과 / 🚫 차단. **차단이면 푸시·`/ship` 중단.**
 
-## 절차
+## 0. 규약·도구 탐지
+- 보안정책: `CLAUDE.md`에 정책 섹션이 있으면 **그 항목을 체크리스트로** 사용. 없으면 아래 일반 기준.
+- 시크릿 스캐너: `gitleaks` 설치 여부(`command -v gitleaks`). 설정 파일 `.gitleaks.toml`(allowlist) 존중.
+- env 예시 파일: `.env.example`/`.env.local.example` 등.
 
-### 1. 검토 범위 확보
+## 1. 검토 범위
 ```bash
 git status --short
-git diff                     # unstaged
-git diff --staged            # staged
-git log --oneline origin/main..HEAD     # 푸시될 커밋
-git diff origin/main...HEAD              # 푸시될 전체 diff
+git diff && git diff --staged
+git log --oneline @{u}..HEAD 2>/dev/null     # 푸시될 커밋(업스트림 있으면)
+git diff @{u}...HEAD 2>/dev/null
 ```
-`origin/main`이 없으면 현재 작업트리(diff/staged)만 대상으로 한다.
 
-### 2. 시크릿 스캔 (gitleaks)
-```bash
-gitleaks protect --staged --redact --no-banner   # 스테이지
-gitleaks detect --redact --no-banner             # 저장소 범위
-```
-- 미설치 시: `winget install gitleaks`(Windows) / `brew install gitleaks`(macOS) 안내 후, 아래 4번 수동 패턴 점검으로 대체.
-- 탐지 시 **차단**. 오탐이면 `.gitleaks.toml` allowlist에 추가하도록 안내(자리표시자·예시값만).
+## 2. 시크릿 스캔
+- gitleaks 있으면:
+  ```bash
+  gitleaks protect --staged --redact --no-banner
+  gitleaks detect --redact --no-banner --log-opts="@{u}..HEAD"   # 업스트림 없으면 옵션 생략
+  ```
+  탐지 시 **차단**(오탐이면 allowlist 안내).
+- 없으면: diff에서 API 키·토큰·비밀번호·연결문자열·`-----BEGIN ... KEY-----` 패턴을 Grep으로 수동 점검 + 설치 권장(`winget install gitleaks` / `brew install gitleaks`).
 
-### 3. 하드코딩 시크릿 / env 노출
-- diff에 API 키·토큰·비밀번호·연결문자열이 평문으로 있는지. (`process.env.X` 사용이 정상)
-- `.env`, `.env*.local` 이 스테이징되지 않았는지(`.gitignore`로 제외되어야 함).
+## 3. 자격증명/PII/env
+- 하드코딩 시크릿(평문) — `process.env`/시크릿 매니저 사용이 정상.
+- `.env`·`.env*.local` 등이 스테이징되지 않았는지(.gitignore 커버).
+- 개인정보(실명·이메일·전화·주민/카드번호)가 코드·로그·응답·문서에 들어갔는지.
+- 새 env 변수 → `.env.example`에 문서화됐나(자리표시자면 gitleaks allowlist).
 
-### 4. PII · 실명 · 기본비번 (Grep으로 diff/신규 파일 점검)
-- 개인 이메일(비-자리표시자), 실명, 약한 기본 비밀번호가 코드·문서·로그에 들어갔는지.
-- 자리표시자(`<오너>`, `admin@example.com`, `change-me-*` 등)는 정상 → `.gitleaks.toml` 참고.
+## 4. 보안정책 매핑 (변경이 API/auth/DB를 건드릴 때)
+CLAUDE.md 정책이 있으면 그 항목, 없으면 **일반 기준**:
+- 새/변경 엔드포인트에 **인증·인가** 체크가 있나(역할/소유권).
+- 공개 엔드포인트 **레이트리밋**.
+- 입력 검증·파라미터화 쿼리(SQL/명령 인젝션 방지).
+- **에러 누출 금지**: 스택/내부 메시지를 사용자 응답에 노출하지 않고 통일된 메시지.
+- 민감 응답 **PII 최소화 + 캐시 금지**.
+- 인증 응답 **enumeration 방지**(존재 여부 노출 X), 비밀번호 **해시 저장**.
 
-### 5. §6 보안정책 매핑 (변경이 API/auth/PII를 건드릴 때)
-- **인증·권한**: 새/변경된 `app/api/**` 라우트에 세션·권한 체크가 있나? admin은 `master/admin/user`(`lib/admin-auth.ts`, `lib/session.ts`).
-- **레이트리밋**: 공개 엔드포인트(가입·로그인·재설정·강의요청·댓글)에 `lib/ratelimit.ts` 적용?
-- **PII 응답 제외**: 예약 등 사용자 API가 PII를 응답에 포함하지 않고 `no-store`인가?
-- **에러 통일**: `catch`가 raw 에러를 노출하지 않고 `"서버 오류가 발생했습니다."`로 통일?
-- **enumeration 방지**: 가입/재설정 요청이 회원 존재 여부와 무관히 동일 응답?
-- **비밀번호**: bcrypt 해시인가? 평문 저장·메일 발송이 없나?
+## 5. 디버그 잔재
+- `console.log`/`print`/디버그 라우트·임시 토큰·주석 처리된 비밀번호 등 Grep.
 
-### 6. 디버그 잔재
-- `console.log`, `console.error`(의도된 로깅 제외), raw 스택 노출, 임시 테스트 라우트(`/api/__sentry-test` 류)가 남았는지 Grep.
-
-### 7. env 동기화
-- 새 `process.env.X`가 `.env.local.example`에 문서화됐나. 자리표시자면 `.gitleaks.toml` allowlist에도 반영됐나.
-
-## 출력 형식
+## 출력
 ```
 [security-gate] 판정: ✅ 통과 | 🚫 차단
-
-발견 (차단/경고):
-- 🚫 lib/foo.ts:42 — 하드코딩된 토큰 의심 (...)
-- ⚠️ app/api/bar/route.ts:10 — 권한 체크 누락 가능
-
+- 🚫 <file:line> — <무엇> (<근거>)
+- ⚠️ <file:line> — <보강 권고>
 권고: <조치>
 ```
-- **차단 1건이라도 있으면 푸시 금지.** 조치 후 재실행.
-- 통과 시: "푸시/`/ship` 진행 가능" 명시.
-
-## 참고
-- 정책 원문: `CLAUDE.md` §6 / 특화 체크 9, `docs/AI-CAMPUS-IMPLEMENTATION-PRD.md` §6
-- 기존 자동 차단: `.husky/pre-commit`(gitleaks, 스테이지 한정) — 이 스킬은 **푸시 범위 전체 + 정책 매핑**까지 확장한다.
+- **차단 1건이라도 있으면 푸시 금지.** 통과 시 "푸시/`/ship` 진행 가능" 명시.
