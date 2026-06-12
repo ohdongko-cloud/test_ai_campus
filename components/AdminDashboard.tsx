@@ -15,6 +15,7 @@ import AdminImport from './AdminImport';
 import AdminLogs from './AdminLogs';
 import AdminUsersManage from './AdminUsersManage';
 import AdminMembers from './AdminMembers';
+import AdminOrgUnits from './AdminOrgUnits';
 import BrandMark from './BrandMark';
 
 interface Props {
@@ -25,6 +26,7 @@ interface TabInfo {
   key: AdminTabType;
   label: string;
   perm?: string; // permissions JSON key. 누락 = 항상 표시 (예: stats는 항상)
+  masterOnly?: boolean; // master/legacy 에게만 노출
 }
 
 const TABS: TabInfo[] = [
@@ -38,6 +40,7 @@ const TABS: TabInfo[] = [
   { key: 'board',    label: '게시판 관리',       perm: 'board' },
   { key: 'guide',    label: '가이드 관리',       perm: 'guide' },
   { key: 'members',  label: '회원 관리',         perm: 'members' },
+  { key: 'orgUnits', label: '조직 분류',         masterOnly: true },
   { key: 'logs',     label: '로그',              perm: 'logs' },
   { key: 'admins',   label: '관리자 관리',       perm: 'admins' }, // master 전용
 ];
@@ -72,8 +75,9 @@ export default function AdminDashboard({ onExit }: Props) {
     return false;
   };
 
-  // 보이는 탭만 필터
-  const visibleTabs = TABS.filter(t => hasPermission(t.perm));
+  // 보이는 탭만 필터 (masterOnly 탭은 master/legacy 에게만)
+  const isMasterLike = me?.role === 'master' || me?.role === 'legacy';
+  const visibleTabs = TABS.filter(t => (t.masterOnly ? isMasterLike : hasPermission(t.perm)));
 
   // activeTab이 권한 없는 탭이면 첫 번째 가능한 탭으로 보정
   useEffect(() => {
@@ -96,6 +100,7 @@ export default function AdminDashboard({ onExit }: Props) {
       case 'board':    return <AdminBoardStats />;
       case 'guide':    return <AdminGuide />;
       case 'members':  return <AdminMembers />;
+      case 'orgUnits': return <AdminOrgUnits />;
       case 'logs':     return <AdminLogs />;
       case 'admins':   return <AdminUsersManage />;
       default: return null;
