@@ -119,3 +119,24 @@ CREATE INDEX IF NOT EXISTS video_comments_video_idx ON video_comments (video_id,
 
 CREATE TRIGGER video_comments_updated_at
   BEFORE UPDATE ON video_comments FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- ─────────────────────────────────────────────────────────────
+-- org_units: 회원가입 부서/직무 드롭다운용 조직 분류 (부서 → 직무)
+-- 법인별 조직도. 초기 시드는 이랜드리테일만(M006). 어드민에서 수정.
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS org_units (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  corporation_name  TEXT NOT NULL DEFAULT '이랜드리테일',
+  department        TEXT NOT NULL,
+  position          TEXT NOT NULL,
+  sort_order        INTEGER NOT NULL DEFAULT 0,
+  is_active         BOOLEAN NOT NULL DEFAULT true,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (corporation_name, department, position)
+);
+
+CREATE INDEX IF NOT EXISTS org_units_corp_dept_idx ON org_units (corporation_name, department);
+
+CREATE TRIGGER org_units_updated_at
+  BEFORE UPDATE ON org_units FOR EACH ROW EXECUTE FUNCTION set_updated_at();
