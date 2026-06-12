@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { setUserInfo } from '../lib/utils';
 import { isAllowedSignupEmail, DOMAIN_REJECT_MESSAGE } from '../lib/email-allowlist';
 import { isValidSimplePassword, PASSWORD_POLICY_MESSAGE } from '../lib/password';
+import SearchableSelect from './SearchableSelect';
+import { CORPORATIONS, ORG_DIRECTORY_CORP, CORP_OTHER, type OrgDepartment } from '../lib/org';
 
 const T = {
   primary: '#004A99', primaryDark: '#003A78', primaryLight: '#E6EEF7',
@@ -114,10 +116,29 @@ export default function WelcomePopup({ onClose }: Props) {
   // 가입 폼
   const [nickname, setNickname] = useState('');
   const [corporationName, setCorporationName] = useState('');
+  const [corpOther, setCorpOther] = useState('');           // 법인=기타 직접입력
   const [organizationName, setOrganizationName] = useState('');
   const [position, setPosition] = useState('');
   const [pw, setPw] = useState('');
   const [pwConfirm, setPwConfirm] = useState('');
+
+  // 조직 분류(부서/직무) — 이랜드리테일 선택 시 드롭다운 소스
+  const [orgDepartments, setOrgDepartments] = useState<OrgDepartment[]>([]);
+  const [orgLoaded, setOrgLoaded] = useState(false);
+  const [orgError, setOrgError] = useState(false);
+
+  // signup step 진입 시 1회 조회 (비PII·no-store)
+  useEffect(() => {
+    if (step !== 'signup' || orgLoaded) return;
+    let cancelled = false;
+    fetch(`/api/org-units?corp=${encodeURIComponent(ORG_DIRECTORY_CORP)}`)
+      .then(r => (r.ok ? r.json() : Promise.reject(new Error('load'))))
+      .then((d: { departments?: OrgDepartment[] }) => {
+        if (!cancelled) { setOrgDepartments(d.departments || []); setOrgLoaded(true); }
+      })
+      .catch(() => { if (!cancelled) { setOrgError(true); setOrgLoaded(true); } });
+    return () => { cancelled = true; };
+  }, [step, orgLoaded]);
 
   // 로그인 폼
   const [loginPw, setLoginPw] = useState('');
@@ -219,8 +240,11 @@ export default function WelcomePopup({ onClose }: Props) {
   // Step 3: 회원가입 완료
   const handleSignup = async () => {
     resetError();
+    // 법인=기타면 직접입력한 법인명을 최종값으로 사용
+    const finalCorp = corporationName === CORP_OTHER ? corpOther.trim() : corporationName.trim();
+    if (!corporationName.trim()) return setError('법인을 선택해주세요.');
+    if (corporationName === CORP_OTHER && !corpOther.trim()) return setError('법인명을 입력해주세요.');
     if (!nickname.trim()) return setError('닉네임을 입력해주세요.');
-    if (!corporationName.trim()) return setError('법인을 입력해주세요.');
     if (!organizationName.trim()) return setError('부서(브랜드/팀)을 입력해주세요.');
     if (!position.trim()) return setError('직무를 입력해주세요.');
     if (!isValidSimplePassword(pw)) return setError(PASSWORD_POLICY_MESSAGE);
@@ -234,7 +258,7 @@ export default function WelcomePopup({ onClose }: Props) {
         body: JSON.stringify({
           signupToken,
           nickname: nickname.trim(),
-          corporationName: corporationName.trim(),
+          corporationName: finalCorp,
           organizationName: organizationName.trim(),
           position: position.trim(),
           password: pw,
@@ -374,6 +398,13 @@ export default function WelcomePopup({ onClose }: Props) {
     else if (step === 'reset-password') { setStep('reset-verify'); }
   };
 
+  // 부서/직무 드롭다운 노출 조건 및 소스
+  const isRetail = corporationName === ORG_DIRECTORY_CORP;
+  const useOrgDropdown = isRetail && orgLoaded && !orgError && orgDepartments.length > 0;
+  const departmentNames = orgDepartments.map(d => d.department);
+  const positionsForDept = orgDepartments.find(d => d.department === organizationName)?.positions ?? [];
+  const deptInList = departmentNames.includes(organizationName);
+
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 1000,
@@ -479,21 +510,76 @@ export default function WelcomePopup({ onClose }: Props) {
               <input value={nickname} onChange={e => setNickname(e.target.value)}
                 placeholder="예: 김캠퍼스" style={inputStyle} maxLength={20} />
             </div>
+            {/* 법인 — 고정 7개 드롭다운. '기타' 선택 시 직접입력 */}
             <div style={{ marginBottom: 12 }}>
               <label style={labelStyle}>법인 *</label>
-              <input value={corporationName} onChange={e => setCorporationName(e.target.value)}
-                placeholder="예: 이랜드리테일" style={inputStyle} maxLength={40} />
+              <SearchableSelect
+                options={CORPORATIONS}
+                value={corporationName}
+                onChange={v => { setCorporationName(v); setOrganizationName(''); setPosition(''); if (v !== CORP_OTHER) setCorpOther(''); }}
+                allowCustom={false}
+                placeholder="법인을 선택하세요"
+                triggerStyle={inputStyle}
+                ariaLabel="법인 선택"
+              />
+              {corporationName === CORP_OTHER && (
+                <input value={corpOther} onChange={e => setCorpOther(e.target.value)}
+                  placeholder="법인명을 입력하세요" style={{ ...inputStyle, marginTop: 8 }} maxLength={40} />
+              )}
             </div>
+
+            {/* 부서 — 이랜드리테일이면 검색 드롭다운, 그 외 직접입력 */}
             <div style={{ marginBottom: 12 }}>
               <label style={labelStyle}>부서(브랜드/팀) *</label>
-              <input value={organizationName} onChange={e => setOrganizationName(e.target.value)}
-                placeholder="예: 뉴발란스 상품기획팀" style={inputStyle} maxLength={40} />
+              {useOrgDropdown ? (
+                <SearchableSelect
+                  options={departmentNames}
+                  value={organizationName}
+                  onChange={v => { setOrganizationName(v); setPosition(''); }}
+                  placeholder="부서를 검색·선택하세요"
+                  customPlaceholder="부서 직접 입력"
+                  triggerStyle={inputStyle}
+                  maxLength={40}
+                  ariaLabel="부서 선택"
+                />
+              ) : (
+                <input value={organizationName} onChange={e => setOrganizationName(e.target.value)}
+                  placeholder="예: 뉴발란스 상품기획팀" style={inputStyle} maxLength={40} />
+              )}
+              {isRetail && orgError && (
+                <p style={{ margin: '6px 0 0', fontSize: 11, color: T.textMuted }}>
+                  목록을 불러오지 못해 직접 입력합니다.
+                </p>
+              )}
             </div>
+
+            {/* 직무 — 부서에 종속(cascading) */}
             <div style={{ marginBottom: 12 }}>
               <label style={labelStyle}>직무 *</label>
-              <input value={position} onChange={e => setPosition(e.target.value)}
-                placeholder="예: 상품기획, 생산, OO OO점 점장, 지점 인사팀"
-                style={inputStyle} maxLength={40} />
+              {!useOrgDropdown ? (
+                <input value={position} onChange={e => setPosition(e.target.value)}
+                  placeholder="예: 상품기획, 생산, OO OO점 점장, 지점 인사팀"
+                  style={inputStyle} maxLength={40} />
+              ) : deptInList ? (
+                <SearchableSelect
+                  options={positionsForDept}
+                  value={position}
+                  onChange={setPosition}
+                  placeholder="직무를 검색·선택하세요"
+                  customPlaceholder="직무 직접 입력"
+                  triggerStyle={inputStyle}
+                  maxLength={40}
+                  ariaLabel="직무 선택"
+                />
+              ) : organizationName ? (
+                <input value={position} onChange={e => setPosition(e.target.value)}
+                  placeholder="직무 직접 입력" style={inputStyle} maxLength={40} />
+              ) : (
+                <div style={{ ...inputStyle, display: 'flex', alignItems: 'center',
+                  color: T.textFaint, background: '#F1F5F9', cursor: 'not-allowed' }}>
+                  부서를 먼저 선택하세요
+                </div>
+              )}
             </div>
             <div style={{ marginBottom: 4 }}>
               <label style={labelStyle}>비밀번호 *</label>

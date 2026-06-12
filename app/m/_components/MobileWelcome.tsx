@@ -1,9 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { M } from '../_styles/tokens';
 import { setUserInfo } from '../../../lib/utils';
 import { isValidSimplePassword, PASSWORD_POLICY_MESSAGE } from '../../../lib/password';
+import SearchableSelect from '../../../components/SearchableSelect';
+import { CORPORATIONS, ORG_DIRECTORY_CORP, CORP_OTHER, type OrgDepartment } from '../../../lib/org';
 
 type Step =
   | 'email'
@@ -24,6 +26,21 @@ function isAllowedEmail(e: string) {
   return /@(eland\.co\.kr|eland\.com)$/i.test(e.trim());
 }
 
+// 드롭다운/직접입력 필드 공통 스타일 (Input 컴포넌트와 시각 일치)
+const mField: React.CSSProperties = {
+  width: '100%', height: 56, padding: '0 16px', borderRadius: M.r3,
+  border: `1.5px solid ${M.border}`, background: M.surfaceAlt,
+  fontSize: 16, color: M.text, outline: 'none', boxSizing: 'border-box', fontFamily: M.fontKo,
+};
+
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <span style={{ display: 'block', fontSize: 12, fontWeight: 700, color: M.textMuted, marginBottom: 6 }}>
+      {children}
+    </span>
+  );
+}
+
 export default function MobileWelcome({ onSuccess }: Props) {
   const [step, setStep] = useState<Step>('email');
   const [busy, setBusy] = useState(false);
@@ -38,9 +55,27 @@ export default function MobileWelcome({ onSuccess }: Props) {
   const [signupToken, setSignupToken] = useState('');
   const [nickname, setNickname] = useState('');
   const [corp, setCorp] = useState('');
+  const [corpOther, setCorpOther] = useState('');
   const [org, setOrg] = useState('');
   const [pos, setPos] = useState('');
   const [pw2, setPw2] = useState('');
+
+  // 조직 분류(부서/직무) — 이랜드리테일 선택 시 드롭다운 소스
+  const [orgDepartments, setOrgDepartments] = useState<OrgDepartment[]>([]);
+  const [orgLoaded, setOrgLoaded] = useState(false);
+  const [orgError, setOrgError] = useState(false);
+
+  useEffect(() => {
+    if (step !== 'signup' || orgLoaded) return;
+    let cancelled = false;
+    fetch(`/api/org-units?corp=${encodeURIComponent(ORG_DIRECTORY_CORP)}`)
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('load'))))
+      .then((d: { departments?: OrgDepartment[] }) => {
+        if (!cancelled) { setOrgDepartments(d.departments || []); setOrgLoaded(true); }
+      })
+      .catch(() => { if (!cancelled) { setOrgError(true); setOrgLoaded(true); } });
+    return () => { cancelled = true; };
+  }, [step, orgLoaded]);
 
   // Login
   const [rememberMe, setRememberMe] = useState(true);
@@ -123,8 +158,10 @@ export default function MobileWelcome({ onSuccess }: Props) {
   // ── Step 3: 회원가입 완료 ──
   const handleSignup = async () => {
     resetError();
+    const finalCorp = corp === CORP_OTHER ? corpOther.trim() : corp.trim();
+    if (!corp.trim()) return setError('법인을 선택해주세요.');
+    if (corp === CORP_OTHER && !corpOther.trim()) return setError('법인명을 입력해주세요.');
     if (!nickname.trim()) return setError('닉네임을 입력해주세요.');
-    if (!corp.trim()) return setError('법인을 입력해주세요.');
     if (!org.trim()) return setError('조직(브랜드/팀)을 입력해주세요.');
     if (!pos.trim()) return setError('직무를 입력해주세요.');
     if (!isValidSimplePassword(pw)) return setError(PASSWORD_POLICY_MESSAGE);
@@ -138,7 +175,7 @@ export default function MobileWelcome({ onSuccess }: Props) {
         body: JSON.stringify({
           signupToken,
           nickname: nickname.trim(),
-          corporationName: corp.trim(),
+          corporationName: finalCorp,
           organizationName: org.trim(),
           position: pos.trim(),
           password: pw,
@@ -295,6 +332,13 @@ export default function MobileWelcome({ onSuccess }: Props) {
     }
   };
 
+  // 부서/직무 드롭다운 노출 조건 및 소스
+  const isRetail = corp === ORG_DIRECTORY_CORP;
+  const useOrgDropdown = isRetail && orgLoaded && !orgError && orgDepartments.length > 0;
+  const departmentNames = orgDepartments.map((d) => d.department);
+  const positionsForDept = orgDepartments.find((d) => d.department === org)?.positions ?? [];
+  const deptInList = departmentNames.includes(org);
+
   return (
     <div
       style={{
@@ -394,9 +438,78 @@ export default function MobileWelcome({ onSuccess }: Props) {
               <Title>회원 정보 입력</Title>
               <Sub>{email}</Sub>
               <Input label="닉네임" type="text" value={nickname} onChange={setNickname} placeholder="홍길동" />
-              <Input label="법인" type="text" value={corp} onChange={setCorp} placeholder="이랜드리테일" />
-              <Input label="조직(브랜드/팀)" type="text" value={org} onChange={setOrg} placeholder="DX센터" />
-              <Input label="직무" type="text" value={pos} onChange={setPos} placeholder="AI 엔지니어" />
+
+              {/* 법인 — 고정 7개 드롭다운, '기타' 선택 시 직접입력 */}
+              <div style={{ marginBottom: 12 }}>
+                <FieldLabel>법인</FieldLabel>
+                <SearchableSelect
+                  options={CORPORATIONS}
+                  value={corp}
+                  onChange={(v) => { setCorp(v); setOrg(''); setPos(''); if (v !== CORP_OTHER) setCorpOther(''); }}
+                  allowCustom={false}
+                  placeholder="법인을 선택하세요"
+                  triggerStyle={mField}
+                  maxLength={40}
+                  ariaLabel="법인 선택"
+                />
+                {corp === CORP_OTHER && (
+                  <input value={corpOther} onChange={(e) => setCorpOther(e.target.value)}
+                    placeholder="법인명을 입력하세요" maxLength={40}
+                    style={{ ...mField, marginTop: 8 }} />
+                )}
+              </div>
+
+              {/* 조직(부서) — 이랜드리테일이면 검색 드롭다운 */}
+              <div style={{ marginBottom: 12 }}>
+                <FieldLabel>조직(브랜드/팀)</FieldLabel>
+                {useOrgDropdown ? (
+                  <SearchableSelect
+                    options={departmentNames}
+                    value={org}
+                    onChange={(v) => { setOrg(v); setPos(''); }}
+                    placeholder="부서를 검색·선택하세요"
+                    customPlaceholder="부서 직접 입력"
+                    triggerStyle={mField}
+                    maxLength={40}
+                    ariaLabel="부서 선택"
+                  />
+                ) : (
+                  <input value={org} onChange={(e) => setOrg(e.target.value)}
+                    placeholder="DX센터" maxLength={40} style={mField} />
+                )}
+                {isRetail && orgError && (
+                  <p style={{ margin: '6px 0 0', fontSize: 12, color: M.textMuted }}>
+                    목록을 불러오지 못해 직접 입력합니다.
+                  </p>
+                )}
+              </div>
+
+              {/* 직무 — 부서에 종속(cascading) */}
+              <div style={{ marginBottom: 12 }}>
+                <FieldLabel>직무</FieldLabel>
+                {!useOrgDropdown ? (
+                  <input value={pos} onChange={(e) => setPos(e.target.value)}
+                    placeholder="AI 엔지니어" maxLength={40} style={mField} />
+                ) : deptInList ? (
+                  <SearchableSelect
+                    options={positionsForDept}
+                    value={pos}
+                    onChange={setPos}
+                    placeholder="직무를 검색·선택하세요"
+                    customPlaceholder="직무 직접 입력"
+                    triggerStyle={mField}
+                    maxLength={40}
+                    ariaLabel="직무 선택"
+                  />
+                ) : org ? (
+                  <input value={pos} onChange={(e) => setPos(e.target.value)}
+                    placeholder="직무 직접 입력" maxLength={40} style={mField} />
+                ) : (
+                  <div style={{ ...mField, display: 'flex', alignItems: 'center', color: M.textMuted }}>
+                    부서를 먼저 선택하세요
+                  </div>
+                )}
+              </div>
               <Input
                 label="비밀번호"
                 type="password"
