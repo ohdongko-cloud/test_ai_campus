@@ -1,7 +1,7 @@
 # PRD: 이랜드리테일 AI 캠퍼스 — 마스터 변경 이력 (CHANGELOG)
 
 - 최초 작성: 2026-05-30
-- 최종 갱신: 2026-06-06
+- 최종 갱신: 2026-06-12
 - 작성자/소유자: <오너> + Claude
 - 운영 URL: https://retail-ai-campus.vercel.app
 - GitHub: https://github.com/ohdongko-cloud/test_ai_campus
@@ -35,7 +35,7 @@
 
 ---
 
-## 2. 작성된 PRD 목록 (16건)
+## 2. 작성된 PRD 목록 (18건)
 
 모두 `docs/prd/` 하위에 보관.
 
@@ -58,6 +58,7 @@
 | 15 | [2026-05-26-footer-policy-and-admin-button.md](./2026-05-26-footer-policy-and-admin-button.md) | 푸터 정책 모달 + 관리자 버튼 위치 이동 |
 | 16 | [android-app.md](./android-app.md) | 안드로이드 앱 (living document, versionCode별 갱신) |
 | 17 | [2026-06-06-level-test-once-server-side.md](./2026-06-06-level-test-once-server-side.md) | 레벨테스트 최초 1회 노출 보장(서버/DB 기준) |
+| 18 | [2026-06-12-signup-org-dropdowns.md](./2026-06-12-signup-org-dropdowns.md) | 회원가입 법인·부서·직무 검색 드롭다운 + 기타 직접입력 (org_units) |
 
 > ※ 테스트 계정(`test@eland.co.kr` / `000000`)과 15 페르소나 리서치는 별도 PRD 없이 본 CHANGELOG와 `public/research/` 폴더로 관리.
 
@@ -69,6 +70,7 @@
 
 | 커밋 | 메시지 | 비고 |
 |---|---|---|
+| `c031139`~`3a8e0a2` | feat(signup): 회원가입 법인·부서·직무 검색 드롭다운 + 기타 직접입력 | PRD `2026-06-12-signup-org-dropdowns.md`, M006 `org_units` 테이블+시드(이랜드리테일), `/api/org-units`(공개·no-store) + `/api/admin/org-units`(마스터 CRUD), SearchableSelect 콤보박스, 부서→직무 cascading, 데스크톱·모바일 적용, 어드민 '조직 분류' 탭 |
 | `6e2e67d` | fix(level-test): 레벨테스트 최초 노출을 계정(서버) 기준 1회로 교정 | PRD `2026-06-06-level-test-once-server-side.md`, M005(users.video_level/level_test_done_at) + /api/users/me 확장 + /api/level-test/seen 신규 + VideoPage 서버 기준 노출. 기기 변경 시 재노출 버그 해결 |
 
 ### v1.0-rc (Phase 6 — 시연 준비) — 2026-05-30
