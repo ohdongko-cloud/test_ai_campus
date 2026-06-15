@@ -15,6 +15,7 @@ import { flattenOrgSeed, ORG_SEED_CORP } from '../../../../lib/org-seed';
  *   M006: org_units 테이블 생성 + 이랜드리테일 조직도 시드 (부서/직무 드롭다운)
  *   M007: ai_level_attempts 테이블 생성 (AI 레벨테스트 결과 이력)
  *   M008: ai_level_coding 테이블 생성 (코딩 산출물 제출·채점)
+ *   M009: ai_level_manual 테이블 생성 (관리자 정성 입력 — 목표·이머니)
  */
 export async function POST(req: NextRequest) {
   const authCheck = await requireMaster(req);
@@ -180,6 +181,22 @@ export async function POST(req: NextRequest) {
     results.push({ id: 'M008', status: 'ok', message: 'ai_level_coding 테이블 준비 완료' });
   } catch (e) {
     results.push({ id: 'M008', status: 'error', message: String(e) });
+  }
+
+  // M009: ai_level_manual — 관리자 정성 입력(목표·이머니/큰숫자·메모). 사용자당 1행.
+  try {
+    await sql`
+      CREATE TABLE IF NOT EXISTS ai_level_manual (
+        user_id     UUID PRIMARY KEY,
+        goal        TEXT,                            -- 목표(레벨/점수 등)
+        emoney      TEXT,                            -- 이머니/본인 큰 숫자(정성)
+        note        TEXT,
+        updated_by  TEXT,
+        updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+      )`;
+    results.push({ id: 'M009', status: 'ok', message: 'ai_level_manual 테이블 준비 완료' });
+  } catch (e) {
+    results.push({ id: 'M009', status: 'error', message: String(e) });
   }
 
   const hasError = results.some(r => r.status === 'error');

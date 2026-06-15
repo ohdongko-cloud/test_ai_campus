@@ -182,3 +182,13 @@ CREATE TABLE IF NOT EXISTS ai_level_coding (
   created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS ai_level_coding_user_idx ON ai_level_coding (user_id, created_at DESC);
+
+-- ai_level_manual: 관리자 정성 입력(목표·이머니/큰숫자). 사용자당 1행 (M009)
+CREATE TABLE IF NOT EXISTS ai_level_manual (
+  user_id     UUID PRIMARY KEY,
+  goal        TEXT,
+  emoney      TEXT,
+  note        TEXT,
+  updated_by  TEXT,
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
