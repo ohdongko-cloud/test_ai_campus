@@ -43,6 +43,30 @@ export default function AdminAiLevelMatrix() {
     if (r.prev_score == null || !r.prev_score) return null;
     return Math.round(((Number(r.auto_score) - r.prev_score) / r.prev_score) * 100);
   };
+  // 레벨 신호등: 낮음(빨강)·중간(노랑)·높음(초록)
+  const lvBg = (lv: number | null) => lv == null ? '#F4F6F9' : lv <= 2 ? '#FDECEC' : lv <= 5 ? '#FFF6E0' : '#E7F6EE';
+  const lvFg = (lv: number | null) => lv == null ? '#B6C0CC' : lv <= 2 ? '#A3331F' : lv <= 5 ? '#8A5A00' : '#1F7A4D';
+
+  const exportCsv = () => {
+    const head = ['법인', '부서', '직무', '이름', '목표', '레벨', '점수', '전월', '성장률%', '이머니', 'EBG', '코딩', '서비스수', '보안', '운영도구', '자동화'];
+    const lines = [head.join(',')];
+    for (const r of shown) {
+      const g = growth(r);
+      const row = [r.corporation_name, r.organization_name, r.position, r.name, r.goal,
+        r.level, r.auto_score == null ? '' : Number(r.auto_score).toFixed(0), r.prev_score == null ? '' : Number(r.prev_score).toFixed(0),
+        g == null ? '' : g, r.emoney, pct(r.c3_score == null ? null : Number(r.c3_score) / 100),
+        r.coding_status === 'scored' ? Number(r.coding_score) : '', pct(r.area_ratio?.service_count),
+        pct(r.area_ratio?.security), pct(r.area_ratio?.ops), pct(r.area_ratio?.automation)]
+        .map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',');
+      lines.push(row);
+    }
+    const blob = new Blob(['﻿' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `ai-level-matrix-${shown.length}.csv`;
+    a.click(); URL.revokeObjectURL(a.href);
+  };
+
   const saveManual = async (r: Row) => {
     const d = edit[r.id]; if (!d) return;
     try {
@@ -72,6 +96,7 @@ export default function AdminAiLevelMatrix() {
             <option value="">직무 전체</option>{positions.map(p => <option key={p} value={p}>{p}</option>)}
           </select>
           <button onClick={load} style={{ ...sel, cursor: 'pointer', color: '#5B6B7E' }}>새로고침</button>
+          <button onClick={exportCsv} disabled={shown.length === 0} style={{ ...sel, cursor: 'pointer', color: '#11447F', borderColor: '#1B6CD6', background: '#EAF1FB', fontWeight: 600 }}>CSV 내보내기</button>
         </div>
       </div>
       {error && <p style={{ color: '#A3331F', fontSize: 13, marginBottom: 8 }}>{error}</p>}
@@ -105,7 +130,7 @@ export default function AdminAiLevelMatrix() {
                     <td style={{ ...td, textAlign: 'left', fontWeight: 600 }}>{r.name || '-'}</td>
                     <td style={td}><input style={mini} value={e.goal} placeholder="목표"
                       onChange={ev => setEdit(s => ({ ...s, [r.id]: { ...e, goal: ev.target.value } }))} onBlur={() => saveManual(r)} /></td>
-                    <td style={{ ...td, fontWeight: 700, background: '#FFF7E6' }}>Lv {r.level ?? '-'}<div style={{ fontSize: 10.5, color: '#8A97A8' }}>{r.auto_score == null ? '' : Number(r.auto_score).toFixed(0) + '점'}</div></td>
+                    <td style={{ ...td, fontWeight: 700, background: lvBg(r.level), color: lvFg(r.level) }}>Lv {r.level ?? '-'}<div style={{ fontSize: 10.5, color: '#8A97A8' }}>{r.auto_score == null ? '' : Number(r.auto_score).toFixed(0) + '점'}</div></td>
                     <td style={{ ...td, color: '#8A97A8' }}>{r.prev_score == null ? '-' : Number(r.prev_score).toFixed(0)}</td>
                     <td style={{ ...td, color: g == null ? '#B6C0CC' : g >= 0 ? '#1F7A4D' : '#A3331F', fontWeight: 600 }}>{g == null ? '-' : (g >= 0 ? '+' : '') + g + '%'}</td>
                     <td style={td}><input style={mini} value={e.emoney} placeholder="이머니"

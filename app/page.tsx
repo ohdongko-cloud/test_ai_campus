@@ -48,6 +48,7 @@ export default function Page() {
   const [showMyPage, setShowMyPage] = useState(false);
   // AI 레벨테스트 강제 진입 — 로그인 후 미완료면 응시 게이트(스킵 불가)
   const [levelTestNeeded, setLevelTestNeeded] = useState(false);
+  const [aiLevelInfo, setAiLevelInfo] = useState<{ level: number; autoScore: number } | null>(null);
 
   const handleAdminEntry = () => {
     if (hasAdminAccess) setIsAdmin(true);
@@ -150,6 +151,7 @@ export default function Page() {
         const data = await res.json().catch(() => ({}));
         // 미완료이거나 월 1회 재측정 주기 도래 시 응시 게이트
         if (!cancelled && data && (data.completed === false || data.dueForRetake)) setLevelTestNeeded(true);
+        if (!cancelled && data?.latest) setAiLevelInfo({ level: data.latest.level, autoScore: data.latest.autoScore });
       } catch { /* 실패 시 게이트 안 띄움(앱 차단 방지) */ }
     })();
     return () => { cancelled = true; };
@@ -201,13 +203,13 @@ export default function Page() {
 
   const renderTab = () => {
     switch (activeTab) {
-      case 'home':    return <MainPage onNavigate={navigateTo} />;
+      case 'home':    return <MainPage onNavigate={navigateTo} levelInfo={aiLevelInfo} onRetake={() => setLevelTestNeeded(true)} />;
       case 'videos':  return <VideoPage />;
       case 'meeting': return <MeetingPage />;
       case 'board':   return <BoardPage />;
       case 'share':   return <SharePage />;
       case 'guide':   return <GuidePage isAdmin={isAdmin} onNavigate={navigateTo} />;
-      default:        return <MainPage onNavigate={navigateTo} />;
+      default:        return <MainPage onNavigate={navigateTo} levelInfo={aiLevelInfo} onRetake={() => setLevelTestNeeded(true)} />;
     }
   };
 
@@ -218,7 +220,7 @@ export default function Page() {
   if (levelTestNeeded && userInfo && !isAdmin && !showWelcome) {
     return (
       <div className="min-h-screen" style={{ background: 'var(--color-bg)', overflowY: 'auto' }}>
-        <AiLevelTest onComplete={() => setLevelTestNeeded(false)} />
+        <AiLevelTest onComplete={(r) => { setLevelTestNeeded(false); if (r) setAiLevelInfo({ level: r.level, autoScore: r.autoScore }); }} />
       </div>
     );
   }

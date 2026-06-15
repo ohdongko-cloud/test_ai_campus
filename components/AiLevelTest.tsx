@@ -41,6 +41,14 @@ export default function AiLevelTest({ onComplete }: { onComplete?: (r: Result) =
   const [testAccount, setTestAccount] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [codeErr, setCodeErr] = useState('');
+  const [growth, setGrowth] = useState<number | null>(null);
+
+  // 결과 단계 진입 시 전월 대비 성장률 조회(영속된 최신 결과 기준)
+  useEffect(() => {
+    if (phase !== 'result') return;
+    fetch('/api/ai-level-test/status', { cache: 'no-store' })
+      .then((r) => r.json()).then((d) => { if (d?.growth != null) setGrowth(d.growth); }).catch(() => {});
+  }, [phase]);
   // onComplete를 ref로 보관(의존성 제외). 명령형 load만 사용 → answers 의존 효과 없음(루프 불가).
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
@@ -183,6 +191,11 @@ export default function AiLevelTest({ onComplete }: { onComplete?: (r: Result) =
             <span style={{ fontSize: 40, fontWeight: 800, color: '#7FE0B0' }}>Lv {result.level}</span>
             <span style={{ fontSize: 22, fontWeight: 700 }}>{result.autoScore.toFixed(1)}점</span>
             <span style={{ fontSize: 12, opacity: .6 }}>/ 100</span>
+            {growth != null && (
+              <span style={{ fontSize: 13, fontWeight: 700, color: growth >= 0 ? '#7FE0B0' : '#FF8A80' }}>
+                전월 대비 {growth >= 0 ? '+' : ''}{growth}점
+              </span>
+            )}
           </div>
           <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
             {bars.map(([label, v, color]) => (

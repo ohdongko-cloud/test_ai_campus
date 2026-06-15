@@ -7,6 +7,8 @@ import ChatroomPopup from './ChatroomPopup';
 
 interface Props {
   onNavigate: (tab: TabType) => void;
+  levelInfo?: { level: number; autoScore: number } | null;
+  onRetake?: () => void;
 }
 
 /* ── Inline SVG icons (24×24, stroke 1.8, rounded) ──────────── */
@@ -364,7 +366,7 @@ function ToastEl({ msg, visible }: { msg: string; visible: boolean }) {
 }
 
 /* ── Main component ──────────────────────────────────────────── */
-export default function MainPage({ onNavigate }: Props) {
+export default function MainPage({ onNavigate, levelInfo, onRetake }: Props) {
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -437,6 +439,13 @@ export default function MainPage({ onNavigate }: Props) {
     setShowChatroomPopup(true);
   };
 
+  // AI 레벨 진단/재측정 — 강제 진입 게이트(app/page)를 띄운다.
+  const handleLevelAssess = () => {
+    addClickLog(levelInfo ? 'AI 레벨 재측정' : 'AI 레벨 진단');
+    if (onRetake) onRetake();
+    else showToast('레벨 진단을 준비 중입니다');
+  };
+
   return (
     <div style={{ background: 'var(--color-bg)', fontFamily: 'var(--font-sans)' }}>
       <div className="ac-container">
@@ -486,6 +495,71 @@ export default function MainPage({ onNavigate }: Props) {
               );
               return nodes;
             })}
+          </div>
+        </section>
+
+        {/* ── AI 레벨 진단 배너 (A안: 히어로 아래 강조) ── */}
+        <section style={{ padding: '8px 0 4px' }}>
+          <div
+            onClick={handleLevelAssess}
+            style={{
+              position: 'relative', cursor: 'pointer', overflow: 'hidden',
+              background: 'linear-gradient(135deg, #003A78 0%, #004A99 60%, #1B6CD6 100%)',
+              borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-card)',
+              padding: '24px 26px', color: '#fff',
+              display: 'flex', alignItems: 'center', gap: 22,
+            }}
+          >
+            {/* 오렌지 데코 블롭 */}
+            <div style={{
+              position: 'absolute', inset: 'auto -30px -50px auto',
+              width: 200, height: 200, borderRadius: '50%',
+              background: 'radial-gradient(circle at 30% 30%, rgba(255,145,77,0.5), transparent 70%)',
+              pointerEvents: 'none',
+            }} />
+            {/* 아이콘 */}
+            <div style={{
+              width: 52, height: 52, flexShrink: 0, borderRadius: 12,
+              background: 'rgba(255,255,255,0.15)', display: 'grid', placeItems: 'center',
+            }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 26, height: 26 }}>
+                <path d="M4 18a8 8 0 0 1 16 0" />
+                <path d="M12 18l5-7" />
+                <circle cx="12" cy="18" r="1.4" fill="currentColor" stroke="none" />
+              </svg>
+            </div>
+            {/* 텍스트 */}
+            <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6, flexWrap: 'wrap' }}>
+                <h3 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em', margin: 0, color: '#fff' }}>
+                  {levelInfo ? `내 AI 레벨 — Lv ${levelInfo.level}` : '내 AI 활용 레벨 진단하기'}
+                </h3>
+                <span style={{
+                  fontFamily: 'var(--font-eng)', fontSize: 10, fontWeight: 600,
+                  letterSpacing: '0.06em', textTransform: 'uppercase' as const,
+                  padding: '3px 8px', borderRadius: 4,
+                  background: 'rgba(255,145,77,0.22)', color: '#FFD1B0',
+                }}>{levelInfo ? `${Math.round(levelInfo.autoScore)}점 / 100` : '추천 · 1~2분'}</span>
+              </div>
+              <p style={{ fontSize: 14, lineHeight: 1.55, color: 'rgba(255,255,255,0.82)', margin: 0 }}>
+                {levelInfo
+                  ? '월 1회 재측정으로 성장률을 확인하세요. 지금 다시 측정할 수 있어요.'
+                  : 'AI 지식·활용·EBG를 측정해 내 레벨(1~10)을 확인하세요.'}
+              </p>
+            </div>
+            {/* CTA */}
+            <span style={{
+              flexShrink: 0, position: 'relative',
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              background: '#fff', color: 'var(--color-primary)',
+              fontSize: 14, fontWeight: 700, padding: '12px 20px',
+              borderRadius: 10, whiteSpace: 'nowrap',
+            }}>
+              {levelInfo ? '다시 측정' : '진단 시작'}
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16 }}>
+                <path d="M5 12h14M13 6l6 6-6 6" />
+              </svg>
+            </span>
           </div>
         </section>
 
