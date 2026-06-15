@@ -7,6 +7,7 @@ import WelcomePopup from '../components/WelcomePopup';
 import BookmarkPrompt, { BeforeInstallPromptEvent } from '../components/BookmarkPrompt';
 import MyPageModal from '../components/MyPageModal';
 import MainPage from '../components/MainPage';
+import AiLevelTest from '../components/AiLevelTest';
 import VideoPage from '../components/VideoPage';
 import MeetingPage from '../components/MeetingPage';
 import BoardPage from '../components/BoardPage';
@@ -45,6 +46,8 @@ export default function Page() {
   const [showBookmark, setShowBookmark] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showMyPage, setShowMyPage] = useState(false);
+  // AI 레벨테스트 강제 진입 — 로그인 후 미완료면 응시 게이트(스킵 불가)
+  const [levelTestNeeded, setLevelTestNeeded] = useState(false);
 
   const handleAdminEntry = () => {
     if (hasAdminAccess) setIsAdmin(true);
@@ -137,6 +140,20 @@ export default function Page() {
     return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
 
+  // ── AI 레벨테스트 완료 여부 확인 (로그인 + 환영팝업 닫힌 뒤) ──
+  useEffect(() => {
+    if (!userInfo || showWelcome) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/ai-level-test/status', { credentials: 'include', cache: 'no-store' });
+        const data = await res.json().catch(() => ({}));
+        if (!cancelled && data && data.completed === false) setLevelTestNeeded(true);
+      } catch { /* 실패 시 게이트 안 띄움(앱 차단 방지) */ }
+    })();
+    return () => { cancelled = true; };
+  }, [userInfo, showWelcome]);
+
   // ── 재방문자 즐겨찾기 안내 (최초 방문자는 WelcomePopup 닫힌 후 표시) ──
   useEffect(() => {
     if (localStorage.getItem('bookmark_prompted')) return;
@@ -195,6 +212,15 @@ export default function Page() {
 
   const avatarLetter = userInfo?.name ? userInfo.name[0] : '게';
   const displayName  = userInfo?.name ? `${userInfo.name}` : '게스트';
+
+  // ── AI 레벨테스트 강제 진입(스킵 불가): 로그인 후 미완료면 앱 전체를 응시 화면으로 대체 ──
+  if (levelTestNeeded && userInfo && !isAdmin && !showWelcome) {
+    return (
+      <div className="min-h-screen" style={{ background: 'var(--color-bg)', overflowY: 'auto' }}>
+        <AiLevelTest onComplete={() => setLevelTestNeeded(false)} />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--color-bg)', color: 'var(--color-ink)', fontFamily: 'var(--font-sans)' }}>

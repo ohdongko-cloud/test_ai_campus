@@ -13,6 +13,8 @@ import { flattenOrgSeed, ORG_SEED_CORP } from '../../../../lib/org-seed';
  *   M004: level_tests 테이블 생성 (레벨 테스트 검증내역)
  *   M005: users.video_level / users.level_test_done_at 컬럼 추가
  *   M006: org_units 테이블 생성 + 이랜드리테일 조직도 시드 (부서/직무 드롭다운)
+ *   M007: ai_level_attempts 테이블 생성 (AI 레벨테스트 결과 이력)
+ *   M008: ai_level_coding 테이블 생성 (코딩 산출물 제출·채점)
  */
 export async function POST(req: NextRequest) {
   const authCheck = await requireMaster(req);
@@ -127,6 +129,57 @@ export async function POST(req: NextRequest) {
     });
   } catch (e) {
     results.push({ id: 'M006', status: 'error', message: String(e) });
+  }
+
+  // M007: ai_level_attempts — AI 레벨테스트 결과 이력(append). 1행=1응시.
+  try {
+    await sql`
+      CREATE TABLE IF NOT EXISTS ai_level_attempts (
+        id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id        UUID,
+        email          TEXT,
+        c1_score       NUMERIC,                      -- 지식 0~100
+        c2_score       NUMERIC,                      -- 행동(양) 0~100
+        c3_score       NUMERIC,                      -- EBG 0~100
+        coding_status  TEXT NOT NULL DEFAULT 'pending', -- pending|none|scored
+        coding_score   NUMERIC,
+        auto_score     NUMERIC,                      -- 환산점수 0~100
+        level          INTEGER,                      -- 1~10
+        answers        JSONB,                        -- [{id,choice}] 응답 원본
+        area_ratio     JSONB,                        -- 영역별 0~1
+        created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+      )`;
+    await sql`CREATE INDEX IF NOT EXISTS ai_level_attempts_user_idx ON ai_level_attempts (user_id, created_at DESC)`;
+    results.push({ id: 'M007', status: 'ok', message: 'ai_level_attempts 테이블 준비 완료' });
+  } catch (e) {
+    results.push({ id: 'M007', status: 'error', message: String(e) });
+  }
+
+  // M008: ai_level_coding — 코딩(질) 산출물 제출. 관리자 주1회 오프라인 채점.
+  try {
+    await sql`
+      CREATE TABLE IF NOT EXISTS ai_level_coding (
+        id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id        UUID,
+        email          TEXT,
+        submit_kind    TEXT,                          -- 'link' | 'file'
+        link_url       TEXT,
+        blob_url       TEXT,
+        blob_pathname  TEXT,
+        filename       TEXT,
+        service_desc   TEXT,                          -- 어떤 서비스인지
+        needs_account  BOOLEAN,                       -- 로그인 필요 여부
+        test_account   TEXT,                          -- 테스트 계정(없으면 NULL)
+        status         TEXT NOT NULL DEFAULT 'submitted', -- submitted | scored
+        score          NUMERIC,
+        reviewer_note  TEXT,
+        reviewed_at    TIMESTAMPTZ,
+        created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+      )`;
+    await sql`CREATE INDEX IF NOT EXISTS ai_level_coding_user_idx ON ai_level_coding (user_id, created_at DESC)`;
+    results.push({ id: 'M008', status: 'ok', message: 'ai_level_coding 테이블 준비 완료' });
+  } catch (e) {
+    results.push({ id: 'M008', status: 'error', message: String(e) });
   }
 
   const hasError = results.some(r => r.status === 'error');

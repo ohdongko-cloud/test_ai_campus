@@ -140,3 +140,45 @@ CREATE INDEX IF NOT EXISTS org_units_corp_dept_idx ON org_units (corporation_nam
 
 CREATE TRIGGER org_units_updated_at
   BEFORE UPDATE ON org_units FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- ─────────────────────────────────────────────────────────────
+-- ai_level_attempts: AI 레벨테스트 결과 이력(append). 1행=1응시 (M007)
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS ai_level_attempts (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id        UUID,
+  email          TEXT,
+  c1_score       NUMERIC,
+  c2_score       NUMERIC,
+  c3_score       NUMERIC,
+  coding_status  TEXT NOT NULL DEFAULT 'pending',
+  coding_score   NUMERIC,
+  auto_score     NUMERIC,
+  level          INTEGER,
+  answers        JSONB,
+  area_ratio     JSONB,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS ai_level_attempts_user_idx ON ai_level_attempts (user_id, created_at DESC);
+
+-- ai_level_coding: 코딩(질) 산출물 제출 — 관리자 주1회 오프라인 채점 (M008)
+CREATE TABLE IF NOT EXISTS ai_level_coding (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id        UUID,
+  email          TEXT,
+  submit_kind    TEXT,
+  link_url       TEXT,
+  blob_url       TEXT,
+  blob_pathname  TEXT,
+  filename       TEXT,
+  service_desc   TEXT,
+  needs_account  BOOLEAN,
+  test_account   TEXT,
+  status         TEXT NOT NULL DEFAULT 'submitted',
+  score          NUMERIC,
+  reviewer_note  TEXT,
+  reviewed_at    TIMESTAMPTZ,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS ai_level_coding_user_idx ON ai_level_coding (user_id, created_at DESC);
