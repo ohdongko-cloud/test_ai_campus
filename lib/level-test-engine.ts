@@ -154,13 +154,15 @@ export function nextOrResult(attemptId: string, rawAnswers: Answer[]): { done: f
   const areaRatio: Record<string, number> = {};
   for (const a of AREA_ORDER) areaRatio[a] = ratio(a);
 
-  const k = (areaRatio.security + areaRatio.ops + areaRatio.automation + areaRatio.services) / 4;  // 지식(4영역 평균)
+  // 지식 10% 내부 비중: 보안 1 / 운영도구 3 / 자동화 3 / 서비스이해 3 (합 10)
+  const k = (areaRatio.security * 1 + areaRatio.ops * 3 + areaRatio.automation * 3 + areaRatio.services * 3) / 10;
   const svc = areaRatio.service_count;                                        // 행동-양
   const ebg = areaRatio.ebg;                                                  // EBG
   const c1 = Math.round(k * 100), c2 = Math.round(svc * 100), c3 = Math.round(ebg * 100);
 
-  // 잠정 환산(코딩 보류 제외): 지식10 + 서비스20 + EBG20 = 50 → 100%
-  const auto = (k * 0.10 + svc * 0.20 + ebg * 0.20) / 0.50 * 100;
+  // 잠정 환산(코딩 보류 제외): 지식10 + 서비스수20 + EBG5 = 35 → 100%
+  // (정성 35%는 관리자 수기로 자동 점수에서 제외)
+  const auto = (k * 0.10 + svc * 0.20 + ebg * 0.05) / 0.35 * 100;
   const autoScore = Math.round(auto * 10) / 10;
   const level = Math.min(10, Math.max(1, Math.ceil(autoScore / 10)));
 
@@ -170,11 +172,11 @@ export function nextOrResult(attemptId: string, rawAnswers: Answer[]): { done: f
 export function totalQuestionCount(): number { return INDEXED.length; }
 
 // 코딩(질) 채점 반영 후 총점 재산출 (PRD F4 전체 가중치).
-// 행동 50% = 코딩(질) 0.6 + 서비스수(양) 0.4. 입력은 모두 0~100.
+// 자동 측정: 지식10 + 행동50(코딩30+서비스20) + EBG5 = 65 → 100%. (정성 35%는 수기 제외)
 export function recomputeWithCoding(c1: number, c2svc: number, c3: number, codingScore: number): { autoScore: number; level: number } {
   const k = c1 / 100, svc = c2svc / 100, ebg = c3 / 100, code = Math.max(0, Math.min(100, codingScore)) / 100;
-  const behavior = code * 0.6 + svc * 0.4;
-  const auto = (k * 0.10 + behavior * 0.50 + ebg * 0.20) / 0.80 * 100;
+  const behavior = code * 0.6 + svc * 0.4;   // 코딩30/서비스20 = 0.6/0.4 of 50%
+  const auto = (k * 0.10 + behavior * 0.50 + ebg * 0.05) / 0.65 * 100;
   const autoScore = Math.round(auto * 10) / 10;
   return { autoScore, level: Math.min(10, Math.max(1, Math.ceil(autoScore / 10))) };
 }
