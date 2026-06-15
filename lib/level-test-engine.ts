@@ -168,3 +168,13 @@ export function nextOrResult(attemptId: string, rawAnswers: Answer[]): { done: f
 }
 
 export function totalQuestionCount(): number { return INDEXED.length; }
+
+// 코딩(질) 채점 반영 후 총점 재산출 (PRD F4 전체 가중치).
+// 행동 50% = 코딩(질) 0.6 + 서비스수(양) 0.4. 입력은 모두 0~100.
+export function recomputeWithCoding(c1: number, c2svc: number, c3: number, codingScore: number): { autoScore: number; level: number } {
+  const k = c1 / 100, svc = c2svc / 100, ebg = c3 / 100, code = Math.max(0, Math.min(100, codingScore)) / 100;
+  const behavior = code * 0.6 + svc * 0.4;
+  const auto = (k * 0.10 + behavior * 0.50 + ebg * 0.20) / 0.80 * 100;
+  const autoScore = Math.round(auto * 10) / 10;
+  return { autoScore, level: Math.min(10, Math.max(1, Math.ceil(autoScore / 10))) };
+}

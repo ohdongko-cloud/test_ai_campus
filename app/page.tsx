@@ -148,7 +148,8 @@ export default function Page() {
       try {
         const res = await fetch('/api/ai-level-test/status', { credentials: 'include', cache: 'no-store' });
         const data = await res.json().catch(() => ({}));
-        if (!cancelled && data && data.completed === false) setLevelTestNeeded(true);
+        // 미완료이거나 월 1회 재측정 주기 도래 시 응시 게이트
+        if (!cancelled && data && (data.completed === false || data.dueForRetake)) setLevelTestNeeded(true);
       } catch { /* 실패 시 게이트 안 띄움(앱 차단 방지) */ }
     })();
     return () => { cancelled = true; };

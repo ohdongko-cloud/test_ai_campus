@@ -71,6 +71,7 @@
 
 | 커밋 | 메시지 | 비고 |
 |---|---|---|
+| `d65d59e` | feat(level-test): AI 레벨테스트 2차 — 코딩 채점·총점 재산출·월 재측정 | PRD `2026-06-15-ai-level-test.md`(2차). 관리자 코딩 채점 API+탭(0~100 입력→총점 재산출, 행동=코딩0.6+서비스0.4), `recomputeWithCoding`, /status 월1회 dueForRetake+성장률, 게이트 재측정 반영 |
 | `67caa63` | feat(level-test): AI 레벨테스트 1차 — 적응형 퀴즈·3축 채점·레벨 1~10 | PRD `2026-06-15-ai-level-test.md`(1차 MVP). 문항 75+(지식 보안/운영/자동화/서비스매칭·행동·EBG, 보기 셔플·NOA 대비), stateless 적응형 엔진(초→중→고 조기종료·정답 비노출), 지식10·행동50·EBG20 환산 레벨1~10, 코딩(질) 제출(링크/zip/html/이미지)→`ai_level_coding`, `/api/ai-level-test/*`(세션 레이트리밋), 강제 진입, M007·M008 |
 | `c031139`~`3a8e0a2` | feat(signup): 회원가입 법인·부서·직무 검색 드롭다운 + 기타 직접입력 | PRD `2026-06-12-signup-org-dropdowns.md`, M006 `org_units` 테이블+시드(이랜드리테일), `/api/org-units`(공개·no-store) + `/api/admin/org-units`(마스터 CRUD), SearchableSelect 콤보박스, 부서→직무 cascading, 데스크톱·모바일 적용, 어드민 '조직 분류' 탭 |
 | `6e2e67d` | fix(level-test): 레벨테스트 최초 노출을 계정(서버) 기준 1회로 교정 | PRD `2026-06-06-level-test-once-server-side.md`, M005(users.video_level/level_test_done_at) + /api/users/me 확장 + /api/level-test/seen 신규 + VideoPage 서버 기준 노출. 기기 변경 시 재노출 버그 해결 |
