@@ -28,6 +28,7 @@ yarn-error.log*
 .claude/*
 !.claude/skills/
 !.claude/commands/
+!.claude/agents/
 !.claude/settings.json
 
 # typescript

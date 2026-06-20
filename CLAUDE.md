@@ -81,3 +81,24 @@
 > 스킬은 **적응형**: repo에 이 `CLAUDE.md`·`docs/prd`가 있으면 그 규약을 따르고, 없는 다른 프로젝트에선 기본 템플릿으로 동작한다(개인 스코프 `~/.claude/skills`에도 동기화되어 전 세션에서 사용 가능).
 
 > PRD 템플릿은 8섹션 고정: ① 배경/문제 ② 목표·비목표(G/non) ③ 사용자 시나리오(S) ④ 기능 요구사항(F) ⑤ UX/디자인 ⑥ 엣지 케이스(표) ⑦ 성공 기준(체크박스) ⑧ 미해결 질문.
+
+## 서브에이전트 라우팅 룰 (`.claude/agents/`)
+> 작업 성격이 맞으면 **해당 서브에이전트에 위임**한다(독립 컨텍스트 → 메인 대화 오염 방지). 공식 가이드(`.claude/agents/*.md`, frontmatter `name`/`description`/`tools`/`model`) 포맷을 따른다.
+
+| 작업 | 위임 대상 | 비고 |
+|---|---|---|
+| SSO 허브(IdP) 구현 — `app/sso/*`·`/.well-known/jwks.json`·`lib/sso*`·RS256 키·nonce | **sso-hub-builder** | 근거 = SSO 허브 세팅 PRD §2–5. Node 런타임·정확매칭·60s 토큰 |
+| SSO 연합 **설계·검토**(read-only) | **sso-auth-architect** | 이미 등록됨. 쿠키공유 vs OIDC vs JWT, 무료티어, 위협모델 |
+| 비-SSO `app/api/**` 라우트 | **api-route-builder** | 세션/권한·레이트리밋·파라미터화 SQL·에러통일 |
+| React/Tailwind 화면·`app/m/*` 패리티·`/login next` 패치 | **ui-builder** | 한글 인코딩 가드·preview 검증 |
+| DB 스키마 변경(`/api/admin/migrate` M00x·`sso_clients`·`sso_nonces`) | **migration-guard** | 멱등·하위호환·`schema.sql` 동기화 |
+| PRD·스포크 통합 계약 문서 | **prd-author** | 8섹션·CHANGELOG 등록 |
+| **커밋/푸시 전 보안 게이트** (proactively) | **security-reviewer** | §6 + SSO §7. read-only. 🚫 차단 시 푸시 금지 |
+| **"동작/완료" 주장·ship 전 검증** (proactively) | **release-verifier** | tsc+build(더미 env)·preview·SSO AC1–9 |
+| 기획→배포 전체 자율 오케스트레이션 | **flow-lead** | 조정자(`claude --agent flow-lead`). 게이트②⑥ 강제 |
+
+**불변 규칙**
+- 푸시 전 **security-reviewer(보안) → release-verifier(빌드/동작)** 두 게이트를 반드시 통과. 차단 1건이라도 있으면 푸시 금지.
+- SSO 변경은 **sso-hub-builder(구현) + security-reviewer + sso-auth-architect(설계검토)** 2-렌즈로 본다.
+- 빌더 에이전트는 **푸시·배포를 하지 않는다**(게이트 경유). 운영(1,800명) 푸시는 사용자 명시 승인 후에만.
+- 스킬(`/prd-flow` 등)은 사람이 호출하는 오케스트레이션, 서브에이전트는 작업 매칭 시 자동 위임 — **보완 관계**.
