@@ -192,3 +192,33 @@ CREATE TABLE IF NOT EXISTS ai_level_manual (
   updated_by  TEXT,
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- ─────────────────────────────────────────────────────────────
+-- sso_clients: SSO 허브 클라이언트(앱) 레지스트리 (M010)
+-- 허용 redirect_uri 화이트리스트(정확매칭) + post_logout_redirect_uris + enabled 플래그.
+-- PRD §3.2. 시드 없음 — 스포크 운영 URL 확정 후 DB 직접 추가(Q6).
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS sso_clients (
+  app                       TEXT PRIMARY KEY,
+  name                      TEXT NOT NULL,
+  redirect_uris             TEXT[] NOT NULL,
+  post_logout_redirect_uris TEXT[] DEFAULT '{}',
+  enabled                   BOOLEAN NOT NULL DEFAULT true,
+  created_at                TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at                TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ─────────────────────────────────────────────────────────────
+-- sso_nonces: SSO 1회성 nonce 스토어 (M011)
+-- PRD §4.3 / Q7: Upstash 미사용, Neon 테이블만 사용.
+-- expires_at 인덱스: 만료된 행 주기 정리 및 조회 최적화.
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS sso_nonces (
+  nonce       TEXT PRIMARY KEY,
+  app         TEXT NOT NULL,
+  expires_at  TIMESTAMPTZ NOT NULL,
+  consumed    BOOLEAN NOT NULL DEFAULT false,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS sso_nonces_expires_at_idx ON sso_nonces (expires_at);

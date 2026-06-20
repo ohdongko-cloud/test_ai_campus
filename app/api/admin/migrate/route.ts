@@ -16,6 +16,8 @@ import { flattenOrgSeed, ORG_SEED_CORP } from '../../../../lib/org-seed';
  *   M007: ai_level_attempts 테이블 생성 (AI 레벨테스트 결과 이력)
  *   M008: ai_level_coding 테이블 생성 (코딩 산출물 제출·채점)
  *   M009: ai_level_manual 테이블 생성 (관리자 정성 입력 — 목표·이머니)
+ *   M010: sso_clients 테이블 생성 (SSO 허브 클라이언트 레지스트리 — PRD §3.2)
+ *   M011: sso_nonces 테이블 생성 + 만료 인덱스 (SSO 1회성 nonce 스토어 — PRD §4.3)
  */
 export async function POST(req: NextRequest) {
   const authCheck = await requireMaster(req);
@@ -197,6 +199,42 @@ export async function POST(req: NextRequest) {
     results.push({ id: 'M009', status: 'ok', message: 'ai_level_manual 테이블 준비 완료' });
   } catch (e) {
     results.push({ id: 'M009', status: 'error', message: String(e) });
+  }
+
+  // M010: sso_clients — SSO 허브 클라이언트(앱) 레지스트리. PRD §3.2.
+  // 허용 redirect_uri 화이트리스트 정확매칭 + post_logout_redirect_uris + enabled 플래그.
+  // 시드 없음(스포크 운영 URL 미확정 Q6 — 확정 후 DB 직접 추가).
+  try {
+    await sql`
+      CREATE TABLE IF NOT EXISTS sso_clients (
+        app                       TEXT PRIMARY KEY,
+        name                      TEXT NOT NULL,
+        redirect_uris             TEXT[] NOT NULL,
+        post_logout_redirect_uris TEXT[] DEFAULT '{}',
+        enabled                   BOOLEAN NOT NULL DEFAULT true,
+        created_at                TIMESTAMPTZ NOT NULL DEFAULT now(),
+        updated_at                TIMESTAMPTZ NOT NULL DEFAULT now()
+      )`;
+    results.push({ id: 'M010', status: 'ok', message: 'sso_clients 테이블 준비 완료' });
+  } catch (e) {
+    results.push({ id: 'M010', status: 'error', message: String(e) });
+  }
+
+  // M011: sso_nonces — SSO 1회성 nonce 스토어. PRD §4.3 / Q7 (Neon 테이블, Upstash 미사용).
+  // 만료 정리용 인덱스(expires_at) 포함.
+  try {
+    await sql`
+      CREATE TABLE IF NOT EXISTS sso_nonces (
+        nonce       TEXT PRIMARY KEY,
+        app         TEXT NOT NULL,
+        expires_at  TIMESTAMPTZ NOT NULL,
+        consumed    BOOLEAN NOT NULL DEFAULT false,
+        created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+      )`;
+    await sql`CREATE INDEX IF NOT EXISTS sso_nonces_expires_at_idx ON sso_nonces (expires_at)`;
+    results.push({ id: 'M011', status: 'ok', message: 'sso_nonces 테이블 및 만료 인덱스 준비 완료' });
+  } catch (e) {
+    results.push({ id: 'M011', status: 'error', message: String(e) });
   }
 
   const hasError = results.some(r => r.status === 'error');

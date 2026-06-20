@@ -1,7 +1,7 @@
 # PRD: 이랜드리테일 AI 캠퍼스 — 마스터 변경 이력 (CHANGELOG)
 
 - 최초 작성: 2026-05-30
-- 최종 갱신: 2026-06-15
+- 최종 갱신: 2026-06-20
 - 작성자/소유자: <오너> + Claude
 - 운영 URL: https://retail-ai-campus.vercel.app
 - GitHub: https://github.com/ohdongko-cloud/test_ai_campus
@@ -35,7 +35,7 @@
 
 ---
 
-## 2. 작성된 PRD 목록 (19건)
+## 2. 작성된 PRD 목록 (20건)
 
 모두 `docs/prd/` 하위에 보관.
 
@@ -60,6 +60,7 @@
 | 17 | [2026-06-06-level-test-once-server-side.md](./2026-06-06-level-test-once-server-side.md) | 레벨테스트 최초 1회 노출 보장(서버/DB 기준) |
 | 18 | [2026-06-12-signup-org-dropdowns.md](./2026-06-12-signup-org-dropdowns.md) | 회원가입 법인·부서·직무 검색 드롭다운 + 기타 직접입력 (org_units) |
 | 19 | [2026-06-15-ai-level-test.md](./2026-06-15-ai-level-test.md) | AI 레벨테스트 — 지식·행동·EBG 3축 측정 + 적응형 퀴즈 + 레벨 1~10 + 관리자 대시보드 |
+| 20 | [2026-06-20-sso-hub.md](./2026-06-20-sso-hub.md) | SSO 허브(IdP) — AI캠퍼스를 사내 중앙 로그인 허브로 승격 (RS256/JWKS/OIDC-lite) |
 
 > ※ 테스트 계정(`test@eland.co.kr` / `000000`)과 15 페르소나 리서치는 별도 PRD 없이 본 CHANGELOG와 `public/research/` 폴더로 관리.
 
@@ -71,6 +72,7 @@
 
 | 커밋 | 메시지 | 비고 |
 |---|---|---|
+| `3b6d231` | feat(sso): SSO 허브 IdP 구현 — RS256/JWKS/sso_clients·nonces/login next 새니타이즈 | PRD `2026-06-20-sso-hub.md`. lib/sso-keys·sso·sso-nonce·sso-clients, app/sso/authorize·logout·userinfo, app/.well-known/jwks.json, login next 오픈리다이렉트 방지, M010 sso_clients·M011 sso_nonces, schema.sql 동기화, .env.local.example SSO env. 게이트: security-reviewer ✅ / release-verifier(tsc·build·AC1·AC5·jose 60s) ✅. 스포크 핸드오프: docs/sso-spoke-integration-contract.md |
 | `ab7c792` | fix(level-test): 점수 비중 갱신 — 지식10·행동50·EBG5·정성35 | 지식 내부 보안1·운영3·자동화3·서비스3, EBG 20→5%, 정성 20→35%(수기). 자동 65%(코딩보류 35%)→100% 환산. 엔진·PRD 동기화 |
 | `bd25752` | feat(level-test): 홈 배너 실연결·결과 성장률·매트릭스 내보내기 | 홈 배너→실제 진단/수시 재측정 연결(완료자 'Lv N·다시 측정' 표시), 결과 화면 전월 대비 성장률, 관리자 매트릭스 CSV 내보내기+레벨 신호등 |
 | `c6dd5ea` | feat(level-test): AI 레벨테스트 3차 — 관리자 매트릭스(법인/부서/직무) | PRD `2026-06-15-ai-level-test.md`(3차). `/api/admin/ai-level-matrix`(목록+정성 upsert), 'AI레벨 현황' 탭(법인/부서/직무 필터·전월·성장률·영역별·목표/이머니 인라인편집), M009 `ai_level_manual` |
@@ -203,3 +205,4 @@ Phase가 바뀌면 새 phase 섹션을 §3 최상단에 추가하고, §1 표에
 - [android-app.md](./android-app.md) — 안드로이드 앱 (별도 living document)
 - `public/research/personas-raw.md` — 15 페르소나 인터뷰 raw
 - `public/research/insights-summary.md` — 인사이트 + 커리큘럼 제안
+- [../sso-spoke-integration-contract.md](../sso-spoke-integration-contract.md) — SSO 스포크 통합 계약 (스포크 레포 작업자 핸드오프)
