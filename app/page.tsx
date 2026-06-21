@@ -8,6 +8,7 @@ import BookmarkPrompt, { BeforeInstallPromptEvent } from '../components/Bookmark
 import MyPageModal from '../components/MyPageModal';
 import MainPage from '../components/MainPage';
 import AiLevelTest from '../components/AiLevelTest';
+import AiLevelPrompt from '../components/AiLevelPrompt';
 import VideoPage from '../components/VideoPage';
 import MeetingPage from '../components/MeetingPage';
 import BoardPage from '../components/BoardPage';
@@ -46,9 +47,25 @@ export default function Page() {
   const [showBookmark, setShowBookmark] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showMyPage, setShowMyPage] = useState(false);
-  // AI 레벨테스트 강제 진입 — 로그인 후 미완료면 응시 게이트(스킵 불가)
+  // AI 레벨테스트 — 선택형 진입 (PRD: docs/prd/2026-06-22-level-test-entry-choice.md)
   const [levelTestNeeded, setLevelTestNeeded] = useState(false);
   const [aiLevelInfo, setAiLevelInfo] = useState<{ level: number; autoScore: number } | null>(null);
+  const [levelPromptOpen, setLevelPromptOpen] = useState(false);
+  const [promptMode, setPromptMode] = useState<'first' | 'retake'>('first');
+
+  // ── 하루 1회 dismiss 헬퍼 (localStorage, 미가용 시 try/catch 안전) ──
+  const getTodayStr = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+  const dismissedToday = (): boolean => {
+    try {
+      return localStorage.getItem('aiLevelPromptDismissedAt') === getTodayStr();
+    } catch { return false; }
+  };
+  const dismissToday = () => {
+    try { localStorage.setItem('aiLevelPromptDismissedAt', getTodayStr()); } catch { /* ignore */ }
+  };
 
   const handleAdminEntry = () => {
     if (hasAdminAccess) setIsAdmin(true);
@@ -149,12 +166,18 @@ export default function Page() {
       try {
         const res = await fetch('/api/ai-level-test/status', { credentials: 'include', cache: 'no-store' });
         const data = await res.json().catch(() => ({}));
-        // 미완료이거나 월 1회 재측정 주기 도래 시 응시 게이트
-        if (!cancelled && data && (data.completed === false || data.dueForRetake)) setLevelTestNeeded(true);
+        // 레벨 정보 갱신 (기존 유지)
         if (!cancelled && data?.latest) setAiLevelInfo({ level: data.latest.level, autoScore: data.latest.autoScore });
-      } catch { /* 실패 시 게이트 안 띄움(앱 차단 방지) */ }
+        // 선택 팝업 — 미완료·재측정 도래 + 오늘 dismiss 안 됨인 경우만 노출 (강제 차단 없음)
+        const shouldPrompt = data && (data.completed === false || data.dueForRetake);
+        if (!cancelled && shouldPrompt && !dismissedToday()) {
+          setPromptMode(data.dueForRetake ? 'retake' : 'first');
+          setLevelPromptOpen(true);
+        }
+      } catch { /* 실패 시 팝업 안 띄움(앱 차단 방지, fail-open) */ }
     })();
     return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userInfo, showWelcome]);
 
   // ── 재방문자 즐겨찾기 안내 (최초 방문자는 WelcomePopup 닫힌 후 표시) ──
@@ -216,11 +239,14 @@ export default function Page() {
   const avatarLetter = userInfo?.name ? userInfo.name[0] : '게';
   const displayName  = userInfo?.name ? `${userInfo.name}` : '게스트';
 
-  // ── AI 레벨테스트 강제 진입(스킵 불가): 로그인 후 미완료면 앱 전체를 응시 화면으로 대체 ──
+  // ── AI 레벨테스트 응시 화면 ("지금 진단하기" 선택 후 또는 배너 onRetake 경로) ──
   if (levelTestNeeded && userInfo && !isAdmin && !showWelcome) {
     return (
       <div className="min-h-screen" style={{ background: 'var(--color-bg)', overflowY: 'auto' }}>
-        <AiLevelTest onComplete={(r) => { setLevelTestNeeded(false); if (r) setAiLevelInfo({ level: r.level, autoScore: r.autoScore }); }} />
+        <AiLevelTest
+          onComplete={(r) => { setLevelTestNeeded(false); if (r) setAiLevelInfo({ level: r.level, autoScore: r.autoScore }); }}
+          onExit={() => { setLevelTestNeeded(false); dismissToday(); }}
+        />
       </div>
     );
   }
@@ -230,6 +256,15 @@ export default function Page() {
 
       {/* ── 웰컴 팝업 ── */}
       {showWelcome && <WelcomePopup onClose={handleWelcomeClose} />}
+
+      {/* ── AI 레벨 진단 선택 팝업 (완전 선택형, 하루 1회) ── */}
+      {levelPromptOpen && userInfo && !isAdmin && !showWelcome && (
+        <AiLevelPrompt
+          mode={promptMode}
+          onStart={() => { setLevelPromptOpen(false); setLevelTestNeeded(true); }}
+          onLater={() => { setLevelPromptOpen(false); dismissToday(); }}
+        />
+      )}
 
       {/* ── 즐겨찾기 추가 안내 토스트 ── */}
       <BookmarkPrompt

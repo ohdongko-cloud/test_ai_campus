@@ -23,7 +23,7 @@ const CAT_OF_AREA: Record<string, '지식' | '행동' | 'EBG'> = {
   security: '지식', ops: '지식', automation: '지식', services: '지식', service_count: '행동', ebg: 'EBG',
 };
 
-export default function AiLevelTest({ onComplete }: { onComplete?: (r: Result) => void }) {
+export default function AiLevelTest({ onComplete, onExit }: { onComplete?: (r: Result) => void; onExit?: () => void }) {
   const attemptId = useRef<string>(typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : String(Date.now()));
   const [answers, setAnswers] = useState<Answer[]>([]);
   const [question, setQuestion] = useState<ClientQuestion | null>(null);
@@ -132,6 +132,16 @@ export default function AiLevelTest({ onComplete }: { onComplete?: (r: Result) =
     const label: React.CSSProperties = { fontSize: 13, fontWeight: 700, margin: '14px 0 7px', display: 'block' };
     return (
       <div style={wrap}>
+        {onExit && (
+          <div style={{ textAlign: 'right', marginBottom: 8 }}>
+            <button
+              onClick={onExit}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12.5, color: '#8A97A8', padding: '4px 0', fontFamily: 'inherit' }}
+            >
+              나중에 하기
+            </button>
+          </div>
+        )}
         <h1 style={{ fontSize: 20, fontWeight: 800, margin: '0 0 6px' }}>코딩 산출물 제출 <span style={{ fontSize: 13, fontWeight: 500, color: '#8A97A8' }}>(선택)</span></h1>
         <p style={{ fontSize: 13, color: '#6B7888', margin: '0 0 16px', lineHeight: 1.6 }}>
           직접 만든 바이브코딩 서비스·자동화(n8n 등)가 있으면 제출해주세요. <b>주 1회 코드리뷰로 채점</b>되어 점수에 반영됩니다. 없으면 건너뛰어도 됩니다.
@@ -246,7 +256,17 @@ export default function AiLevelTest({ onComplete }: { onComplete?: (r: Result) =
     <div style={wrap}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, fontSize: 12, color: '#8A97A8' }}>
         <span>AI 레벨 진단</span>
-        <span>{progress.index} / 최대 {progress.max}문항</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {onExit && (
+            <button
+              onClick={onExit}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#9AA6B5', padding: 0, fontFamily: 'inherit' }}
+            >
+              나중에 하기
+            </button>
+          )}
+          <span>{progress.index} / 최대 {progress.max}문항</span>
+        </div>
       </div>
       <div style={{ height: 6, background: '#EEF1F5', borderRadius: 3, marginBottom: 22, overflow: 'hidden' }}>
         <div style={{ width: `${Math.min(100, (progress.index / progress.max) * 100)}%`, height: '100%', background: '#1B6CD6', borderRadius: 3, transition: 'width .25s' }} />
