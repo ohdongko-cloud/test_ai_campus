@@ -112,13 +112,15 @@ function LiveDot() {
 }
 
 /* ── Standard action card ────────────────────────────────────── */
-function ActionCard({ icon, title, desc, meta, metaRight, onClick }: {
+function ActionCard({ icon, title, desc, meta, metaRight, onClick, hideMeta, large }: {
   icon: React.ReactNode;
   title: string;
   desc: string;
-  meta: React.ReactNode;
+  meta?: React.ReactNode;
   metaRight?: React.ReactNode;
   onClick: () => void;
+  hideMeta?: boolean;   // 하단 메타 영역 숨김 (만들기 카드)
+  large?: boolean;      // 제목 폰트 확대 (만들기 카드)
 }) {
   return (
     <div
@@ -144,23 +146,25 @@ function ActionCard({ icon, title, desc, meta, metaRight, onClick }: {
         {icon}
       </div>
       <div style={{ flex: 1 }}>
-        <h3 style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.015em', margin: '0 0 6px', color: 'var(--color-ink)' }}>
+        <h3 style={{ fontSize: large ? 22 : 18, fontWeight: 700, letterSpacing: '-0.015em', margin: '0 0 6px', color: 'var(--color-ink)' }}>
           {title}
         </h3>
         <p style={{ fontSize: 13.5, lineHeight: 1.55, color: 'var(--color-ink-3)', margin: 0 }}>
           {desc}
         </p>
       </div>
-      <div style={{
-        marginTop: 'auto', paddingTop: 12,
-        borderTop: '1px dashed var(--color-line)',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        fontFamily: 'var(--font-eng)', fontSize: 11, fontWeight: 500,
-        color: 'var(--color-ink-3)', letterSpacing: '0.04em', textTransform: 'uppercase' as const,
-      }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>{meta}</span>
-        {metaRight && <span>{metaRight}</span>}
-      </div>
+      {!hideMeta && (
+        <div style={{
+          marginTop: 'auto', paddingTop: 12,
+          borderTop: '1px dashed var(--color-line)',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          fontFamily: 'var(--font-eng)', fontSize: 11, fontWeight: 500,
+          color: 'var(--color-ink-3)', letterSpacing: '0.04em', textTransform: 'uppercase' as const,
+        }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>{meta}</span>
+          {metaRight && <span>{metaRight}</span>}
+        </div>
+      )}
       <span className="ac-arrow" style={{
         position: 'absolute', top: 22, right: 22,
         width: 18, height: 18, opacity: 0.5,
@@ -594,42 +598,38 @@ export default function MainPage({ onNavigate, levelInfo, onRetake }: Props) {
             />
             <div className="ac-grid-4">
               <ActionCard
+                hideMeta large
                 icon={<NoaIcon />}
-                title="NOA로 바로 만들기"
+                title="NoA 접속"
                 desc="사내 AI 시스템 NOA를 시작해보세요. 실제 업무에 즉시 적용."
-                meta={<><LiveDot />운영중</>}
-                metaRight="새 탭 ↗"
                 onClick={handleNoa}
               />
               <ActionCard
-                icon={<GuideIcon />}
-                title="필수 도구 둘러보기"
-                desc="핵심 서비스·도구를 한 페이지에 정리했습니다."
-                meta="10 categories · 32 services"
-                metaRight={<Badge variant="new">업데이트</Badge>}
-                onClick={() => handleNav('guide', '필수 도구 둘러보기')}
-              />
-              <ActionCard
+                hideMeta large
                 icon={<LogoIcon src="https://www.google.com/s2/favicons?domain=claude.com&sz=128" alt="Claude" />}
                 title="Claude Code 다운로드"
                 desc="터미널에서 AI가 같이 코딩. 여러 파일 한 번에 수정 강력."
-                meta="공식 사이트"
-                metaRight={<Badge variant="secondary">유료</Badge>}
                 onClick={() => {
                   addClickLog('Claude Code 다운로드');
                   window.open('https://claude.com/ko/download', '_blank', 'noopener,noreferrer');
                 }}
               />
               <ActionCard
+                hideMeta large
                 icon={<LogoIcon src="https://www.google.com/s2/favicons?domain=chatgpt.com&sz=128" alt="OpenAI" />}
                 title="Codex 다운로드"
                 desc="OpenAI의 코딩 전용 AI. ChatGPT 가입자는 바로 사용."
-                meta="공식 사이트"
-                metaRight={<Badge variant="secondary">유료</Badge>}
                 onClick={() => {
                   addClickLog('Codex 다운로드');
                   window.open('https://chatgpt.com/ko-KR/codex', '_blank', 'noopener,noreferrer');
                 }}
+              />
+              <ActionCard
+                hideMeta large
+                icon={<GuideIcon />}
+                title="연계서비스 확인"
+                desc="핵심 서비스·도구를 한 페이지에 정리했습니다."
+                onClick={() => handleNav('guide', '연계서비스 확인')}
               />
             </div>
           </section>

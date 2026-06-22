@@ -35,7 +35,7 @@
 
 ---
 
-## 2. 작성된 PRD 목록 (22건)
+## 2. 작성된 PRD 목록 (23건)
 
 모두 `docs/prd/` 하위에 보관.
 
@@ -63,6 +63,7 @@
 | 20 | [2026-06-20-sso-hub.md](./2026-06-20-sso-hub.md) | SSO 허브(IdP) — AI캠퍼스를 사내 중앙 로그인 허브로 승격 (RS256/JWKS/OIDC-lite) |
 | 21 | [2026-06-22-level-test-entry-choice.md](./2026-06-22-level-test-entry-choice.md) | 레벨테스트 진입 완화 — '지금 응시 vs 먼저 둘러보기' 선택 팝업(하루1회·완전선택형) |
 | 22 | [2026-06-22-level-test-dont-know-option.md](./2026-06-22-level-test-dont-know-option.md) | 레벨테스트 '잘 모름' 선택지(지식 문항) + 코딩 '만든 서비스 없어요'(0점 확정) |
+| 23 | [2026-06-22-home-make-cards-cleanup.md](./2026-06-22-home-make-cards-cleanup.md) | 홈 '만들기' 카드 정리(메타 삭제·NoA 접속·연계서비스 확인 맨뒤·제목 폰트↑) |
 
 > ※ 테스트 계정(`test@eland.co.kr` / `000000`)과 15 페르소나 리서치는 별도 PRD 없이 본 CHANGELOG와 `public/research/` 폴더로 관리.
 
@@ -74,6 +75,7 @@
 
 | 커밋 | 메시지 | 비고 |
 |---|---|---|
+| `7ed918e` | feat(home): 만들기 카드 정리 — 메타 삭제·워딩·순서·폰트 | PRD `2026-06-22-home-make-cards-cleanup.md`. ActionCard hideMeta·large 옵션, 만들기 4카드 메타 제거·제목 22px, 'NoA 접속'·'연계서비스 확인'(맨뒤). 타 섹션 불변 |
 | `8992424` | feat(level-test): 지식 문항 '잘 모름' 선택지 + 코딩 '만든 서비스 없어요' | PRD `2026-06-22-level-test-dont-know-option.md`. 지식 4지선다에 '잘 모름'(0점·셔플제외·항상 마지막), 코딩 제출 단계 '만든 서비스 없어요' 버튼→코딩 0점 확정·총점 재산출 |
 | `31be110` | feat(level-test): 진입 완화 — 지금 응시 vs 먼저 둘러보기 선택 팝업 | PRD `2026-06-22-level-test-entry-choice.md`. 100% 강제 → 로그인 후 선택 팝업(AiLevelPrompt). 하루1회 재유도(localStorage), 완전 선택형(영구 미응시 허용·배너 유도), 테스트 중도 이탈(onExit), 월 재측정도 팝업 |
 | `3b6d231` | feat(sso): SSO 허브 IdP 구현 — RS256/JWKS/sso_clients·nonces/login next 새니타이즈 | PRD `2026-06-20-sso-hub.md`. lib/sso-keys·sso·sso-nonce·sso-clients, app/sso/authorize·logout·userinfo, app/.well-known/jwks.json, login next 오픈리다이렉트 방지, M010 sso_clients·M011 sso_nonces, schema.sql 동기화, .env.local.example SSO env. 게이트: security-reviewer ✅ / release-verifier(tsc·build·AC1·AC5·jose 60s) ✅. 스포크 핸드오프: docs/sso-spoke-integration-contract.md |
