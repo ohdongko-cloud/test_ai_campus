@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { TabType } from '../lib/types';
-import { addClickLog, getWeekDates } from '../lib/utils';
+import { addClickLog } from '../lib/utils';
 import ChatroomPopup from './ChatroomPopup';
 
 interface Props {
@@ -80,37 +80,6 @@ const ArrowIcon = () => (
   </svg>
 );
 
-/* ── Badge ───────────────────────────────────────────────────── */
-function Badge({ variant, children }: {
-  variant: 'primary' | 'secondary' | 'new' | 'featured';
-  children: React.ReactNode;
-}) {
-  const styles: Record<string, React.CSSProperties> = {
-    primary:  { background: 'var(--color-primary-50)',   color: 'var(--color-primary)' },
-    secondary:{ background: 'var(--color-secondary-50)', color: 'var(--color-secondary-700)' },
-    new:      { background: 'var(--color-success-bg)',   color: 'var(--color-success-ink)' },
-    featured: { background: 'rgba(255,145,77,0.22)',      color: '#FFD1B0' },
-  };
-  return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center', gap: 4,
-      fontFamily: 'var(--font-eng)', fontSize: 10, fontWeight: 600,
-      letterSpacing: '0.06em', textTransform: 'uppercase' as const,
-      padding: '3px 8px', borderRadius: 4,
-      ...styles[variant],
-    }}>
-      {children}
-    </span>
-  );
-}
-
-/* ── Live dot ────────────────────────────────────────────────── */
-function LiveDot() {
-  return (
-    <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22A66B', display: 'inline-block', flexShrink: 0 }} />
-  );
-}
-
 /* ── Standard action card ────────────────────────────────────── */
 function ActionCard({ icon, title, desc, meta, metaRight, onClick, hideMeta, large }: {
   icon: React.ReactNode;
@@ -178,12 +147,13 @@ function ActionCard({ icon, title, desc, meta, metaRight, onClick, hideMeta, lar
 }
 
 /* ── Featured card (배우기, spans 2 cols, dark navy bg) ─────── */
-function FeaturedCard({ icon, title, desc, meta, metaRight, onClick }: {
+function FeaturedCard({ icon, title, desc, meta, metaRight, hideMeta, onClick }: {
   icon: React.ReactNode;
   title: string;
   desc: string;
-  meta: React.ReactNode;
+  meta?: React.ReactNode;
   metaRight?: React.ReactNode;
+  hideMeta?: boolean;
   onClick: () => void;
 }) {
   return (
@@ -226,16 +196,18 @@ function FeaturedCard({ icon, title, desc, meta, metaRight, onClick }: {
           {desc}
         </p>
       </div>
-      <div style={{
-        marginTop: 'auto', paddingTop: 12,
-        borderTop: '1px dashed rgba(255,255,255,0.18)',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        fontFamily: 'var(--font-eng)', fontSize: 11, fontWeight: 500,
-        color: 'rgba(255,255,255,0.55)', letterSpacing: '0.04em', textTransform: 'uppercase' as const,
-      }}>
-        <span>{meta}</span>
-        {metaRight && <span>{metaRight}</span>}
-      </div>
+      {!hideMeta && (
+        <div style={{
+          marginTop: 'auto', paddingTop: 12,
+          borderTop: '1px dashed rgba(255,255,255,0.18)',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          fontFamily: 'var(--font-eng)', fontSize: 11, fontWeight: 500,
+          color: 'rgba(255,255,255,0.55)', letterSpacing: '0.04em', textTransform: 'uppercase' as const,
+        }}>
+          <span>{meta}</span>
+          {metaRight && <span>{metaRight}</span>}
+        </div>
+      )}
       <span className="ac-arrow" style={{
         position: 'absolute', top: 22, right: 22,
         width: 18, height: 18, opacity: 1,
@@ -249,12 +221,13 @@ function FeaturedCard({ icon, title, desc, meta, metaRight, onClick }: {
 }
 
 /* ── Wide card (자랑하기, row layout) ────────────────────────── */
-function WideCard({ icon, title, desc, metaLeft, metaRight, onClick }: {
+function WideCard({ icon, title, desc, metaLeft, metaRight, hideMeta, onClick }: {
   icon: React.ReactNode;
   title: string;
   desc: string;
-  metaLeft: React.ReactNode;
+  metaLeft?: React.ReactNode;
   metaRight?: React.ReactNode;
+  hideMeta?: boolean;
   onClick: () => void;
 }) {
   return (
@@ -287,13 +260,15 @@ function WideCard({ icon, title, desc, metaLeft, metaRight, onClick }: {
           {desc}
         </p>
       </div>
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0,
-        fontFamily: 'var(--font-eng)', fontSize: 12, color: 'var(--color-ink-3)',
-      }}>
-        {metaLeft}
-        {metaRight && <span>{metaRight}</span>}
-      </div>
+      {!hideMeta && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0,
+          fontFamily: 'var(--font-eng)', fontSize: 12, color: 'var(--color-ink-3)',
+        }}>
+          {metaLeft}
+          {metaRight && <span>{metaRight}</span>}
+        </div>
+      )}
       <span className="ac-arrow" style={{
         position: 'absolute', top: 28, right: 28,
         width: 18, height: 18, opacity: 0.5,
@@ -377,37 +352,6 @@ export default function MainPage({ onNavigate, levelInfo, onRetake }: Props) {
   const [showChatroomPopup, setShowChatroomPopup] = useState(false);
 
   // ── 실시간 통계 ──
-  const [availableSlots, setAvailableSlots] = useState<number | null>(null);
-  const [boardStats, setBoardStats] = useState<{ postsThisWeek: number; postsNew: number } | null>(null);
-  const [shareCount, setShareCount] = useState<number | null>(null);
-
-  useEffect(() => {
-    // 1. 이번 주 예약 가능 슬롯 (DB)
-    const weekDates = getWeekDates();
-    const weekStart = weekDates[0].toISOString().slice(0, 10);
-    const weekEnd   = weekDates[4].toISOString().slice(0, 10);
-    fetch('/api/reservations')
-      .then(r => r.ok ? r.json() : [])
-      .then((rows: { date: string; status: string }[]) => {
-        const reserved = rows.filter(r => r.date >= weekStart && r.date <= weekEnd && r.status !== 'cancelled');
-        const TOTAL = 18 * 5;
-        setAvailableSlots(Math.max(0, TOTAL - reserved.length));
-      })
-      .catch(() => {});
-
-    // 2. 공유 서비스 수 (DB)
-    fetch('/api/services')
-      .then(r => r.ok ? r.json() : [])
-      .then((rows: unknown[]) => setShareCount(rows.length))
-      .catch(() => {});
-
-    // 3. 게시판 통계 (DB API)
-    fetch('/api/stats')
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d) setBoardStats(d); })
-      .catch(() => {});
-  }, []);
-
   const showToast = useCallback((msg: string) => {
     setToastMsg(msg);
     setToastVisible(true);
@@ -579,11 +523,10 @@ export default function MainPage({ onNavigate, levelInfo, onRetake }: Props) {
             />
             <div className="ac-grid-2">
               <FeaturedCard
+                hideMeta
                 icon={<LearnIcon />}
                 title="AI 학습 시작하기"
                 desc="따라하기만 하면 기초부터 심화까지 직접 구현할 수 있습니다."
-                meta="42 lessons · 3 levels"
-                metaRight={<Badge variant="featured">추천 코스</Badge>}
                 onClick={() => handleNav('videos', 'AI 학습 시작하기')}
               />
             </div>
@@ -643,29 +586,17 @@ export default function MainPage({ onNavigate, levelInfo, onRetake }: Props) {
             />
             <div className="ac-grid-3">
               <ActionCard
+                hideMeta large
                 icon={<MentorIcon />}
                 title="멘토링 예약"
                 desc="AX팀의 1:1 집중 멘토링을 받아보세요."
-                meta="5 mentors"
-                metaRight={
-                  availableSlots === null
-                    ? <Badge variant="primary">슬롯 확인 중</Badge>
-                    : availableSlots > 0
-                    ? <Badge variant="primary">슬롯 {availableSlots}개</Badge>
-                    : <Badge variant="secondary">이번주 마감</Badge>
-                }
                 onClick={() => handleNav('meeting', '멘토링 예약')}
               />
               <ActionCard
+                hideMeta large
                 icon={<BoardIcon />}
                 title="익명 Q&A 게시판"
                 desc="강의 내용 및 구현 중 어려운 내용 등 궁금한 사항은 익명 Q&A 게시판에 남겨주세요."
-                meta={boardStats !== null ? `${boardStats.postsThisWeek} posts this week` : '— posts this week'}
-                metaRight={
-                  boardStats !== null && boardStats.postsNew > 0
-                    ? <Badge variant="new">신규 {boardStats.postsNew}</Badge>
-                    : undefined
-                }
                 onClick={() => handleNav('board', '익명 Q&A 게시판')}
               />
             </div>
@@ -680,38 +611,10 @@ export default function MainPage({ onNavigate, levelInfo, onRetake }: Props) {
             />
             <div className="ac-grid-1">
               <WideCard
+                hideMeta
                 icon={<ShareIcon />}
                 title="내 프로젝트 자랑하기"
                 desc="작은 성공경험, 실패경험을 공유해 함께 성장할 수 있는 선순환 고리를 만들어보세요"
-                metaLeft={
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ display: 'inline-flex' }}>
-                      {([
-                        { initials: 'SY', bg: '#FFE4D2', color: '#C26B33' },
-                        { initials: 'JH', bg: '#D4E4FA', color: '#004A99' },
-                        { initials: 'MK', bg: '#E0F0DD', color: '#2C7A4B' },
-                      ] as const).map((av, i) => (
-                        <span key={av.initials} style={{
-                          width: 24, height: 24, borderRadius: '50%',
-                          background: av.bg, color: av.color,
-                          display: 'grid', placeItems: 'center',
-                          fontSize: 11, fontWeight: 600,
-                          border: '2px solid var(--color-surface)',
-                          marginLeft: i > 0 ? -8 : 0,
-                          flexShrink: 0,
-                        }}>
-                          {av.initials}
-                        </span>
-                      ))}
-                    </span>
-                    <span>
-                      {shareCount !== null && shareCount > 0
-                        ? `+${shareCount}명이 공유했어요`
-                        : '첫 번째로 공유해 보세요'}
-                    </span>
-                  </span>
-                }
-                metaRight={<Badge variant="secondary">HOT</Badge>}
                 onClick={() => handleNav('share', '내 프로젝트 자랑하기')}
               />
             </div>
