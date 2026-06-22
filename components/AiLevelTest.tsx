@@ -116,6 +116,20 @@ export default function AiLevelTest({ onComplete, onExit }: { onComplete?: (r: R
   };
   const skipCoding = () => setPhase('result');
 
+  // "만든 서비스 없어요" — 코딩 0점 확정 + 총점 재산출(코딩 0 포함)
+  const submitNoCoding = async () => {
+    setSubmitting(true); setCodeErr('');
+    try {
+      const fd = new FormData(); fd.set('none', '1');
+      const res = await fetch('/api/ai-level-test/coding', { method: 'POST', body: fd });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data?.recomputed) {
+        setResult((prev) => prev ? { ...prev, autoScore: data.recomputed.autoScore, level: data.recomputed.level, codingStatus: 'none' } : prev);
+      }
+    } catch { /* 베스트 에포트 — 실패해도 결과로 */ }
+    finally { setSubmitting(false); setPhase('result'); }
+  };
+
   // ── 스타일 ──
   const wrap: React.CSSProperties = { maxWidth: 560, margin: '0 auto', padding: '36px 20px 60px', fontFamily: 'system-ui, sans-serif', color: '#1B2430' };
   const card: React.CSSProperties = { border: '1px solid #E2E6EC', borderRadius: 14, padding: 24, background: '#fff' };
@@ -179,10 +193,16 @@ export default function AiLevelTest({ onComplete, onExit }: { onComplete?: (r: R
           )}
           {codeErr && <p style={{ color: '#A3331F', fontSize: 13, marginTop: 10 }}>{codeErr}</p>}
         </div>
-        <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-          <button onClick={skipCoding} disabled={submitting} style={{ ...optBtn, width: 'auto', flex: '0 0 90px', textAlign: 'center', marginBottom: 0, color: '#5B6B7E' }}>건너뛰기</button>
-          <button onClick={submitCoding} disabled={submitting} style={{ ...optBtn, flex: 1, textAlign: 'center', marginBottom: 0, fontWeight: 700, color: '#fff', background: submitting ? '#9AB6E0' : '#1B6CD6', borderColor: '#1B6CD6' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 14 }}>
+          <button onClick={submitCoding} disabled={submitting} style={{ ...optBtn, textAlign: 'center', marginBottom: 0, fontWeight: 700, color: '#fff', background: submitting ? '#9AB6E0' : '#1B6CD6', borderColor: '#1B6CD6' }}>
             {submitting ? '제출 중…' : '제출하고 결과 보기'}
+          </button>
+          {/* 만든 서비스가 없는 사용자용 — 제출 버튼 바로 아래에 잘 보이게(코딩 0점 확정) */}
+          <button onClick={submitNoCoding} disabled={submitting} style={{ ...optBtn, textAlign: 'center', marginBottom: 0, fontWeight: 700, color: '#1B6CD6', background: '#EAF1FB', borderColor: '#1B6CD6' }}>
+            만든 서비스 없어요
+          </button>
+          <button onClick={skipCoding} disabled={submitting} style={{ ...optBtn, textAlign: 'center', marginBottom: 0, color: '#8A97A8', background: 'transparent', border: 'none', fontSize: 13 }}>
+            나중에 할게요 (건너뛰기)
           </button>
         </div>
       </div>
@@ -222,7 +242,9 @@ export default function AiLevelTest({ onComplete, onExit }: { onComplete?: (r: R
         <div style={{ ...card, marginBottom: 14, fontSize: 13.5, color: '#33414F', lineHeight: 1.6 }}>
           <span style={tag('#FFF1E5', '#A05A1F')}>안내</span>
           <div style={{ marginTop: 8 }}>
-            코딩 점수(직접 만든 서비스의 코드 품질)는 <b>주 1회 채점</b>에 반영됩니다. 현재 점수는 코딩을 제외한 <b>잠정 점수</b>입니다.
+            {result.codingStatus === 'none'
+              ? <>만든 서비스가 없어 코딩 점수는 <b>0점</b>으로 반영되었습니다. 서비스를 만든 뒤 마이페이지에서 다시 측정하면 점수가 올라가요.</>
+              : <>코딩 점수(직접 만든 서비스의 코드 품질)는 <b>주 1회 채점</b>에 반영됩니다. 현재 점수는 코딩을 제외한 <b>잠정 점수</b>입니다.</>}
           </div>
         </div>
         {onComplete && (

@@ -4,6 +4,7 @@ import { sql } from '../../../../lib/db';
 import { getCurrentUser } from '../../../../lib/session';
 import { checkRateLimit, getClientIp, tooManyRequests } from '../../../../lib/ratelimit';
 import { reportError } from '../../../../lib/error-report';
+import { recomputeWithCoding } from '../../../../lib/level-test-engine';
 
 // POST /api/ai-level-test/coding  (multipart/form-data)
 // 코딩(질) 산출물 제출: 파일(zip/html/이미지) 또는 링크 + 서비스 설명·계정 필요여부·테스트 계정.
@@ -21,6 +22,27 @@ export async function POST(req: NextRequest) {
   let form: FormData;
   try { form = await req.formData(); }
   catch { return NextResponse.json({ error: '잘못된 요청입니다.' }, { status: 400 }); }
+
+  // "만든 서비스 없어요" — 코딩 0점 확정 + 최신 결과 재산출(코딩 0 포함 full 가중치)
+  if (String(form.get('none') || '') === '1') {
+    try {
+      const rows = await sql`
+        SELECT id, c1_score, c2_score, c3_score FROM ai_level_attempts
+        WHERE user_id = ${session.uid} ORDER BY created_at DESC LIMIT 1`;
+      let recomputed: { autoScore: number; level: number } | null = null;
+      if (rows[0]) {
+        const a = rows[0];
+        recomputed = recomputeWithCoding(Number(a.c1_score) || 0, Number(a.c2_score) || 0, Number(a.c3_score) || 0, 0);
+        await sql`
+          UPDATE ai_level_attempts
+          SET coding_status = 'none', coding_score = 0, auto_score = ${recomputed.autoScore}, level = ${recomputed.level}
+          WHERE id = ${a.id}`;
+      }
+      return NextResponse.json({ ok: true, codingStatus: 'none', recomputed });
+    } catch {
+      return NextResponse.json({ error: '서버 오류가 발생했습니다.' }, { status: 500 });
+    }
+  }
 
   const serviceDesc = String(form.get('serviceDesc') || '').slice(0, 1000);
   const needsAccount = String(form.get('needsAccount') || '') === 'yes';

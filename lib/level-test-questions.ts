@@ -33,8 +33,10 @@ const N0146 = ['0건', '1~2건', '3~5건', '6건 이상'];
 const N0124 = ['0개', '1개', '2~3개', '4개 이상'];
 
 // 지식(정답형). correct 위치는 문항마다 분산.
+// 모든 지식 문항 끝에 '잘 모름'(오답=0점)을 자동 추가 — 엔진이 셔플에서 제외하고 항상 마지막 고정.
+export const DONT_KNOW_LABEL = '잘 모름';
 const K = (area: string, tier: number, body: string, options: string[], correct: number, isTrap = false): LtSeedQuestion =>
-  ({ area, category: 'knowledge', tier, points: P(tier), body, options, correct: [correct], isTrap });
+  ({ area, category: 'knowledge', tier, points: P(tier), body, options: [...options, DONT_KNOW_LABEL], correct: [correct], isTrap });
 // 행동/EBG(구간 득점형)
 const B = (area: string, category: LtCategory, tier: number, body: string, options: string[], optionScores = G4, isTrap = false): LtSeedQuestion =>
   ({ area, category, tier, points: P(tier), body, options, optionScores, isTrap });

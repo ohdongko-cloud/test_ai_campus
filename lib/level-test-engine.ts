@@ -86,7 +86,13 @@ function optionPerm(attemptId: string, qid: string, n: number): number[] {
   // 행동/EBG의 '숫자 구간(0개<1개<…)' 보기는 순서가 의미 → 셔플 안 함.
   const q = BY_ID.get(qid);
   if (!q || !q.correct) return Array.from({ length: n }, (_, i) => i);
-  return shuffled(Array.from({ length: n }, (_, i) => i), mulberry32(hashSeed(attemptId + '|' + qid)));
+  const rnd = mulberry32(hashSeed(attemptId + '|' + qid));
+  // '잘 모름'은 항상 마지막에 고정 — 나머지 보기만 셔플(찾기 쉽게).
+  if (n > 1 && q.options[n - 1] === '잘 모름') {
+    const head = shuffled(Array.from({ length: n - 1 }, (_, i) => i), rnd);
+    return [...head, n - 1];
+  }
+  return shuffled(Array.from({ length: n }, (_, i) => i), rnd);
 }
 
 // 한 문항 채점: earned(획득), max(배점). choice는 '표시 순서' 기준 → 원본 인덱스로 환원해 채점.
