@@ -67,6 +67,21 @@ export default function Page() {
     try { localStorage.setItem('aiLevelPromptDismissedAt', getTodayStr()); } catch { /* ignore */ }
   };
 
+  // ── 레벨테스트 완료 마커 (localStorage, 30일 재측정 주기) ──
+  // 서버 결과 영속이 베스트에포트라 조용히 실패할 수 있음 → 완료 시각을 로컬에도 남겨
+  // 30일 이내면 팝업을 억제(과노출 방지). 서버 completed:true면 서버 시각으로 동기화.
+  const RETAKE_DAYS = 30;
+  const markLevelDone = (atMs?: number) => {
+    try { localStorage.setItem('aiLevelCompletedAt', String(atMs ?? Date.now())); } catch { /* ignore */ }
+  };
+  const recentlyTestedLocally = (): boolean => {
+    try {
+      const at = Number(localStorage.getItem('aiLevelCompletedAt'));
+      if (!Number.isFinite(at) || at <= 0) return false;
+      return (Date.now() - at) < RETAKE_DAYS * 86400000;
+    } catch { return false; }
+  };
+
   const handleAdminEntry = () => {
     if (hasAdminAccess) setIsAdmin(true);
     else setShowAdminLogin(true);
@@ -168,9 +183,15 @@ export default function Page() {
         const data = await res.json().catch(() => ({}));
         // 레벨 정보 갱신 (기존 유지)
         if (!cancelled && data?.latest) setAiLevelInfo({ level: data.latest.level, autoScore: data.latest.autoScore });
+        // 서버에 응시기록이 있으면 로컬 완료 마커를 서버 시각으로 동기화(소스 오브 트루스)
+        if (!cancelled && data?.completed && data?.latest?.at) {
+          const atMs = new Date(data.latest.at).getTime();
+          if (Number.isFinite(atMs)) markLevelDone(atMs);
+        }
         // 선택 팝업 — 미완료·재측정 도래 + 오늘 dismiss 안 됨인 경우만 노출 (강제 차단 없음)
+        // 단, 로컬 마커로 30일 이내 응시가 확인되면 억제(서버 영속 실패에도 과노출 방지)
         const shouldPrompt = data && (data.completed === false || data.dueForRetake);
-        if (!cancelled && shouldPrompt && !dismissedToday()) {
+        if (!cancelled && shouldPrompt && !recentlyTestedLocally() && !dismissedToday()) {
           setPromptMode(data.dueForRetake ? 'retake' : 'first');
           setLevelPromptOpen(true);
         }
@@ -244,7 +265,7 @@ export default function Page() {
     return (
       <div className="min-h-screen" style={{ background: 'var(--color-bg)', overflowY: 'auto' }}>
         <AiLevelTest
-          onComplete={(r) => { setLevelTestNeeded(false); if (r) setAiLevelInfo({ level: r.level, autoScore: r.autoScore }); }}
+          onComplete={(r) => { setLevelTestNeeded(false); markLevelDone(); if (r) setAiLevelInfo({ level: r.level, autoScore: r.autoScore }); }}
           onExit={() => { setLevelTestNeeded(false); dismissToday(); }}
         />
       </div>
