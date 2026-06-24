@@ -52,6 +52,7 @@ export default function Page() {
   const [aiLevelInfo, setAiLevelInfo] = useState<{ level: number; autoScore: number } | null>(null);
   const [levelPromptOpen, setLevelPromptOpen] = useState(false);
   const [promptMode, setPromptMode] = useState<'first' | 'retake'>('first');
+  const [retakeToast, setRetakeToast] = useState(false);
 
   // ── 하루 1회 dismiss 헬퍼 (localStorage, 미가용 시 try/catch 안전) ──
   const getTodayStr = () => {
@@ -74,12 +75,30 @@ export default function Page() {
   const markLevelDone = (atMs?: number) => {
     try { localStorage.setItem('aiLevelCompletedAt', String(atMs ?? Date.now())); } catch { /* ignore */ }
   };
-  const recentlyTestedLocally = (): boolean => {
+  const localCompletedAtMs = (): number | null => {
     try {
       const at = Number(localStorage.getItem('aiLevelCompletedAt'));
-      if (!Number.isFinite(at) || at <= 0) return false;
-      return (Date.now() - at) < RETAKE_DAYS * 86400000;
+      return Number.isFinite(at) && at > 0 ? at : null;
+    } catch { return null; }
+  };
+
+  // ── '30일간 보지 않기' 스누즈 (미진단자가 팝업을 30일 미루기) ──
+  const snoozePromptFor30Days = () => {
+    try { localStorage.setItem('aiLevelPromptSnoozedUntil', String(Date.now() + RETAKE_DAYS * 86400000)); } catch { /* ignore */ }
+  };
+  const promptSnoozed = (): boolean => {
+    try {
+      const until = Number(localStorage.getItem('aiLevelPromptSnoozedUntil'));
+      return Number.isFinite(until) && until > Date.now();
     } catch { return false; }
+  };
+
+  // ── 재측정 토스트 하루 1회 제한 (이미 진단한 사용자 대상 가벼운 알림) ──
+  const retakeToastShownToday = (): boolean => {
+    try { return localStorage.getItem('aiLevelRetakeToastShownAt') === getTodayStr(); } catch { return false; }
+  };
+  const markRetakeToastShown = () => {
+    try { localStorage.setItem('aiLevelRetakeToastShownAt', getTodayStr()); } catch { /* ignore */ }
   };
 
   const handleAdminEntry = () => {
@@ -188,18 +207,38 @@ export default function Page() {
           const atMs = new Date(data.latest.at).getTime();
           if (Number.isFinite(atMs)) markLevelDone(atMs);
         }
-        // 선택 팝업 — 미완료·재측정 도래 + 오늘 dismiss 안 됨인 경우만 노출 (강제 차단 없음)
-        // 단, 로컬 마커로 30일 이내 응시가 확인되면 억제(서버 영속 실패에도 과노출 방지)
-        const shouldPrompt = data && (data.completed === false || data.dueForRetake);
-        if (!cancelled && shouldPrompt && !recentlyTestedLocally() && !dismissedToday()) {
-          setPromptMode(data.dueForRetake ? 'retake' : 'first');
-          setLevelPromptOpen(true);
+        // ── 진단 안내 정책 ──
+        // ① 이미 진단한 사용자(서버 completed:true 또는 로컬 완료 마커 보유): 모달 영구 미노출.
+        //    재측정 시기(30일 경과)면 토스트로만 가볍게 안내(하루 1회).
+        // ② 미진단 사용자(서버가 명시적으로 completed:false): 선택 팝업 노출.
+        //    단 '30일간 보지 않기' 스누즈 또는 오늘 dismiss면 미노출. (모호/파싱실패 시엔 안 띄움)
+        const localAt = localCompletedAtMs();
+        const hasTested = data?.completed === true || localAt !== null;
+        if (!cancelled && hasTested) {
+          const overdue = data?.dueForRetake === true
+            || (localAt !== null && (Date.now() - localAt) >= RETAKE_DAYS * 86400000);
+          if (overdue && !retakeToastShownToday()) {
+            setRetakeToast(true);
+            markRetakeToastShown();
+          }
+        } else if (!cancelled && data?.completed === false) {
+          if (!promptSnoozed() && !dismissedToday()) {
+            setPromptMode('first');
+            setLevelPromptOpen(true);
+          }
         }
       } catch { /* 실패 시 팝업 안 띄움(앱 차단 방지, fail-open) */ }
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userInfo, showWelcome]);
+
+  // ── 재측정 토스트 자동 숨김 (9초) ──
+  useEffect(() => {
+    if (!retakeToast) return;
+    const t = setTimeout(() => setRetakeToast(false), 9000);
+    return () => clearTimeout(t);
+  }, [retakeToast]);
 
   // ── 재방문자 즐겨찾기 안내 (최초 방문자는 WelcomePopup 닫힌 후 표시) ──
   useEffect(() => {
@@ -278,13 +317,54 @@ export default function Page() {
       {/* ── 웰컴 팝업 ── */}
       {showWelcome && <WelcomePopup onClose={handleWelcomeClose} />}
 
-      {/* ── AI 레벨 진단 선택 팝업 (완전 선택형, 하루 1회) ── */}
+      {/* ── AI 레벨 진단 선택 팝업 (미진단자 전용, 완전 선택형) ── */}
       {levelPromptOpen && userInfo && !isAdmin && !showWelcome && (
         <AiLevelPrompt
           mode={promptMode}
           onStart={() => { setLevelPromptOpen(false); setLevelTestNeeded(true); }}
           onLater={() => { setLevelPromptOpen(false); dismissToday(); }}
+          onSnooze={() => { setLevelPromptOpen(false); snoozePromptFor30Days(); }}
         />
+      )}
+
+      {/* ── 재측정 토스트 (이미 진단한 사용자 — 30일 경과 시 가벼운 알림, 모달 아님) ── */}
+      {retakeToast && userInfo && !isAdmin && !showWelcome && (
+        <div
+          role="status"
+          style={{
+            position: 'fixed', left: '50%', bottom: 24, transform: 'translateX(-50%)',
+            zIndex: 55, maxWidth: 'calc(100vw - 32px)',
+            display: 'flex', alignItems: 'center', gap: 14,
+            background: 'var(--color-ink, #0F1E33)', color: '#fff',
+            padding: '13px 16px 13px 18px', borderRadius: 12,
+            boxShadow: '0 8px 28px rgba(0,0,0,0.22)',
+            fontFamily: 'var(--font-sans, "Noto Sans KR", system-ui, sans-serif)',
+            fontSize: 13.5, lineHeight: 1.4,
+          }}
+        >
+          <span style={{ fontWeight: 500 }}>AI 레벨 진단 후 30일이 지났어요. 다시 진단해볼까요?</span>
+          <button
+            onClick={() => { setRetakeToast(false); setLevelTestNeeded(true); }}
+            style={{
+              flexShrink: 0, border: 'none', background: 'rgba(255,255,255,0.16)',
+              color: '#fff', fontWeight: 700, fontSize: 13, padding: '7px 12px',
+              borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit',
+            }}
+          >
+            진단하기
+          </button>
+          <button
+            onClick={() => setRetakeToast(false)}
+            aria-label="닫기"
+            style={{
+              flexShrink: 0, border: 'none', background: 'transparent',
+              color: 'rgba(255,255,255,0.6)', fontSize: 16, lineHeight: 1,
+              cursor: 'pointer', padding: '4px', fontFamily: 'inherit',
+            }}
+          >
+            ✕
+          </button>
+        </div>
       )}
 
       {/* ── 즐겨찾기 추가 안내 토스트 ── */}

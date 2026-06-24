@@ -7,9 +7,10 @@ interface AiLevelPromptProps {
   mode: 'first' | 'retake';
   onStart: () => void;
   onLater: () => void;
+  onSnooze: () => void;   // '30일간 보지 않기' — 30일 스누즈
 }
 
-export default function AiLevelPrompt({ mode, onStart, onLater }: AiLevelPromptProps) {
+export default function AiLevelPrompt({ mode, onStart, onLater, onSnooze }: AiLevelPromptProps) {
   const isRetake = mode === 'retake';
 
   const icon = isRetake
@@ -145,11 +146,30 @@ export default function AiLevelPrompt({ mode, onStart, onLater }: AiLevelPromptP
           </button>
         </div>
 
+        {/* 30일간 보지 않기 (스누즈) */}
+        <button
+          onClick={onSnooze}
+          style={{
+            display: 'block', width: '100%',
+            marginTop: 14, padding: '4px 0',
+            border: 'none', background: 'transparent',
+            color: 'var(--color-ink-3, #9BA7BC)',
+            fontSize: 12.5, fontWeight: 500,
+            textDecoration: 'underline', textUnderlineOffset: 3,
+            cursor: 'pointer', fontFamily: 'inherit',
+            transition: 'color 120ms ease',
+          }}
+          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-ink-2, #5B6B7E)'; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-ink-3, #9BA7BC)'; }}
+        >
+          30일간 보지 않기
+        </button>
+
         {/* 안내 문구 */}
         <p
           style={{
             fontSize: 11.5, color: 'var(--color-ink-3, #9BA7BC)',
-            textAlign: 'center', marginTop: 16, marginBottom: 0,
+            textAlign: 'center', marginTop: 10, marginBottom: 0,
             lineHeight: 1.5,
           }}
         >
