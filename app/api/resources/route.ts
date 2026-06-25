@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '../../../lib/db';
+import { getCurrentUser } from '../../../lib/session';
 import { reportError } from '../../../lib/error-report';
 
 // GET /api/resources?category=xxx
-// 열람은 공개(게시판과 동일 패턴 — 앱은 클라이언트에서 로그인 게이트). no-store. user_id 비노출.
+// 로그인 회원 전용, no-store. user_id 비노출.
 export async function GET(req: NextRequest) {
+  const user = await getCurrentUser();
+  if (!user) {
+    return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 });
+  }
+
   const { searchParams } = new URL(req.url);
   const category = searchParams.get('category') || '';
 

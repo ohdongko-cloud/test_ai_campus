@@ -142,7 +142,8 @@ export default function WelcomePopup({ onClose }: Props) {
 
   // 로그인 폼
   const [loginPw, setLoginPw] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
+  // 자동로그인 기본 ON (30일) — 모바일·문서 정책과 일치. 서버 세션 6h 만료로 인한 '로그인했는데 401' 방지.
+  const [rememberMe, setRememberMe] = useState(true);
 
   // 비밀번호 재설정
   const [resetCode, setResetCode] = useState('');

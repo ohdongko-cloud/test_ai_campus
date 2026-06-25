@@ -83,8 +83,8 @@ export async function POST(req: NextRequest) {
       RETURNING id, name AS nickname, corporation_name, organization_name, position, email`;
     const u = rows[0];
 
-    // 가입 직후 자동 로그인 (세션 쿠키 발급) — rememberMe는 기본 false
-    await setUserSessionCookie(u.id, u.email, false);
+    // 가입 직후 자동 로그인 (세션 쿠키 발급) — durable(30일), 데스크톱 자동로그인 기본 ON 정책과 일치
+    await setUserSessionCookie(u.id, u.email, true);
     await logAuth({ type: 'signup_complete', email, success: true, req });
 
     return NextResponse.json({
