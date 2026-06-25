@@ -7,17 +7,12 @@ import { reportError } from '../../../../../lib/error-report';
 
 const COMMENT_MAX_LENGTH = 1000;
 
-// GET /api/resources/[id]/comments — 댓글 목록
+// GET /api/resources/[id]/comments — 댓글 목록 (열람 공개)
 // user_id 비노출, author_name·content·created_at·like_count만 반환.
 export async function GET(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const user = await getCurrentUser();
-  if (!user) {
-    return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 });
-  }
-
   const { id } = await params;
 
   try {

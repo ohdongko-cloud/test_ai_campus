@@ -408,9 +408,9 @@ export default function ResourcesPage() {
       ) : resources.length === 0 ? (
         <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: T.r2, padding: '56px 24px', textAlign: 'center', boxShadow: T.shadow }}>
           <p style={{ margin: '0 0 6px', fontSize: 16, fontWeight: 700, color: T.text }}>
-            {activeCategory ? `'${activeCategory}' 카테고리에 자료가 없습니다` : '등록된 자료가 없습니다'}
+            {activeCategory ? `'${activeCategory}' 카테고리에 입력된 자료 없음` : '입력된 자료 없음'}
           </p>
-          <p style={{ margin: 0, fontSize: 13, color: T.textMuted }}>곧 새로운 자료가 추가될 예정입니다.</p>
+          <p style={{ margin: 0, fontSize: 13, color: T.textMuted }}>관리자가 자료를 등록하면 여기에 표시됩니다.</p>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>

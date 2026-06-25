@@ -400,9 +400,9 @@ export default function MobileResourcesPage() {
         ) : resources.length === 0 ? (
           <div style={{ margin: '0 16px', padding: '48px 16px', background: M.surface, border: `1px solid ${M.border}`, borderRadius: M.r3, textAlign: 'center' }}>
             <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: M.text }}>
-              {activeCategory ? `'${activeCategory}' 자료 없음` : '등록된 자료가 없습니다'}
+              {activeCategory ? `'${activeCategory}' 입력된 자료 없음` : '입력된 자료 없음'}
             </p>
-            <p style={{ margin: '6px 0 0', fontSize: 12, color: M.textMuted }}>곧 새로운 자료가 추가될 예정입니다.</p>
+            <p style={{ margin: '6px 0 0', fontSize: 12, color: M.textMuted }}>관리자가 자료를 등록하면 여기에 표시됩니다.</p>
           </div>
         ) : (
           resources.map(r => <ResourceCard key={r.id} item={r} />)
