@@ -19,22 +19,25 @@ export interface MenuCardCounts {
   postCount?: number;
   /** 공유 서비스 개수 (`/api/services` 길이) */
   serviceCount?: number;
+  /** 자료실 자료 개수 (`/api/resources` 길이) */
+  resourceCount?: number;
 }
 
 function buildItems(c: MenuCardCounts): MenuItem[] {
   const fmt = (n?: number) => (typeof n === 'number' ? String(n) : '–');
   return [
-    { kind: 'learn',   title: '학습', sub: 'AI 강의 · 실습',    count: fmt(c.videoCount),   countSuffix: '강',    href: '/m/video' },
-    { kind: 'meeting', title: '미팅', sub: '1:1 상담 신청',     count: '예약',              countSuffix: '가능',  href: '/m/meeting' },
-    { kind: 'ask',     title: '질문', sub: '게시판 · QnA',       count: fmt(c.postCount),    countSuffix: '글',    href: '/m/board' },
-    { kind: 'share',   title: '공유', sub: 'AI 서비스 공유',     count: fmt(c.serviceCount), countSuffix: '개',    href: '/m/share' },
+    { kind: 'learn',   title: '학습',   sub: 'AI 강의 · 실습',    count: fmt(c.videoCount),    countSuffix: '강',    href: '/m/video' },
+    { kind: 'meeting', title: '미팅',   sub: '1:1 상담 신청',     count: '예약',               countSuffix: '가능',  href: '/m/meeting' },
+    { kind: 'ask',     title: '질문',   sub: '게시판 · QnA',      count: fmt(c.postCount),     countSuffix: '글',    href: '/m/board' },
+    { kind: 'share',   title: '공유',   sub: 'AI 서비스 공유',    count: fmt(c.serviceCount),  countSuffix: '개',    href: '/m/share' },
+    { kind: 'make',    title: '자료실', sub: '드라이브 · Notion', count: fmt(c.resourceCount), countSuffix: '건',    href: '/m/resources' },
   ];
 }
 
 export default function MobileMenuCard({
-  videoCount, postCount, serviceCount,
+  videoCount, postCount, serviceCount, resourceCount,
 }: MenuCardCounts = {}) {
-  const ITEMS = buildItems({ videoCount, postCount, serviceCount });
+  const ITEMS = buildItems({ videoCount, postCount, serviceCount, resourceCount });
   const router = useRouter();
   return (
     <div

@@ -18,6 +18,7 @@ import AdminLogs from './AdminLogs';
 import AdminUsersManage from './AdminUsersManage';
 import AdminMembers from './AdminMembers';
 import AdminOrgUnits from './AdminOrgUnits';
+import AdminResources from './AdminResources';
 import BrandMark from './BrandMark';
 
 interface Props {
@@ -41,8 +42,9 @@ const TABS: TabInfo[] = [
   { key: 'meetings', label: '미팅 관리',         perm: 'meetings' },
   { key: 'chatroom', label: '오픈채팅방 관리',   perm: 'chatroom' },
   { key: 'services', label: '서비스 공유 관리',  perm: 'services' },
-  { key: 'board',    label: '게시판 관리',       perm: 'board' },
-  { key: 'guide',    label: '가이드 관리',       perm: 'guide' },
+  { key: 'board',     label: '게시판 관리',       perm: 'board' },
+  { key: 'resources', label: '자료실 관리',       perm: 'resources' },
+  { key: 'guide',     label: '가이드 관리',       perm: 'guide' },
   { key: 'members',  label: '회원 관리',         perm: 'members' },
   { key: 'orgUnits', label: '조직 분류',         masterOnly: true },
   { key: 'logs',     label: '로그',              perm: 'logs' },
@@ -103,8 +105,9 @@ export default function AdminDashboard({ onExit }: Props) {
       case 'meetings': return <AdminMeetings />;
       case 'chatroom': return <AdminChatroom />;
       case 'services': return <AdminServices />;
-      case 'board':    return <AdminBoardStats />;
-      case 'guide':    return <AdminGuide />;
+      case 'board':     return <AdminBoardStats />;
+      case 'resources': return <AdminResources />;
+      case 'guide':     return <AdminGuide />;
       case 'members':  return <AdminMembers />;
       case 'orgUnits': return <AdminOrgUnits />;
       case 'logs':     return <AdminLogs />;

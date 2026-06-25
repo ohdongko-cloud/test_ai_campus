@@ -35,7 +35,7 @@
 
 ---
 
-## 2. 작성된 PRD 목록 (26건)
+## 2. 작성된 PRD 목록 (27건)
 
 모두 `docs/prd/` 하위에 보관.
 
@@ -67,6 +67,7 @@
 | 24 | [2026-06-22-home-all-cards-meta-cleanup.md](./2026-06-22-home-all-cards-meta-cleanup.md) | 홈 전 영역(배우기·물어보기·자랑하기) 카드 하단 메타 제거 + 죽은 fetch/state·미사용 컴포넌트 정리 |
 | 25 | [2026-06-23-level-test-prompt-30day-suppress.md](./2026-06-23-level-test-prompt-30day-suppress.md) | 레벨테스트 재응시 팝업 30일 과노출 차단 — 서버 영속 실패에도 로컬 완료 마커로 30일 억제(클라 전용) |
 | 26 | [2026-06-24-level-test-prompt-snooze-toast.md](./2026-06-24-level-test-prompt-snooze-toast.md) | 레벨진단 팝업 '30일간 보지 않기' 버튼 + 진단 완료자는 모달 영구 미노출·30일 후 토스트 알림 전환 |
+| 27 | [2026-06-24-resource-library.md](./2026-06-24-resource-library.md) | 배우기 '자료실'(게시판형) — 외부링크(드라이브/노션/URL) 연동·메타데이터만 DB·풀 게시판(좋아요·댓글)·관리자 큐레이션·데스크톱+모바일·M012 |
 
 > ※ 테스트 계정(`test@eland.co.kr` / `000000`)과 15 페르소나 리서치는 별도 PRD 없이 본 CHANGELOG와 `public/research/` 폴더로 관리.
 
@@ -78,6 +79,7 @@
 
 | 커밋 | 메시지 | 비고 |
 |---|---|---|
+| `3a9e0f6` | feat(resources): 배우기 '자료실'(게시판형) — 외부링크 연동·풀 게시판·관리자 큐레이션·모바일 | PRD `2026-06-24-resource-library.md`. M012(resources·resource_likes·resource_comments·resource_comment_likes, 메타데이터만). 공개 API(/api/resources 목록·view·like·comments) + 관리자 CRUD(/api/admin/resources, `resources` 권한). 외부링크 드라이브/노션/URL https검증·새탭(noopener). UI: ResourcesPage·app/m/resources·AdminResources + 배우기 카드 + TabType/AdminTabType 'resources'. 데스크톱+모바일 패리티. PII 비노출·레이트리밋·파라미터화 SQL |
 | `0088875` | feat(level-test): 진단 팝업 '30일간 보지 않기' + 진단자 토스트 전환 | PRD `2026-06-24-level-test-prompt-snooze-toast.md`. 팝업에 '30일간 보지 않기'(localStorage `aiLevelPromptSnoozedUntil` 30일 스누즈) 추가. 진단 완료자(서버 completed:true 또는 로컬 완료 마커)는 **모달 영구 미노출** → 30일 경과 시 하단 토스트(하루1회·9초)로만 안내. 모달은 서버 명시 completed:false일 때만. 순수 클라(`app/page.tsx`·`AiLevelPrompt.tsx`, DB/API 변경 없음) |
 | `2a4265e` | fix(level-test): 재응시 팝업 30일 과노출 차단 (로컬 완료 마커) | PRD `2026-06-23-level-test-prompt-30day-suppress.md`. 결과 영속이 베스트에포트라 insert 누락 시 status가 영구 completed:false → 매 접속 팝업. localStorage `aiLevelCompletedAt` 마커 도입(완료 시 기록·서버 completed:true면 latest.at로 동기화), 게이트에 `!recentlyTestedLocally()`(30일) 추가로 억제. 순수 클라(DB/API/마이그레이션 변경 없음). 후속: M007 prod 적용 확인·users.level_test_done_at 폴백·insert 실패 Sentry |
 | `a0c72b3` | feat(home): 전 영역 카드 하단 메타 제거 + 죽은 코드 정리 | PRD `2026-06-22-home-all-cards-meta-cleanup.md`. FeaturedCard·WideCard에 hideMeta 추가, 배우기·자랑하기 hideMeta·물어보기 2카드 hideMeta large, meta 전부 제거. 죽은 fetch/state(예약슬롯·게시판통계·공유수) + 미사용 Badge·LiveDot·getWeekDates·useEffect import 정리 |

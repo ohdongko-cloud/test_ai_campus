@@ -14,6 +14,7 @@ interface MenuCounts {
   videoCount?: number;
   postCount?: number;
   serviceCount?: number;
+  resourceCount?: number;
 }
 
 interface Featured {
@@ -76,22 +77,24 @@ export default function MobileHomePage() {
     };
 
     (async () => {
-      const [videos, posts, services] = await Promise.all([
+      const [videos, posts, services, resourcesData] = await Promise.all([
         safeFetch<Video[]>('/api/videos'),
         safeFetch<unknown[] | { posts?: unknown[] }>('/api/posts?limit=100'),
         safeFetch<unknown[]>('/api/services'),
+        safeFetch<unknown[]>('/api/resources'),
       ]);
       if (!alive) return;
 
-      const videoCount   = Array.isArray(videos) ? videos.length : undefined;
-      const postCount    = Array.isArray(posts)
+      const videoCount    = Array.isArray(videos) ? videos.length : undefined;
+      const postCount     = Array.isArray(posts)
         ? posts.length
         : Array.isArray((posts as { posts?: unknown[] } | null)?.posts)
           ? (posts as { posts: unknown[] }).posts.length
           : undefined;
-      const serviceCount = Array.isArray(services) ? services.length : undefined;
+      const serviceCount  = Array.isArray(services) ? services.length : undefined;
+      const resourceCount = Array.isArray(resourcesData) ? resourcesData.length : undefined;
 
-      setCounts({ videoCount, postCount, serviceCount });
+      setCounts({ videoCount, postCount, serviceCount, resourceCount });
       if (Array.isArray(videos)) {
         setFeatured(pickFeatured(videos));
       }
@@ -136,7 +139,12 @@ export default function MobileHomePage() {
 
         {/* 섹션: 메뉴 */}
         <SectionHeader title="메뉴" sub="원하는 학습을 시작해보세요" />
-        <MobileMenuCard {...counts} />
+        <MobileMenuCard
+          videoCount={counts.videoCount}
+          postCount={counts.postCount}
+          serviceCount={counts.serviceCount}
+          resourceCount={counts.resourceCount}
+        />
 
         {/* 섹션: 추천 강의 — 필수시청 영상 중 조회수 1위 */}
         <SectionHeader

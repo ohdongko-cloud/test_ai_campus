@@ -78,9 +78,36 @@ export interface ClickLog {
   timestamp: string;
 }
 
-export type TabType = 'home' | 'videos' | 'meeting' | 'board' | 'share' | 'guide';
+export type TabType = 'home' | 'videos' | 'meeting' | 'board' | 'share' | 'guide' | 'resources';
 export type ReservationStatus = 'pending' | 'confirmed' | 'cancelled';
-export type AdminTabType = 'stats' | 'videos' | 'meetings' | 'chatroom' | 'services' | 'board' | 'guide' | 'members' | 'logs' | 'admins' | 'lectureRequests' | 'levelTests' | 'orgUnits' | 'aiLevelCoding' | 'aiLevelMatrix';
+export type AdminTabType = 'stats' | 'videos' | 'meetings' | 'chatroom' | 'services' | 'board' | 'guide' | 'members' | 'logs' | 'admins' | 'lectureRequests' | 'levelTests' | 'orgUnits' | 'aiLevelCoding' | 'aiLevelMatrix' | 'resources';
+
+// 자료실
+export interface Resource {
+  id: string;
+  title: string;
+  description: string | null;
+  category: string | null;
+  external_url: string;
+  link_type: 'drive' | 'notion' | 'url';
+  view_count: number;
+  like_count: number;
+  comment_count: number;
+  is_pinned: boolean;
+  sort_order: number;
+  created_at: string;
+  /** 관리자 목록에만 포함 */
+  updated_at?: string;
+  created_by?: string | null;
+}
+
+export interface ResourceComment {
+  id: string;
+  author_name: string;
+  content: string;
+  like_count: number;
+  created_at: string;
+}
 
 // 강의 요청
 export interface LectureRequest {

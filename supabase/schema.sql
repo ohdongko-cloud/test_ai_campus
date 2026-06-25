@@ -222,3 +222,60 @@ CREATE TABLE IF NOT EXISTS sso_nonces (
 );
 
 CREATE INDEX IF NOT EXISTS sso_nonces_expires_at_idx ON sso_nonces (expires_at);
+
+-- ─────────────────────────────────────────────────────────────
+-- resources: 자료실(게시판형) 메타데이터. 파일 본문 없음, 외부링크만 (M012)
+-- PRD: docs/prd/2026-06-24-resource-library.md §F1
+-- link_type: 'drive' | 'notion' | 'url'
+-- 비정규화 카운트(view_count·like_count·comment_count) 보유.
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS resources (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title         TEXT NOT NULL,
+  description   TEXT,
+  category      TEXT,
+  external_url  TEXT NOT NULL,
+  link_type     TEXT NOT NULL DEFAULT 'url',
+  created_by    TEXT,
+  view_count    INT NOT NULL DEFAULT 0,
+  like_count    INT NOT NULL DEFAULT 0,
+  comment_count INT NOT NULL DEFAULT 0,
+  is_pinned     BOOLEAN NOT NULL DEFAULT false,
+  sort_order    INT NOT NULL DEFAULT 0,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- 목록 정렬 인덱스: 상단고정 → sort_order → 최신순
+CREATE INDEX IF NOT EXISTS resources_list_idx
+  ON resources (is_pinned DESC, sort_order ASC, created_at DESC);
+
+-- resource_likes: 자료 좋아요. (resource_id, user_id) 복합 PK — 중복 방지.
+CREATE TABLE IF NOT EXISTS resource_likes (
+  resource_id UUID NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
+  user_id     UUID NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (resource_id, user_id)
+);
+
+-- resource_comments: 자료 댓글. 작성자는 author_name(표시명)만 노출, user_id 비노출.
+CREATE TABLE IF NOT EXISTS resource_comments (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  resource_id UUID NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
+  user_id     UUID,
+  author_name TEXT,
+  content     TEXT NOT NULL,
+  like_count  INT NOT NULL DEFAULT 0,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS resource_comments_resource_idx
+  ON resource_comments (resource_id, created_at DESC);
+
+-- resource_comment_likes: 댓글 좋아요. (comment_id, user_id) 복합 PK — 중복 방지.
+CREATE TABLE IF NOT EXISTS resource_comment_likes (
+  comment_id UUID NOT NULL REFERENCES resource_comments(id) ON DELETE CASCADE,
+  user_id    UUID NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (comment_id, user_id)
+);

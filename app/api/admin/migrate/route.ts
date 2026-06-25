@@ -18,6 +18,7 @@ import { flattenOrgSeed, ORG_SEED_CORP } from '../../../../lib/org-seed';
  *   M009: ai_level_manual 테이블 생성 (관리자 정성 입력 — 목표·이머니)
  *   M010: sso_clients 테이블 생성 (SSO 허브 클라이언트 레지스트리 — PRD §3.2)
  *   M011: sso_nonces 테이블 생성 + 만료 인덱스 (SSO 1회성 nonce 스토어 — PRD §4.3)
+ *   M012: resources / resource_likes / resource_comments / resource_comment_likes 테이블 생성 (자료실 게시판 — PRD 2026-06-24)
  */
 export async function POST(req: NextRequest) {
   const authCheck = await requireMaster(req);
@@ -235,6 +236,66 @@ export async function POST(req: NextRequest) {
     results.push({ id: 'M011', status: 'ok', message: 'sso_nonces 테이블 및 만료 인덱스 준비 완료' });
   } catch (e) {
     results.push({ id: 'M011', status: 'error', message: String(e) });
+  }
+
+  // M012: 자료실(게시판형) — resources / resource_likes / resource_comments / resource_comment_likes
+  // PRD: docs/prd/2026-06-24-resource-library.md (F1)
+  // 비정규화 카운트(view_count·like_count·comment_count) 보유. 연관 행 삭제 시 CASCADE.
+  try {
+    await sql`
+      CREATE TABLE IF NOT EXISTS resources (
+        id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        title         TEXT NOT NULL,
+        description   TEXT,
+        category      TEXT,
+        external_url  TEXT NOT NULL,
+        link_type     TEXT NOT NULL DEFAULT 'url',
+        created_by    TEXT,
+        view_count    INT NOT NULL DEFAULT 0,
+        like_count    INT NOT NULL DEFAULT 0,
+        comment_count INT NOT NULL DEFAULT 0,
+        is_pinned     BOOLEAN NOT NULL DEFAULT false,
+        sort_order    INT NOT NULL DEFAULT 0,
+        created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+        updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+      )`;
+    await sql`
+      CREATE INDEX IF NOT EXISTS resources_list_idx
+        ON resources (is_pinned DESC, sort_order ASC, created_at DESC)`;
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS resource_likes (
+        resource_id UUID NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
+        user_id     UUID NOT NULL,
+        created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+        PRIMARY KEY (resource_id, user_id)
+      )`;
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS resource_comments (
+        id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        resource_id UUID NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
+        user_id     UUID,
+        author_name TEXT,
+        content     TEXT NOT NULL,
+        like_count  INT NOT NULL DEFAULT 0,
+        created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+      )`;
+    await sql`
+      CREATE INDEX IF NOT EXISTS resource_comments_resource_idx
+        ON resource_comments (resource_id, created_at DESC)`;
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS resource_comment_likes (
+        comment_id UUID NOT NULL REFERENCES resource_comments(id) ON DELETE CASCADE,
+        user_id    UUID NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        PRIMARY KEY (comment_id, user_id)
+      )`;
+
+    results.push({ id: 'M012', status: 'ok', message: 'resources / resource_likes / resource_comments / resource_comment_likes 테이블 및 인덱스 준비 완료' });
+  } catch (e) {
+    results.push({ id: 'M012', status: 'error', message: String(e) });
   }
 
   const hasError = results.some(r => r.status === 'error');

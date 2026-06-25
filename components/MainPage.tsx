@@ -66,6 +66,13 @@ const BoardIcon = () => (
     <circle cx="18" cy="10.5" r=".8" fill="currentColor" />
   </svg>
 );
+const ResourcesIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 22, height: 22 }}>
+    <path d="M4 4h7v16H4z" />
+    <path d="M13 4h7v16h-7z" />
+    <path d="M7 8h1M7 11h1M7 14h1M16 8h1M16 11h1M16 14h1" />
+  </svg>
+);
 const ShareIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 26, height: 26 }}>
     <circle cx="18" cy="5" r="2.4" />
@@ -146,8 +153,8 @@ function ActionCard({ icon, title, desc, meta, metaRight, onClick, hideMeta, lar
   );
 }
 
-/* ── Featured card (배우기, spans 2 cols, dark navy bg) ─────── */
-function FeaturedCard({ icon, title, desc, meta, metaRight, hideMeta, onClick }: {
+/* ── Featured card (배우기, spans 2 cols by default, dark navy bg) ─────── */
+function FeaturedCard({ icon, title, desc, meta, metaRight, hideMeta, onClick, spanFull = true }: {
   icon: React.ReactNode;
   title: string;
   desc: string;
@@ -155,6 +162,8 @@ function FeaturedCard({ icon, title, desc, meta, metaRight, hideMeta, onClick }:
   metaRight?: React.ReactNode;
   hideMeta?: boolean;
   onClick: () => void;
+  /** false 로 전달하면 span 2 를 span 1 로 축소 (옆에 다른 카드가 있을 때) */
+  spanFull?: boolean;
 }) {
   return (
     <div
@@ -162,7 +171,7 @@ function FeaturedCard({ icon, title, desc, meta, metaRight, hideMeta, onClick }:
       onClick={onClick}
       style={{
         position: 'relative',
-        gridColumn: 'span 2',
+        gridColumn: spanFull ? 'span 2' : 'span 1',
         background: 'linear-gradient(135deg, #003A78 0%, #004A99 60%, #1B6CD6 100%)',
         border: '1px solid transparent',
         borderRadius: 'var(--radius)',
@@ -524,10 +533,18 @@ export default function MainPage({ onNavigate, levelInfo, onRetake }: Props) {
             <div className="ac-grid-2">
               <FeaturedCard
                 hideMeta
+                spanFull={false}
                 icon={<LearnIcon />}
                 title="AI 학습 시작하기"
                 desc="따라하기만 하면 기초부터 심화까지 직접 구현할 수 있습니다."
                 onClick={() => handleNav('videos', 'AI 학습 시작하기')}
+              />
+              <ActionCard
+                hideMeta
+                icon={<ResourcesIcon />}
+                title="자료실"
+                desc="AI 학습에 필요한 자료를 한 곳에. 구글 드라이브·Notion 링크를 모아 제공합니다."
+                onClick={() => handleNav('resources', '자료실')}
               />
             </div>
           </section>

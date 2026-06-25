@@ -15,6 +15,7 @@ import BoardPage from '../components/BoardPage';
 import SharePage from '../components/SharePage';
 import AdminDashboard from '../components/AdminDashboard';
 import GuidePage from '../components/GuidePage';
+import ResourcesPage from '../components/ResourcesPage';
 import FloatingActions from '../components/FloatingActions';
 import LegalModal from '../components/LegalModal';
 import PrivacyContent from '../components/policy/PrivacyContent';
@@ -24,12 +25,13 @@ import { addClickLog } from '../lib/utils';
 import { adminLogin, adminLogout, isAdminAuthenticated } from '../lib/admin-client';
 
 const TAB_LABELS: { key: TabType; label: string }[] = [
-  { key: 'home',    label: '홈' },
-  { key: 'videos',  label: '강의' },
-  { key: 'meeting', label: '미팅' },
-  { key: 'board',   label: '게시판' },
-  { key: 'share',   label: '공유' },
-  { key: 'guide',   label: '서비스 가이드' },
+  { key: 'home',      label: '홈' },
+  { key: 'videos',    label: '강의' },
+  { key: 'meeting',   label: '미팅' },
+  { key: 'board',     label: '게시판' },
+  { key: 'share',     label: '공유' },
+  { key: 'guide',     label: '서비스 가이드' },
+  { key: 'resources', label: '자료실' },
 ];
 
 export default function Page() {
@@ -250,7 +252,7 @@ export default function Page() {
   }, []);
 
   // ── Hash 라우팅: 탭 클릭 시 URL hash 갱신 + 브라우저 뒤로/앞으로 동기화 ──
-  const VALID_TABS: TabType[] = ['home', 'videos', 'meeting', 'board', 'share', 'guide'];
+  const VALID_TABS: TabType[] = ['home', 'videos', 'meeting', 'board', 'share', 'guide', 'resources'];
   const tabFromHash = (h: string): TabType => {
     const t = (h || '').replace(/^#/, '') as TabType;
     return VALID_TABS.includes(t) ? t : 'home';
@@ -291,8 +293,9 @@ export default function Page() {
       case 'meeting': return <MeetingPage />;
       case 'board':   return <BoardPage />;
       case 'share':   return <SharePage />;
-      case 'guide':   return <GuidePage isAdmin={isAdmin} onNavigate={navigateTo} />;
-      default:        return <MainPage onNavigate={navigateTo} levelInfo={aiLevelInfo} onRetake={() => setLevelTestNeeded(true)} />;
+      case 'guide':      return <GuidePage isAdmin={isAdmin} onNavigate={navigateTo} />;
+      case 'resources':  return <ResourcesPage />;
+      default:           return <MainPage onNavigate={navigateTo} levelInfo={aiLevelInfo} onRetake={() => setLevelTestNeeded(true)} />;
     }
   };
 
