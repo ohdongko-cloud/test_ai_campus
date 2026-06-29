@@ -4,6 +4,11 @@
 > PRD 워크플로우 스킬(`/prd-new`·`/prd-review`·`/prd-commit`·`/security-gate`·`/ship`·`/prd-flow`)이
 > 이 문서를 공통 기준점으로 참조한다. 규칙을 바꿀 때는 이 파일을 먼저 고친다.
 
+## ⭐ 세션 연속성 (필수 — 매 세션 시작 시)
+> **새 대화 세션을 시작하면, 어떤 작업이든 착수하기 전에 가장 먼저 [`docs/HISTORY.md`](docs/HISTORY.md)의 "현재 상태"와 최신 세션 로그를 읽어 직전까지의 맥락을 파악한다.**
+> - 작업 종료/주요 마일스톤마다 `docs/HISTORY.md`의 "세션 로그" 맨 위에 새 항목(요청·확정 질의응답·결과·커밋해시)을 추가하고 "현재 상태"를 갱신한다.
+> - 함께 볼 것: `docs/prd/CHANGELOG.md`(상세 변경이력), `MEMORY.md`/`~/.claude` 메모리(영속 사실).
+
 ## 스택 / 운영
 - **Next.js 15** (App Router) + **TypeScript** + React 18 + Tailwind
 - DB **Neon Postgres**(HTTP 드라이버) · 호스팅 **Vercel**(main 푸시 → 자동 배포)
