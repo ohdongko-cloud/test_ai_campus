@@ -18,8 +18,10 @@
   - **자료실**(배우기 영역, 게시판형) — 외부링크(드라이브/노션/URL) 연동·메타데이터만 DB·좋아요/댓글·관리자 큐레이션·데스크톱+모바일. **로그인 필수**.
   - **세션 30일 durable** — 데스크톱 자동로그인 기본 ON + 가입 자동로그인 durable (기존 6h 만료로 "로그인했는데 401" 버그 해소).
   - **레벨진단 팝업** — 30일 억제 + '30일간 보지 않기' 버튼 + 진단 완료자는 모달 미노출·30일 후 토스트.
-- **HEAD**: `f599261` (origin/main 동기화됨).
-- **2026-06-30 추가 배포**: 관리자 'AI 레벨 현황' 매트릭스에 이름 옆 **이메일·가입일시** 컬럼 추가 (CSV 포함). DB 마이그레이션 없음(기존 `users.email`/`users.created_at` 재사용). PII는 `requireAdmin('members')` + `Cache-Control: no-store`로 보호.
+- **HEAD**: `7e474c9` (origin/main 동기화됨).
+- **2026-06-30 추가 배포**:
+  - 관리자 'AI 레벨 현황' 매트릭스에 이름 옆 **이메일·가입일시** 컬럼 추가 (CSV 포함). DB 마이그레이션 없음(기존 `users.email`/`users.created_at` 재사용). PII는 `requireAdmin('members')` + `Cache-Control: no-store`로 보호. **`f599261`**
+  - 같은 매트릭스에 **컬럼별 정렬**(15개 컬럼, 오름→내림→해제 3단 토글, `localeCompare('ko')`, null/빈값 항상 마지막, CSV/카운트 모두 정렬 상태 반영). 클라이언트사이드만 — API/권한/캐시/DB 무변경. **`7e474c9`**
 - **남은/후속 (비차단)**:
   - 자료실에 실제 자료 등록(관리자 '자료실 관리' 탭) — 운영 작업.
   - (보안 후속) 가입 직후 durable 자동로그인의 공유PC 시 로그아웃 안내 검토.
@@ -38,6 +40,7 @@
 |---|---|---|---|
 | 1 | 관리자 'AI 레벨 현황' 매트릭스에 부서별 이름 옆 이메일+가입일시 컬럼 추가 | — | API SELECT에 `u.email`/`u.created_at AS joined_at` 추가, AdminAiLevelMatrix Row·thead colSpan(2→4)·tbody·CSV·minWidth(1080→1260) 동기화, `fmtDate(YYYY-MM-DD)` 유틸. DB 마이그레이션 없음 |
 | 2 | /prd-flow 전체 진행 + 에이전트 소환해서 PRD 갱신·리뷰 후 배포까지 | 푸시 사용자 명시 승인 | PRD #28 사후 문서화 (`docs/prd/2026-06-30-admin-ai-level-matrix-email-joined.md`) + CHANGELOG 행 등록. **`f599261`** 푸시 → Vercel 자동배포 검증(홈 200, 매트릭스 API 비인증 401 PII 가드 유지) |
+| 3 | 같은 매트릭스에 컬럼별 정렬 기능 추가, 완료되면 바로 푸시 | 푸시 사전승인 적용 | 15개 컬럼 정렬(오름→내림→해제 3단), `SortTh` 컴포넌트 + 활성열 강조 + ▲▼/⇅ 화살표 + '정렬 해제' 버튼. `localeCompare('ko')`, null/빈값 항상 마지막. CSV/카운트도 정렬 반영. 게이트: tsc PASS · 빌드(더미 env) PASS · preview 콘솔/서버 에러 없음 · 인라인 보안 점검 PASS(클라이언트사이드만) · pre-push 훅 PASS. **`7e474c9`** 푸시 → Vercel 자동배포 검증(홈 200, 401 PASS) |
 
 **게이트 통과 기록**
 - ✅ PRD 리뷰 (인라인 루브릭, 8섹션·PII/보안 §1·§7 명시·엣지 표 완비)
