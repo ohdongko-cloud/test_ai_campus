@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { adminFetch } from '../lib/admin-client';
 
 // 관리자 — AI 레벨 매트릭스 (법인/부서/직무별). 첨부 이미지 구조:
-// 구분(부서·이름) | 측정지표(목표·점수Lv·전월·성장률) | EBG(이머니·EBG적용) | 행동(코딩·서비스수) | 지식(보안·운영도구·자동화)
+// 구분(부서·이름·이메일·가입일시) | 측정지표(목표·점수Lv·전월·성장률) | EBG(이머니·EBG적용) | 행동(코딩·서비스수) | 지식(보안·운영도구·자동화)
 
 interface Row {
   id: string; name: string | null; email: string | null; joined_at: string | null;
@@ -13,6 +13,10 @@ interface Row {
   area_ratio: Record<string, number> | null; coding_status: string | null; coding_score: number | null;
   prev_score: number | null; goal: string | null; emoney: string | null; note: string | null;
 }
+
+type SortKey = 'dept' | 'name' | 'email' | 'joined' | 'goal' | 'score' | 'prev' | 'growth'
+  | 'emoney' | 'ebg' | 'coding' | 'service' | 'security' | 'ops' | 'automation';
+type SortDir = 'asc' | 'desc' | null;
 
 const fmtDate = (s: string | null) => {
   if (!s) return '-';
@@ -26,12 +30,39 @@ const fmtDate = (s: string | null) => {
 
 const pct = (r: number | null | undefined) => (r == null ? '-' : Math.round(r * 100));
 
+const growthOf = (r: Row): number | null => {
+  if (r.prev_score == null || !r.prev_score) return null;
+  return Math.round(((Number(r.auto_score) - r.prev_score) / r.prev_score) * 100);
+};
+
+const sortVal = (r: Row, k: SortKey): number | string | null => {
+  switch (k) {
+    case 'dept': return r.organization_name;
+    case 'name': return r.name;
+    case 'email': return r.email;
+    case 'joined': return r.joined_at ? new Date(r.joined_at).getTime() : null;
+    case 'goal': return r.goal && r.goal.trim() ? r.goal : null;
+    case 'score': return r.auto_score == null ? null : Number(r.auto_score);
+    case 'prev': return r.prev_score == null ? null : Number(r.prev_score);
+    case 'growth': return growthOf(r);
+    case 'emoney': return r.emoney && r.emoney.trim() ? r.emoney : null;
+    case 'ebg': return r.c3_score == null ? null : Number(r.c3_score);
+    case 'coding': return r.coding_status === 'scored' && r.coding_score != null ? Number(r.coding_score) : null;
+    case 'service': return r.area_ratio?.service_count ?? null;
+    case 'security': return r.area_ratio?.security ?? null;
+    case 'ops': return r.area_ratio?.ops ?? null;
+    case 'automation': return r.area_ratio?.automation ?? null;
+  }
+};
+
 export default function AdminAiLevelMatrix() {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [corp, setCorp] = useState(''); const [dept, setDept] = useState(''); const [position, setPosition] = useState('');
   const [edit, setEdit] = useState<Record<string, { goal: string; emoney: string }>>({});
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDir, setSortDir] = useState<SortDir>(null);
 
   const load = useCallback(async () => {
     setLoading(true); setError('');
@@ -48,12 +79,31 @@ export default function AdminAiLevelMatrix() {
   const depts = useMemo(() => [...new Set(rows.filter(r => !corp || r.corporation_name === corp).map(r => r.organization_name).filter(Boolean))] as string[], [rows, corp]);
   const positions = useMemo(() => [...new Set(rows.filter(r => (!corp || r.corporation_name === corp) && (!dept || r.organization_name === dept)).map(r => r.position).filter(Boolean))] as string[], [rows, corp, dept]);
 
-  const shown = rows.filter(r => (!corp || r.corporation_name === corp) && (!dept || r.organization_name === dept) && (!position || r.position === position));
+  const shown = useMemo(
+    () => rows.filter(r => (!corp || r.corporation_name === corp) && (!dept || r.organization_name === dept) && (!position || r.position === position)),
+    [rows, corp, dept, position]
+  );
 
-  const growth = (r: Row) => {
-    if (r.prev_score == null || !r.prev_score) return null;
-    return Math.round(((Number(r.auto_score) - r.prev_score) / r.prev_score) * 100);
+  const sortedShown = useMemo(() => {
+    if (!sortKey || !sortDir) return shown;
+    const dir = sortDir === 'asc' ? 1 : -1;
+    return [...shown].sort((a, b) => {
+      const va = sortVal(a, sortKey), vb = sortVal(b, sortKey);
+      if (va == null && vb == null) return 0;
+      if (va == null) return 1;   // null은 정렬 방향과 무관하게 항상 마지막
+      if (vb == null) return -1;
+      if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * dir;
+      return String(va).localeCompare(String(vb), 'ko') * dir;
+    });
+  }, [shown, sortKey, sortDir]);
+
+  const toggleSort = (k: SortKey) => {
+    if (sortKey !== k) { setSortKey(k); setSortDir('asc'); return; }
+    if (sortDir === 'asc') { setSortDir('desc'); return; }
+    if (sortDir === 'desc') { setSortKey(null); setSortDir(null); return; }
+    setSortDir('asc');
   };
+
   // 레벨 신호등: 낮음(빨강)·중간(노랑)·높음(초록)
   const lvBg = (lv: number | null) => lv == null ? '#F4F6F9' : lv <= 2 ? '#FDECEC' : lv <= 5 ? '#FFF6E0' : '#E7F6EE';
   const lvFg = (lv: number | null) => lv == null ? '#B6C0CC' : lv <= 2 ? '#A3331F' : lv <= 5 ? '#8A5A00' : '#1F7A4D';
@@ -61,8 +111,8 @@ export default function AdminAiLevelMatrix() {
   const exportCsv = () => {
     const head = ['법인', '부서', '직무', '이름', '이메일', '가입일시', '목표', '레벨', '점수', '전월', '성장률%', '이머니', 'EBG', '코딩', '서비스수', '보안', '운영도구', '자동화'];
     const lines = [head.join(',')];
-    for (const r of shown) {
-      const g = growth(r);
+    for (const r of sortedShown) {
+      const g = growthOf(r);
       const row = [r.corporation_name, r.organization_name, r.position, r.name, r.email, fmtDate(r.joined_at), r.goal,
         r.level, r.auto_score == null ? '' : Number(r.auto_score).toFixed(0), r.prev_score == null ? '' : Number(r.prev_score).toFixed(0),
         g == null ? '' : g, r.emoney, pct(r.c3_score == null ? null : Number(r.c3_score) / 100),
@@ -74,7 +124,7 @@ export default function AdminAiLevelMatrix() {
     const blob = new Blob(['﻿' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `ai-level-matrix-${shown.length}.csv`;
+    a.download = `ai-level-matrix-${sortedShown.length}.csv`;
     a.click(); URL.revokeObjectURL(a.href);
   };
 
@@ -92,10 +142,24 @@ export default function AdminAiLevelMatrix() {
   const mini: React.CSSProperties = { width: 64, padding: '4px 6px', border: '1px solid #D5DBE3', borderRadius: 5, fontSize: 12 };
   const cell = (v: number | null | undefined) => { const n = pct(v); return <td style={{ ...td, color: n === '-' ? '#B6C0CC' : '#21384F', background: typeof n === 'number' ? `rgba(27,108,214,${0.04 + (n / 100) * 0.18})` : undefined }}>{n}</td>; };
 
+  const SortTh = ({ k, label }: { k: SortKey; label: string }) => {
+    const active = sortKey === k;
+    const arrow = active ? (sortDir === 'asc' ? ' ▲' : sortDir === 'desc' ? ' ▼' : '') : '';
+    return (
+      <th
+        style={{ ...th, cursor: 'pointer', userSelect: 'none', background: active ? '#E8EFF8' : th.background, color: active ? '#11447F' : th.color }}
+        onClick={() => toggleSort(k)}
+        title="정렬 (오름→내림→해제)"
+      >
+        {label}<span style={{ marginLeft: 2, color: active ? '#1B6CD6' : '#B6C0CC' }}>{arrow || ' ⇅'}</span>
+      </th>
+    );
+  };
+
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
-        <h2 style={{ fontSize: 17, fontWeight: 700, margin: 0 }}>AI 레벨 매트릭스 <span style={{ fontSize: 12.5, fontWeight: 500, color: '#8A97A8' }}>({shown.length}명)</span></h2>
+        <h2 style={{ fontSize: 17, fontWeight: 700, margin: 0 }}>AI 레벨 매트릭스 <span style={{ fontSize: 12.5, fontWeight: 500, color: '#8A97A8' }}>({sortedShown.length}명)</span></h2>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           <select style={sel} value={corp} onChange={e => { setCorp(e.target.value); setDept(''); setPosition(''); }}>
             <option value="">법인 전체</option>{corps.map(c => <option key={c} value={c}>{c}</option>)}
@@ -106,16 +170,19 @@ export default function AdminAiLevelMatrix() {
           <select style={sel} value={position} onChange={e => setPosition(e.target.value)}>
             <option value="">직무 전체</option>{positions.map(p => <option key={p} value={p}>{p}</option>)}
           </select>
+          {sortKey && (
+            <button onClick={() => { setSortKey(null); setSortDir(null); }} style={{ ...sel, cursor: 'pointer', color: '#A3331F', borderColor: '#F2C9C0', background: '#FDECEC', fontWeight: 600 }}>정렬 해제</button>
+          )}
           <button onClick={load} style={{ ...sel, cursor: 'pointer', color: '#5B6B7E' }}>새로고침</button>
-          <button onClick={exportCsv} disabled={shown.length === 0} style={{ ...sel, cursor: 'pointer', color: '#11447F', borderColor: '#1B6CD6', background: '#EAF1FB', fontWeight: 600 }}>CSV 내보내기</button>
+          <button onClick={exportCsv} disabled={sortedShown.length === 0} style={{ ...sel, cursor: 'pointer', color: '#11447F', borderColor: '#1B6CD6', background: '#EAF1FB', fontWeight: 600 }}>CSV 내보내기</button>
         </div>
       </div>
       {error && <p style={{ color: '#A3331F', fontSize: 13, marginBottom: 8 }}>{error}</p>}
-      {loading ? <p style={{ color: '#73839A', fontSize: 13 }}>불러오는 중…</p> : shown.length === 0 ? (
+      {loading ? <p style={{ color: '#73839A', fontSize: 13 }}>불러오는 중…</p> : sortedShown.length === 0 ? (
         <p style={{ color: '#73839A', fontSize: 13 }}>응시 결과가 없습니다. (배포 후 직원 응시·마이그레이션 필요)</p>
       ) : (
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ borderCollapse: 'collapse', minWidth: 1260 }}>
+          <table style={{ borderCollapse: 'collapse', minWidth: 1320 }}>
             <thead>
               <tr>
                 <th style={th} colSpan={4}>구분</th>
@@ -125,16 +192,26 @@ export default function AdminAiLevelMatrix() {
                 <th style={th} colSpan={3}>(지식) 10%</th>
               </tr>
               <tr>
-                <th style={th}>부서</th><th style={th}>이름</th><th style={th}>이메일</th><th style={th}>가입일시</th>
-                <th style={th}>목표</th><th style={th}>점수(Lv)</th><th style={th}>전월</th><th style={th}>성장률</th>
-                <th style={th}>이머니</th><th style={th}>EBG적용</th>
-                <th style={th}>코딩</th><th style={th}>서비스수</th>
-                <th style={th}>보안</th><th style={th}>운영도구</th><th style={th}>자동화</th>
+                <SortTh k="dept" label="부서" />
+                <SortTh k="name" label="이름" />
+                <SortTh k="email" label="이메일" />
+                <SortTh k="joined" label="가입일시" />
+                <SortTh k="goal" label="목표" />
+                <SortTh k="score" label="점수(Lv)" />
+                <SortTh k="prev" label="전월" />
+                <SortTh k="growth" label="성장률" />
+                <SortTh k="emoney" label="이머니" />
+                <SortTh k="ebg" label="EBG적용" />
+                <SortTh k="coding" label="코딩" />
+                <SortTh k="service" label="서비스수" />
+                <SortTh k="security" label="보안" />
+                <SortTh k="ops" label="운영도구" />
+                <SortTh k="automation" label="자동화" />
               </tr>
             </thead>
             <tbody>
-              {shown.map(r => {
-                const g = growth(r); const e = edit[r.id] || { goal: r.goal || '', emoney: r.emoney || '' };
+              {sortedShown.map(r => {
+                const g = growthOf(r); const e = edit[r.id] || { goal: r.goal || '', emoney: r.emoney || '' };
                 return (
                   <tr key={r.id}>
                     <td style={{ ...td, textAlign: 'left' }}>{r.organization_name || '-'}<div style={{ fontSize: 10.5, color: '#9AA6B5' }}>{r.position || ''}</div></td>
@@ -159,7 +236,7 @@ export default function AdminAiLevelMatrix() {
               })}
             </tbody>
           </table>
-          <p style={{ fontSize: 11.5, color: '#9AA6B5', marginTop: 8 }}>지식·행동·EBG 칸은 0~100 점수. 목표·이머니는 입력 후 칸을 벗어나면 자동 저장됩니다.</p>
+          <p style={{ fontSize: 11.5, color: '#9AA6B5', marginTop: 8 }}>지식·행동·EBG 칸은 0~100 점수. 목표·이머니는 입력 후 칸을 벗어나면 자동 저장됩니다. 컬럼 헤더 클릭 시 정렬(오름→내림→해제), 빈 값은 항상 마지막에 표시됩니다.</p>
         </div>
       )}
     </div>
