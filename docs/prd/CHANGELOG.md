@@ -1,7 +1,7 @@
 # PRD: 이랜드리테일 AI 캠퍼스 — 마스터 변경 이력 (CHANGELOG)
 
 - 최초 작성: 2026-05-30
-- 최종 갱신: 2026-06-24
+- 최종 갱신: 2026-06-30
 - 작성자/소유자: <오너> + Claude
 - 운영 URL: https://retail-ai-campus.vercel.app
 - GitHub: https://github.com/ohdongko-cloud/test_ai_campus
@@ -35,7 +35,7 @@
 
 ---
 
-## 2. 작성된 PRD 목록 (27건)
+## 2. 작성된 PRD 목록 (28건)
 
 모두 `docs/prd/` 하위에 보관.
 
@@ -68,6 +68,7 @@
 | 25 | [2026-06-23-level-test-prompt-30day-suppress.md](./2026-06-23-level-test-prompt-30day-suppress.md) | 레벨테스트 재응시 팝업 30일 과노출 차단 — 서버 영속 실패에도 로컬 완료 마커로 30일 억제(클라 전용) |
 | 26 | [2026-06-24-level-test-prompt-snooze-toast.md](./2026-06-24-level-test-prompt-snooze-toast.md) | 레벨진단 팝업 '30일간 보지 않기' 버튼 + 진단 완료자는 모달 영구 미노출·30일 후 토스트 알림 전환 |
 | 27 | [2026-06-24-resource-library.md](./2026-06-24-resource-library.md) | 배우기 '자료실'(게시판형) — 외부링크(드라이브/노션/URL) 연동·메타데이터만 DB·풀 게시판(좋아요·댓글)·관리자 큐레이션·데스크톱+모바일·M012 |
+| 28 | [2026-06-30-admin-ai-level-matrix-email-joined.md](./2026-06-30-admin-ai-level-matrix-email-joined.md) | 관리자 AI 레벨 매트릭스 — 이름 옆 이메일·가입일시 컬럼 추가 (DB 마이그레이션 없음, PII no-store) |
 
 > ※ 테스트 계정(`test@eland.co.kr` / `000000`)과 15 페르소나 리서치는 별도 PRD 없이 본 CHANGELOG와 `public/research/` 폴더로 관리.
 
@@ -79,6 +80,7 @@
 
 | 커밋 | 메시지 | 비고 |
 |---|---|---|
+| `(pending)` | feat(admin/ai-level): 매트릭스에 이메일·가입일시 컬럼 | PRD `2026-06-30-admin-ai-level-matrix-email-joined.md`. route.ts SELECT에 u.email·u.created_at AS joined_at 추가, Row 인터페이스·thead·tbody·CSV 확장. DB 마이그레이션 없음. PII: requireAdmin('members') + no-store 유지 |
 | `0de28fd` | docs: 세션 연속성 — HISTORY.md 도입 + CLAUDE.md 규약 | `docs/HISTORY.md` 신규(사용자 요청·확정 질의응답·결과·커밋 시간순 + '현재 상태' 스냅샷). CLAUDE.md에 "⭐ 세션 연속성" 추가 — 매 세션 시작 시 HISTORY.md 먼저 읽고, 마일스톤마다 append. CLAUDE.md는 매 세션 자동 적용되므로 별도 훅 없이 동작 |
 | `5dfa9ec` | fix(auth/resources): 자료실 로그인 필수 복원 + 데스크톱 세션 30일 durable | 직전 공개화(`5534186`)를 되돌려 자료실 읽기 3엔드포인트(`/api/resources`·`.../comments`·`.../view`)를 **로그인 회원 전용**으로 복원. 근본원인 = 데스크톱 자동로그인 기본 OFF → 서버 JWT 세션 6h 만료로 '로그인했는데 401'. 해결: `WelcomePopup` 자동로그인 **기본 ON(30일)** + 가입 자동로그인 durable(`/api/users` rememberMe true) → 모바일·문서 정책과 일치. 빈 상태 문구('입력된 자료 없음')는 유지. 배포 후 기존 사용자는 1회 재로그인 시 30일 세션 |
 | `5534186` | fix(resources): 자료실 열람 401 해결 — 읽기 공개화 + 빈 상태 문구 | PRD `2026-06-24-resource-library.md` 후속. 로그인 상태(localStorage)인데 서버 JWT 세션(기본 6h) 만료 시 자료실 목록이 401("로그인이 필요합니다")나던 버그. 게시판과 동일하게 `GET /api/resources`·`GET .../comments`·`POST .../view`를 **공개**로 전환(좋아요·댓글작성·등록은 로그인 유지). 빈 상태 문구 '입력된 자료 없음'(데스크톱·모바일). 프리뷰 실측: 비로그인 200·빈상태 렌더 확인 |

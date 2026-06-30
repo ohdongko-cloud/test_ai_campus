@@ -7,11 +7,22 @@ import { adminFetch } from '../lib/admin-client';
 // 구분(부서·이름) | 측정지표(목표·점수Lv·전월·성장률) | EBG(이머니·EBG적용) | 행동(코딩·서비스수) | 지식(보안·운영도구·자동화)
 
 interface Row {
-  id: string; name: string | null; corporation_name: string | null; organization_name: string | null; position: string | null;
+  id: string; name: string | null; email: string | null; joined_at: string | null;
+  corporation_name: string | null; organization_name: string | null; position: string | null;
   level: number | null; auto_score: number | null; c1_score: number | null; c2_score: number | null; c3_score: number | null;
   area_ratio: Record<string, number> | null; coding_status: string | null; coding_score: number | null;
   prev_score: number | null; goal: string | null; emoney: string | null; note: string | null;
 }
+
+const fmtDate = (s: string | null) => {
+  if (!s) return '-';
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return '-';
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dd}`;
+};
 
 const pct = (r: number | null | undefined) => (r == null ? '-' : Math.round(r * 100));
 
@@ -48,11 +59,11 @@ export default function AdminAiLevelMatrix() {
   const lvFg = (lv: number | null) => lv == null ? '#B6C0CC' : lv <= 2 ? '#A3331F' : lv <= 5 ? '#8A5A00' : '#1F7A4D';
 
   const exportCsv = () => {
-    const head = ['법인', '부서', '직무', '이름', '목표', '레벨', '점수', '전월', '성장률%', '이머니', 'EBG', '코딩', '서비스수', '보안', '운영도구', '자동화'];
+    const head = ['법인', '부서', '직무', '이름', '이메일', '가입일시', '목표', '레벨', '점수', '전월', '성장률%', '이머니', 'EBG', '코딩', '서비스수', '보안', '운영도구', '자동화'];
     const lines = [head.join(',')];
     for (const r of shown) {
       const g = growth(r);
-      const row = [r.corporation_name, r.organization_name, r.position, r.name, r.goal,
+      const row = [r.corporation_name, r.organization_name, r.position, r.name, r.email, fmtDate(r.joined_at), r.goal,
         r.level, r.auto_score == null ? '' : Number(r.auto_score).toFixed(0), r.prev_score == null ? '' : Number(r.prev_score).toFixed(0),
         g == null ? '' : g, r.emoney, pct(r.c3_score == null ? null : Number(r.c3_score) / 100),
         r.coding_status === 'scored' ? Number(r.coding_score) : '', pct(r.area_ratio?.service_count),
@@ -104,17 +115,17 @@ export default function AdminAiLevelMatrix() {
         <p style={{ color: '#73839A', fontSize: 13 }}>응시 결과가 없습니다. (배포 후 직원 응시·마이그레이션 필요)</p>
       ) : (
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ borderCollapse: 'collapse', minWidth: 1080 }}>
+          <table style={{ borderCollapse: 'collapse', minWidth: 1260 }}>
             <thead>
               <tr>
-                <th style={th} colSpan={2}>구분</th>
+                <th style={th} colSpan={4}>구분</th>
                 <th style={th} colSpan={4}>측정지표</th>
                 <th style={th} colSpan={2}>(EBG) 큰 숫자</th>
                 <th style={th} colSpan={2}>(행동) 50%</th>
                 <th style={th} colSpan={3}>(지식) 10%</th>
               </tr>
               <tr>
-                <th style={th}>부서</th><th style={th}>이름</th>
+                <th style={th}>부서</th><th style={th}>이름</th><th style={th}>이메일</th><th style={th}>가입일시</th>
                 <th style={th}>목표</th><th style={th}>점수(Lv)</th><th style={th}>전월</th><th style={th}>성장률</th>
                 <th style={th}>이머니</th><th style={th}>EBG적용</th>
                 <th style={th}>코딩</th><th style={th}>서비스수</th>
@@ -128,6 +139,8 @@ export default function AdminAiLevelMatrix() {
                   <tr key={r.id}>
                     <td style={{ ...td, textAlign: 'left' }}>{r.organization_name || '-'}<div style={{ fontSize: 10.5, color: '#9AA6B5' }}>{r.position || ''}</div></td>
                     <td style={{ ...td, textAlign: 'left', fontWeight: 600 }}>{r.name || '-'}</td>
+                    <td style={{ ...td, textAlign: 'left', color: '#5B6B7E', fontSize: 11.5 }}>{r.email || '-'}</td>
+                    <td style={{ ...td, color: '#5B6B7E', fontSize: 11.5 }}>{fmtDate(r.joined_at)}</td>
                     <td style={td}><input style={mini} value={e.goal} placeholder="목표"
                       onChange={ev => setEdit(s => ({ ...s, [r.id]: { ...e, goal: ev.target.value } }))} onBlur={() => saveManual(r)} /></td>
                     <td style={{ ...td, fontWeight: 700, background: lvBg(r.level), color: lvFg(r.level) }}>Lv {r.level ?? '-'}<div style={{ fontSize: 10.5, color: '#8A97A8' }}>{r.auto_score == null ? '' : Number(r.auto_score).toFixed(0) + '점'}</div></td>

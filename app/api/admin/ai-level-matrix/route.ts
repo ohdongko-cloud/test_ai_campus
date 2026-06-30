@@ -21,7 +21,8 @@ export async function GET(req: NextRequest) {
                ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY created_at DESC) rn
         FROM ai_level_attempts
       )
-      SELECT u.id, u.name, u.corporation_name, u.organization_name, u.position,
+      SELECT u.id, u.name, u.email, u.created_at AS joined_at,
+             u.corporation_name, u.organization_name, u.position,
              l.level, l.auto_score, l.c1_score, l.c2_score, l.c3_score, l.area_ratio,
              l.coding_status, l.coding_score, l.created_at,
              p.auto_score AS prev_score,
