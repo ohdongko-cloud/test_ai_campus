@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "test:golden": "node tests/level-test-popup-gate.test.mjs",
     "prepare": "husky || true"
   },
   "dependencies": {
