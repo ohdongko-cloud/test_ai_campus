@@ -44,6 +44,7 @@ export default function MobileVideoWatchPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [wmToggle, setWmToggle] = useState(0); // 0/1 — 30초마다 위치 swap
+  const [linkCopied, setLinkCopied] = useState(false);
   const [userInfo, setUserInfo] = useState<ReturnType<typeof getUserInfo>>(null);
   const [tab, setTab] = useState<'info' | 'stages' | 'files'>('info');
   const [attachments, setAttachments] = useState<Attachment[] | null>(null);
@@ -152,6 +153,40 @@ export default function MobileVideoWatchPage() {
 
   const stages: VideoStage[] = video?.stages || [];
 
+  // 공유 링크 복사 — canonical /video/{id} (반응형 페이지, PC·모바일 공용).
+  const copyLink = async () => {
+    if (!videoId) return;
+    const url = typeof window !== 'undefined'
+      ? `${window.location.origin}/video/${encodeURIComponent(videoId)}`
+      : `/video/${encodeURIComponent(videoId)}`;
+    let ok = false;
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(url);
+        ok = true;
+      }
+    } catch { ok = false; }
+    if (!ok) {
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = url;
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+      } catch { ok = false; }
+    }
+    if (ok) {
+      setLinkCopied(true);
+      window.setTimeout(() => setLinkCopied(false), 1800);
+    } else {
+      alert('링크 복사에 실패했습니다.');
+    }
+  };
+
   return (
     <div
       style={{
@@ -209,7 +244,33 @@ export default function MobileVideoWatchPage() {
         >
           {loading ? '불러오는 중...' : video?.title || '영상'}
         </div>
-        <div style={{ width: 40 }} />
+        <button
+          type="button"
+          onClick={copyLink}
+          aria-label="이 영상 링크 복사"
+          title="링크 복사"
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            background: linkCopied ? M.accent : 'rgba(255,255,255,0.08)',
+            color: '#fff',
+            border: 'none',
+            cursor: 'pointer',
+            display: 'grid',
+            placeItems: 'center',
+            flexShrink: 0,
+          }}
+        >
+          {linkCopied ? (
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
+          ) : (
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+              <path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+            </svg>
+          )}
+        </button>
       </header>
 
       {/* 영상 영역 — sticky top */}
