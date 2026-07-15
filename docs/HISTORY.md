@@ -9,7 +9,7 @@
 
 ---
 
-## 현재 상태 (Current State) — 2026-06-30 기준
+## 현재 상태 (Current State) — 2026-07-15 기준
 
 - **운영 URL**: https://retail-ai-campus.vercel.app · **운영 DB**: Neon (`.env.local` `DATABASE_URL`, host `ep-sparkling-breeze…ap-southeast-1.aws.neon.tech`). Vercel main 푸시 → 자동배포.
   - ⚠️ 한때 "prod는 Neon 아님"이라는 착오가 있었으나 **prod = Neon 확정**. 2026-06-23 만든 Prisma "AI-CAMPUS" DB는 별도 빈 DB(미사용). (메모리 `prod-db-is-neon` 참조)
@@ -18,7 +18,9 @@
   - **자료실**(배우기 영역, 게시판형) — 외부링크(드라이브/노션/URL) 연동·메타데이터만 DB·좋아요/댓글·관리자 큐레이션·데스크톱+모바일. **로그인 필수**.
   - **세션 30일 durable** — 데스크톱 자동로그인 기본 ON + 가입 자동로그인 durable (기존 6h 만료로 "로그인했는데 401" 버그 해소).
   - **레벨진단 팝업** — 30일 억제 + '30일간 보지 않기' 버튼 + 진단 완료자는 모달 미노출·30일 후 토스트.
-- **HEAD**: `7e474c9` (origin/main 동기화됨).
+- **HEAD**: `73150e8` (origin/main 동기화됨, Vercel 배포 완료).
+- **2026-07-15 추가 배포**:
+  - **강의 영상 팝업 → 영상별 단독 페이지 `/video/[id]` 전환 + 공유 링크**. 목록 클릭 시 팝업 대신 페이지 이동(모달 제거로 `VideoPage.tsx` 2026→1010줄). 로그인 필수(비로그인은 페이지 내 "로그인 후 시청" 게이트 + `/login?next` 복귀), 썸네일+제목 OG 카드(`generateMetadata`, robots noindex), 워터마크·보호레이어 패리티 유지. 신규 `app/video/[id]/page.tsx`(Server, force-dynamic)·`components/VideoWatch.tsx`·`lib/videos.ts`·`GET /api/videos/[id]`. 모바일 `/m/video/[id]` 링크복사 + versionCode 13. DB 변경 없음. 게이트: security ✅·release ✅(tsc·build·golden18)·preview·prod 실측 ✅. **`73150e8`**
 - **2026-06-30 추가 배포**:
   - 관리자 'AI 레벨 현황' 매트릭스에 이름 옆 **이메일·가입일시** 컬럼 추가 (CSV 포함). DB 마이그레이션 없음(기존 `users.email`/`users.created_at` 재사용). PII는 `requireAdmin('members')` + `Cache-Control: no-store`로 보호. **`f599261`**
   - 같은 매트릭스에 **컬럼별 정렬**(15개 컬럼, 오름→내림→해제 3단 토글, `localeCompare('ko')`, null/빈값 항상 마지막, CSV/카운트 모두 정렬 상태 반영). 클라이언트사이드만 — API/권한/캐시/DB 무변경. **`7e474c9`**
@@ -31,6 +33,27 @@
 ---
 
 ## 세션 로그 (최신이 위)
+
+### 2026-07-15 — 강의 영상 팝업 → 영상별 단독 공유 페이지 (/prd-flow)
+
+**요청·결정·결과**
+
+| # | 사용자 요청 | 확정 질의응답 | 결과 / 커밋 |
+|---|---|---|---|
+| 1 | 강의 영상을 팝업이 아니라 영상별 단독 페이지로 구성해 URL을 복사·공유하고 접속할 수 있게 (/prd-flow) | **Q1 팝업**→페이지로 전환(팝업 제거) · **Q2 접근**→로그인 필수 · **Q3 미리보기**→썸네일+제목 OG | PRD #29. 데스크톱 모달 제거(`VideoPage.tsx` 2026→1010줄, handleWatch→`router.push('/video/{id}')`) + 신규 `app/video/[id]/page.tsx`(Server·force-dynamic·generateMetadata OG·getCurrentUser 로그인 게이트) + `components/VideoWatch.tsx`(플레이어·워터마크·보호레이어·탭·좋아요·링크복사) + `lib/videos.ts`·`GET /api/videos/[id]` + 모바일 `/m/video/[id]` 링크복사·versionCode 13. DB 변경 없음. **`73150e8`** 푸시 → Vercel 배포 |
+| 2 | main 푸시(운영 배포) 승인 | 명시 승인 | main ff 머지 → 푸시 → 배포. prod 실측: `/video/{id}` 404→200(신빌드), OG 썸네일·제목, 로그인 게이트+`?next`, 홈 200, `GET /api/videos/{id}` 200(PII 없음), 없는 id 404 |
+
+**게이트 통과 기록**
+- ✅ PRD 리뷰 (게이트①, 8섹션·PII/§6 매핑·엣지 표·의존성 보강)
+- ✅ security-reviewer (게이트②, 0 차단 — gitleaks·파라미터화 SQL·서버JWT 워터마크·force-dynamic no-store·보호 패리티·에러 통일)
+- ✅ release-verifier (tsc·build `/video/[id]`=ƒ Dynamic·golden18·코드정합성)
+- ✅ preview 실측 + prod 실측
+- ✅ pre-push 훅 (tsc + gitleaks)
+
+**이 세션 핵심 교훈**
+- 데스크톱 영상 모달은 URL이 없어(순수 `selectedVideo` state) 공유 불가였음 → 영상별 라우트로 전환이 정답. 모바일은 이미 `/m/video/[id]` 존재(패리티 근거).
+- 로그인 필수 + OG 미리보기 동시 충족: **리다이렉트 대신 페이지 내 게이트**(200 응답)로 스크래퍼가 OG 카드를 받게 함. `generateMetadata`는 인증 무관 공개.
+- 대형 파일 죽은 코드 제거는 `tsc --noUnusedLocals`를 오라클로 써서 정확히 식별(엔탱글된 `/api/users/me` 효과는 보존).
 
 ### 2026-06-30 — 관리자 AI 레벨 매트릭스: 이메일·가입일시 컬럼
 
