@@ -18,7 +18,7 @@
   - **자료실**(배우기 영역, 게시판형) — 외부링크(드라이브/노션/URL) 연동·메타데이터만 DB·좋아요/댓글·관리자 큐레이션·데스크톱+모바일. **로그인 필수**.
   - **세션 30일 durable** — 데스크톱 자동로그인 기본 ON + 가입 자동로그인 durable (기존 6h 만료로 "로그인했는데 401" 버그 해소).
   - **레벨진단 팝업** — 30일 억제 + '30일간 보지 않기' 버튼 + 진단 완료자는 모달 미노출·30일 후 토스트.
-- **HEAD**: `8837d18` (origin/main 동기화, Vercel 배포 READY — dpl_DhMsn…).
+- **HEAD**: `7dc8bd0` — **미푸시 커밋 7개**(`e01f47f`~`7dc8bd0`). origin/main은 `c71b833`. **푸시 전 security-reviewer 재실행 필요**(아래 세션 로그 참조).
 - **2026-07-27 ① 관측 선탑재 배포 완료**: M013(`sso_events`·`sso_daily_stats`·`stats_url`) + `logSsoEvent` + authorize/logout 계측 + `GET /api/admin/sso/overview`(master) + AdminSso 탭. env 없이 휴면 동작. 게이트: security(차단1건 수정 후 통과)·설계렌즈(조건부 승인)·release-verifier 통과. 운영 스모크: 홈/login/m 200 · overview 401(`관리자 인증이 필요합니다.`) · admin matrix 401 · userinfo 401 · logout 302 · authorize 미등록앱 400(`unknown app`).
 - **🔴 남은 운영 작업**: **`POST /api/admin/migrate` 1회 실행**(M013 미적용 — 실행 전엔 로깅 INSERT가 조용히 실패하고 AdminSso는 빈 응답 degrade로 동작). 실행 전 SSO 현황 탭을 먼저 열면 degrade 경로가 실측된다.
 - **2026-07-27 ⓪ 보안 선행 패치 배포 완료**: sanitizeNext URL 파서 재작성(+회귀 25케이스) · userinfo nonce 1회 소비 가드+레이트리밋 · Sentry token 마스킹 (`2a9b42a`·`50ad909`·`b62a6ab`+docs `bda5ab9`). 게이트 4종(security·release·설계렌즈·gitleaks) 통과, 사용자 승인 후 푸시. 운영 스모크: 홈/login/m 200 · admin API 401 · userinfo 401 통일응답 · jwks 500(SSO OFF 불변). 롤아웃 다음 단계 = ① 관측 선탑재(M013).
@@ -39,23 +39,68 @@
 
 1. **[사용자 작업] `POST /api/admin/migrate` 1회 실행** — M013 미적용. 마스터 로그인 후 관리자 화면에서 실행.
    - 순서 팁: 실행 **전에** 관리자 'SSO 현황' 탭을 먼저 열면 테이블 부재 시 graceful degrade(빈 화면, 500 아님)가 실측된다 → 이번 세션의 "확인필요" 2건이 닫힌다. 실행 후 재방문하면 정상 경로까지 확인.
-2. **[사용자 결정 — ② 착수 전 필수] 블루프린트 §9 미해결 질문**
-   - web-fashion(파일럿 스포크) URL 확정
-   - **PRD §6-10 문구 개정 승인** — "auth_logs 기록" → "sso_events 기록 + AdminLogs source='sso' 노출". ⚠️ 설계 렌즈 지적: **코드는 이미 이 개정을 전제로 배포됐다**(승인 순서가 뒤집힘). `sso_events`를 감사 로그로 격상할지 결정 필요 — 격상 시 "after() + 실패 삼킴"의 이중 무음 실패 구조가 완전성 보장 없는 로그임을 인지해야 함.
-   - Vercel Hobby ToS(비상업 조항)·무SLA 수용 여부 — 1,800명 사내앱 IdP. 비상 경로 = Pro $20/월.
-   - rememberMe 기본 체크 여부(SSO 체감 = 허브 세션 수명)
+2. ~~**[사용자 결정 — ② 착수 전 필수] 블루프린트 §9**~~ → **2026-07-27 결정 완료** (파일럿 URL 미확정→②는 selftest만 / §6-10 개정 승인·관측 등급 유지 / Hobby 유지·수용 / rememberMe 기본 ON 확정). 상세는 아래 세션 로그.
+   - **[신규 선행작업] 미푸시 커밋 7개(`e01f47f`~`7dc8bd0`)의 `security-reviewer` 재게이트** — 한도 초과로 미실행. 푸시 전 필수.
 3. **[② 실행] 허브 활성화** — 블루프린트 §3 런북 단계 0~7: RS256 키 생성 → Vercel env 4종(`SSO_PRIVATE_KEY`·`SSO_PUBLIC_KEY`·`SSO_KID`·`SSO_ISSUER`) → 재배포 → `sso_clients` 2단계 등록(enabled=false→검증→true) → 스모크 S1~S3 + AC2~AC7 → **known-good 6종 재실행**.
-4. **[코드 후속 — 비차단, 게이트 권고]**
-   - 계약 문서(`docs/sso-spoke-integration-contract.md`·`SSO-SPOKE-KIT.md`)에 **"userinfo는 단일 사용·재시도 금지·콜백 중 동기 1회"** 명문화 — ③ 파일럿 전 필수(⓪ 설계 렌즈 조건).
-   - §7 5단계(자동 리다이렉트) 완료 판정에 **`login_required` 표본/카운터 전환**을 선행 조건으로 명문화(① 설계 렌즈 권고).
-   - `recentFailures` 20건을 "등록앱 실패" vs "미등록 프로빙"으로 분리(공격 노이즈가 실장애 신호를 밀어냄).
-   - v1.5 cron `/api/cron/sso-daily`(§4.3) — 현재 보존은 ①탭 로드 lazy DELETE + ②삽입 500회당 1회 확률 폴백 2중. 90일 내 도입이 블루프린트 시한.
+4. **[코드 후속]** — 4건 중 3건 완료(2026-07-27, 커밋 `1f6dfaf`·`e01f47f`·`14cf880`).
+   - ~~계약 문서에 userinfo 단일 사용 명문화~~ ✅ `1f6dfaf` (+ 실패 시 무재진입 규범까지 확장)
+   - ~~§7-5 완료 판정에 `login_required` 카운터 전환 선행조건~~ ✅ `e01f47f`
+   - ~~`recentFailures`를 등록앱/미등록프로빙으로 분리~~ ✅ `14cf880`
+   - **v1.5 cron `/api/cron/sso-daily`(§4.3) — 미착수(의도적 보류).** Tier2 풀 대상 스포크가 아직 0개라 지금 만들면 검증 불가능한 죽은 코드가 된다. 블루프린트 §7-4(확대 단계) 항목이며 90일 내 도입이 시한.
+   - **[신규 백로그] M014 `sso_events.was_registered`** — 등록앱/프로빙 분리가 조회 시점 재계산이라 `sso_clients` 삭제·rename 시 과거 실패가 프로빙으로 소급 재분류된다. 현재는 §5.2 "삭제 대신 enabled=false" 운영 규칙 + UI 캡션 고지로만 방어. M013조차 운영 미적용이라 지금 스키마를 늘리지 않는다.
+   - **[신규 백로그] 프로빙 대량 유입 시 overview 응답 지연** — `sso_events`에 event 단독 인덱스가 없어 실패 조회 2건이 `created_at` 역방향으로 많은 행을 훑을 수 있다(master 전용 화면이라 즉시 위험은 아님).
 - **로컬 개발 환경**: `.env.local` 없음(2026-07-27 확인) → 로컬 DB 실측 불가 상태였음. 템플릿은 코드의 `process.env` 전수 추출본으로 생성해 사용자에게 전달(SSO 4종은 ②에서 채움). 훅이 `.env*` 읽기·출력을 차단하므로 값 확인은 사용자만 가능.
 - **2026-07-27 설계 산출물(코드 무변경·미커밋)**: SSO 허브 설계도 v2([docs/sso/SSO-HUB-BLUEPRINT.md](sso/SSO-HUB-BLUEPRINT.md)) + 스포크 구현 패키지 설계([docs/sso/SSO-SPOKE-KIT.md](sso/SSO-SPOKE-KIT.md)). 신규 핵심 = 전 서비스 사용현황 중앙 관리(Tier1 sso_events / Tier2 일일 풀, M013 예정) + 보안 보강 필수 5건(§6 B1~B5: userinfo nonce 가드·Sentry 토큰 마스킹·sanitizeNext URL파서 패치·등록 2단계·키회전 SLA). 구현 착수 전 사용자 결정 필요 항목은 블루프린트 §9.
 
 ---
 
 ## 세션 로그 (최신이 위)
+
+### 2026-07-27 — ② 착수 전 결정 4건 + 비차단 코드 후속 3건 (커밋 7개, 미푸시)
+
+> [상태] 로컬 커밋 `e01f47f`~`7dc8bd0` 7개. **미푸시** — `security-reviewer` 재게이트가 월 사용량 한도로 실행되지 못했다(아래 "확인필요"). 운영 배포 없음.
+
+**사용자 결정 (블루프린트 §9 → 문서 반영 완료)**
+
+| 항목 | 결정 | 파급 |
+|---|---|---|
+| web-fashion 파일럿 URL | **미확정** | ② 활성화는 `sso-selftest` 임시 클라이언트 1건만 등록. 실앱 등록은 URL 확정 후 ③ |
+| PRD §6-10 문구 개정 | **승인 · 관측 등급 유지** | `sso_events`를 감사 증적으로 격상하지 않음. 코드 변경 0, 문서만 정합화 |
+| Vercel Hobby ToS | **유지 · 리스크 수용** | 각 스포크 자체 로그인 폴백이 살아있어 허브 중단이 전면 장애 아님. Pro $20/월은 비상 경로 |
+| rememberMe 기본 체크 | **현행 기본 ON 확정 · 종결** | 실측으로 이미 ON(`WelcomePopup.tsx:146`·`MobileWelcome.tsx:81` `useState(true)`) |
+
+**결과 / 커밋**
+
+| 커밋 | 내용 |
+|---|---|
+| `e01f47f` | 설계도 v2 + 스포크 킷 등재, §9 결정 기록, §7-5 게이트 문구, §3 런북 selftest/실앱 SQL 분리 |
+| `1f6dfaf` | 계약 — userinfo 단일 사용 + **무재진입** 규범, §2.1.1 응답코드표, §8 이슈창구 정정 |
+| `14cf880` | 관리자 SSO 현황 `recentFailures` / `recentProbes` 분리 (API+타입+UI) |
+| `93d712a` | 로그 새니타이저 bidi·제로폭 제거 + 코드포인트 단위 절단 |
+| `2758ec0` | `scripts/sso-e2e-verify.mjs` — 활성화 검증 T1~T11 |
+| `271641c` | PRD §6-10 개정 |
+| `7dc8bd0` | known-good 6종 규율 + 보안 게이트 `middleware.ts` 트리거 |
+
+**게이트가 잡은 것 (기록 가치 높음)**
+
+- 🚫 **보안 게이트 차단 — 내가 새로 쓴 계약 문서가 자기-DoS 패턴을 MUST로 배포할 뻔했다.** 초안의 "userinfo 실패 시 `/sso/authorize`로 재진입해 재로그인 유도"는, 허브 세션이 살아 있으면 authorize가 **사용자 상호작용 0으로 즉시 재발급**하므로(`app/sso/authorize/route.ts:68-85`) 콜백→userinfo 실패→재진입 **무한 루프**가 된다. 게다가 결정적 실패 경로가 실재한다 — ① `storeNonce` 실패를 삼키고 토큰 발급(`:89-95`) → 첫 호출부터 100% 401, ② `SSO_PUBLIC_KEY` 오류 → 전건 500, ③ `users` 행 부재 → 404. 회전마다 `sso_events` INSERT가 쌓이고 authorize 60/분 레이트리밋에 갇힌다.
+  **최종 규범(설계 렌즈 확정)**: 재시도·자동 재진입 **금지**, 이미 검증된 **id_token 클레임(email)만으로 세션 발급**. userinfo는 프로필 보강 전용이고 인가 정보를 주지 않으므로(N2) 누락돼도 권한 영향이 없다 — 자동 리다이렉트가 아예 발생하지 않아 루프가 **구조적으로 불가능**하다. (게이트 원안인 "401만 재진입+마커 쿠키 1회 제한"은 쿠키 상태만 늘고 도달점은 동일해 기각)
+- 🚫 **설계 렌즈 차단** — 계약 §8이 여전히 "허브 Sentry + `auth_logs` 확인"으로 안내. `sso_events` 체계와 어긋날 뿐 아니라, `/sso/userinfo`는 `logSsoEvent`·에러 리포터를 호출하지 않고 모든 예외를 자체 catch로 삼켜 **Sentry에도 아무것도 안 온다**. 실제 단서는 Vercel HTTP 액세스 로그 상태코드뿐 → 정정.
+- **E2E 스크립트의 구조적 결함** — 초안은 "앱 미등록"으로 조기 반환하는 분기를 **PASS로 집계**했다. `sso-selftest` 미등록 + 쿠키 미제공으로 돌리면 "0 FAIL"로 보이지만 AC2~AC7이 **하나도 검증되지 않은** 상태 → 활성화 완료를 거짓 선언할 수 있었다. SKIP 규약 + 종료코드 2로 교체.
+- 새니타이저에서 동일 계열 결함 추가 발견 — 길이 절단이 UTF-16 코드유닛 `slice`라 서러게이트 페어를 쪼개 U+FFFD를 만든다(과거 실제 버그 클래스). `Array.from` 기반으로 교체.
+- 보안 게이트의 "`.next` 산출물에 SSO 개인키 인라인" 경고는 **오탐으로 확정** — 헤더 리터럴(`BEGIN PRIVATE KEY`, jose 라이브러리 코드) 1회뿐이고 실제 PEM 본문 블록 미매치.
+
+**②(허브 활성화) 준비 상태**
+
+- 런북 단계 0(사전 스냅샷) 실측: JWKS **500 = SSO OFF 확정** · authorize 미등록앱 400 · userinfo 401 · overview 401 · 홈 200.
+- 단계 1~5(키 생성·Vercel env 4종·재배포·`sso_clients` 등록)는 **사용자 작업**(시크릿은 Claude가 취급하지 않음).
+- 단계 6~7 검증은 `node scripts/sso-e2e-verify.mjs`로 자동화됨.
+
+**확인필요 (실행 증거 없음)**
+
+- 🔴 **`security-reviewer` 재게이트 미실행** — 월 사용량 한도 초과. 대신 내가 직접 원문 대조로 검증했다(차단 2건의 합격조건 grep 0건 · tsc 0 · golden 43/43 · build 73/73 · U+FFFD 0 · 커밋별 gitleaks clean · 새니타이저 원문 함수 실행 검증). **CLAUDE.md 규칙상 푸시 전 이 게이트 재실행이 필요하다.**
+- M013 graceful degrade 실측 · AdminSso 탭 실제 렌더 — 여전히 마스터 세션·migrate 필요(이전 세션에서 이월).
+- `.env.local`이 **존재**한다(2026-07-27 이전 기록의 "없음"과 다름). 내용은 규칙상 미열람.
 
 ### 2026-07-27 — ① 관측 선탑재 (Tier1 SSO 이벤트 + 관리자 SSO 현황 탭) — 배포 완료
 
