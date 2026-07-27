@@ -59,8 +59,10 @@ export async function GET(req: NextRequest) {
   const nonce = nonceIn || randomNonce();
   try {
     await storeNonce(nonce, app);
-  } catch {
+  } catch (e) {
     // nonce 저장 실패(테이블 미존재 등)는 토큰 발급을 막지 않는다(스포크 측 1회성 소비가 추가 방어).
+    // 단 침묵하면 userinfo 401이 "재사용"인지 "미저장"인지 사후 구분 불가 → 에러만 로그(토큰·PII 없음).
+    console.error('[sso/authorize] storeNonce 실패:', e instanceof Error ? e.message : e);
   }
 
   let idToken: string;

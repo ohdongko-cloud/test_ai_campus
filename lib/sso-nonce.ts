@@ -23,6 +23,10 @@ export async function storeNonce(nonce: string, app: string): Promise<void> {
  * nonce 1회성 소비. 아직 소비되지 않았고 만료되지 않은 경우에만 true.
  * 만료분은 조회에서 무시된다(expires_at > now()).
  * (허브 측 1차 방어 — 스포크도 자기 쪽에서 nonce를 1회 소비함, §6.1)
+ *
+ * 호출처: app/sso/userinfo/route.ts — id_token 1회성 조회 가드(§6-B1②).
+ * (G4 해소: 더 이상 "호출처 없는 예비 코드"가 아니다. authorize는 storeNonce만
+ *  호출하고 consumed를 바꾸지 않으므로, 정상 스포크의 첫 userinfo 호출은 항상 통과한다.)
  */
 export async function consumeNonce(nonce: string): Promise<boolean> {
   const rows = await sql`
