@@ -25,9 +25,14 @@ import WelcomePopup from '../../components/WelcomePopup';
 import MobileWelcome from '../m/_components/MobileWelcome';
 import { getUserInfo } from '../../lib/utils';
 
-// ── 동일 오리진 /‑prefix 경로만 허용 (오픈리다이렉트 방지) ──────────────────
-// 허용: /sso/authorize?..., /videos, /#board 등 / 로 시작하는 경로
-// 거부: //evil.com, http://..., \\ 로 시작 등 외부/프로토콜 상대 경로
+// ── 동일 오리진 /‑prefix 경로만 허용 (오픈리다이렉트 방지, URL 파서 기반) ──────
+// 검증: decodeURIComponent 후 더미 오리진(https://x.invalid)에 new URL(decoded, base)로
+// 해석해 origin이 유지되는지 판정. WHATWG 파서는 TAB/CR/LF를 위치 무관 제거하므로
+// '/\t/evil.com' 같은 제어문자 삽입도 '//evil.com'(프로토콜 상대)으로 드러나 차단된다.
+// 추가로 decoded가 '/'로 시작하지 않으면 거부(상대경로 의미 변화 방지, '\\evil.com' 등).
+// 허용: /sso/authorize?..., /videos, /#board 등 → 파서가 정규화한
+//       u.pathname + u.search + u.hash 반환(제어문자 제거된 안전한 형태, 쿼리·해시 보존).
+// 거부: //evil.com, /\t/evil.com, \\evil.com, https://..., javascript: 등 → '/'
 function sanitizeNext(raw: string | null): string {
   if (!raw) return '/';
   let decoded: string;
@@ -36,16 +41,15 @@ function sanitizeNext(raw: string | null): string {
   } catch {
     return '/';
   }
-  // 반드시 /로 시작, // 또는 \로 시작하면 거부, http(s):// 등 프로토콜 거부
-  if (
-    !decoded.startsWith('/') ||
-    decoded.startsWith('//') ||
-    decoded.startsWith('/\\') ||
-    /^\/[a-zA-Z][a-zA-Z0-9+\-.]*:/.test(decoded)
-  ) {
+  if (!decoded.startsWith('/')) return '/';
+  try {
+    const base = 'https://x.invalid';
+    const u = new URL(decoded, base);
+    if (u.origin !== base) return '/';
+    return u.pathname + u.search + u.hash;
+  } catch {
     return '/';
   }
-  return decoded;
 }
 
 // ── 내부 컴포넌트: useSearchParams 사용 (Suspense 경계 필요) ─────────────────
