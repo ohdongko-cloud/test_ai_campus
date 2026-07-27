@@ -18,8 +18,8 @@
   - **자료실**(배우기 영역, 게시판형) — 외부링크(드라이브/노션/URL) 연동·메타데이터만 DB·좋아요/댓글·관리자 큐레이션·데스크톱+모바일. **로그인 필수**.
   - **세션 30일 durable** — 데스크톱 자동로그인 기본 ON + 가입 자동로그인 durable (기존 6h 만료로 "로그인했는데 401" 버그 해소).
   - **레벨진단 팝업** — 30일 억제 + '30일간 보지 않기' 버튼 + 진단 완료자는 모달 미노출·30일 후 토스트.
-- **HEAD**: `b62a6ab` — ⓪ 보안 선행 패치 3커밋(`2a9b42a`·`50ad909`·`b62a6ab`) **로컬만, 미푸시**. origin/main = `73150e8`(Vercel 배포 상태).
-- **2026-07-27 ⓪ 보안 선행 패치 완료(미푸시)**: sanitizeNext URL 파서 재작성(+회귀 25케이스) · userinfo nonce 1회 소비 가드+레이트리밋 · Sentry token 마스킹. 게이트 4종(security·release·설계렌즈·gitleaks) 전부 통과. SSO OFF 상태에서 배포 가능 — 롤아웃 다음 단계 = ① 관측 선탑재(M013).
+- **HEAD**: `bda5ab9` (origin/main 동기화, Vercel 배포 READY — dpl_3LzFe…, alias retail-ai-campus.vercel.app).
+- **2026-07-27 ⓪ 보안 선행 패치 배포 완료**: sanitizeNext URL 파서 재작성(+회귀 25케이스) · userinfo nonce 1회 소비 가드+레이트리밋 · Sentry token 마스킹 (`2a9b42a`·`50ad909`·`b62a6ab`+docs `bda5ab9`). 게이트 4종(security·release·설계렌즈·gitleaks) 통과, 사용자 승인 후 푸시. 운영 스모크: 홈/login/m 200 · admin API 401 · userinfo 401 통일응답 · jwks 500(SSO OFF 불변). 롤아웃 다음 단계 = ① 관측 선탑재(M013).
 - **2026-07-15 추가 배포**:
   - **강의 영상 팝업 → 영상별 단독 페이지 `/video/[id]` 전환 + 공유 링크**. 목록 클릭 시 팝업 대신 페이지 이동(모달 제거로 `VideoPage.tsx` 2026→1010줄). 로그인 필수(비로그인은 페이지 내 "로그인 후 시청" 게이트 + `/login?next` 복귀), 썸네일+제목 OG 카드(`generateMetadata`, robots noindex), 워터마크·보호레이어 패리티 유지. 신규 `app/video/[id]/page.tsx`(Server, force-dynamic)·`components/VideoWatch.tsx`·`lib/videos.ts`·`GET /api/videos/[id]`. 모바일 `/m/video/[id]` 링크복사 + versionCode 13. DB 변경 없음. 게이트: security ✅·release ✅(tsc·build·golden18)·preview·prod 실측 ✅. **`73150e8`**
 - **2026-06-30 추가 배포**:
@@ -36,7 +36,9 @@
 
 ## 세션 로그 (최신이 위)
 
-### 2026-07-27 — ⓪ 보안 선행 패치 3건 구현·커밋 (롤아웃 §7 단계 0 완료, 미푸시)
+### 2026-07-27 — ⓪ 보안 선행 패치 3건 구현·커밋·배포 (롤아웃 §7 단계 0 완료)
+
+> [배포 완료] 사용자 푸시 승인 → `16b19a4..bda5ab9` push → Vercel READY(dpl_3LzFe…) → 운영 스모크 통과(홈/login/m 200 · admin 401 · userinfo 401 통일 · jwks 500=SSO OFF 불변).
 
 **요청·결정·결과**
 
