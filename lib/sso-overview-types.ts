@@ -43,7 +43,10 @@ export interface SsoOverviewResponse {
   ssoEnabled: boolean;
   apps: SsoAppSummary[];
   trend: SsoTrendPoint[];
+  // recentFailures = 등록 앱(sso_clients)의 실패, recentProbes = 미등록 app 문자열의 실패(공격/오설정 프로빙).
+  // 분리 근거: 프로빙 노이즈가 등록 앱의 실장애 신호를 20건 LIMIT 밖으로 밀어내는 문제를 막기 위함.
   recentFailures: SsoRecentFailure[];
+  recentProbes: SsoRecentFailure[];
   cron: { lastSuccessAt: string | null; staleHours: number | null };
   totals: { events90d: number };
 }

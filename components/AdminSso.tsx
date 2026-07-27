@@ -45,11 +45,22 @@ function fmtTime(iso: string | null): string {
   } catch { return iso; }
 }
 
+// 프로빙 app 문자열은 공격자가 임의로 넣는 값 — 렌더 폭주/줄바꿈 깨짐 방지를 위해 길이 상한 후 말줄임 처리.
+// UTF-16 코드유닛 slice는 서러게이트 페어(이모지 등) 중간을 잘라 고립 서러게이트(U+FFFD 렌더)를 만들 수 있어
+// Array.from(코드포인트 단위) 기반으로 자른다.
+const PROBE_APP_MAX = 40;
+function truncateProbeApp(app: string): string {
+  const chars = Array.from(app);
+  if (chars.length <= PROBE_APP_MAX) return app;
+  return `${chars.slice(0, PROBE_APP_MAX).join('')}…`;
+}
+
 export default function AdminSso() {
   const [data, setData] = useState<SsoOverviewResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [authErr, setAuthErr] = useState(false);
+  const [showProbes, setShowProbes] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -220,9 +231,9 @@ export default function AdminSso() {
         )}
       </div>
 
-      {/* ── 최근 실패 이벤트 ── */}
+      {/* ── 최근 실패 이벤트 (등록 앱) ── */}
       <div style={card}>
-        <h3 style={{ fontSize: 14, fontWeight: 700, color: '#0F1E33', marginBottom: 10 }}>최근 실패 이벤트 (최대 20건)</h3>
+        <h3 style={{ fontSize: 14, fontWeight: 700, color: '#0F1E33', marginBottom: 10 }}>최근 실패 이벤트 (등록 앱, 최대 20건)</h3>
         {data.recentFailures.length === 0 ? (
           <div style={{ textAlign: 'center', color: '#9BA7BC', fontSize: 13, padding: '16px 0' }}>
             실패 이벤트가 없습니다.
@@ -244,7 +255,65 @@ export default function AdminSso() {
                   <tr key={i} style={{ borderBottom: '1px solid #F5F7FA' }}>
                     <td style={{ padding: 8, whiteSpace: 'nowrap', color: '#0F1E33' }}>{fmtTime(f.createdAt)}</td>
                     <td style={{ padding: 8, color: '#3B4A63' }}>{f.event}</td>
-                    <td style={{ padding: 8, color: '#3B4A63' }}>{f.app}</td>
+                    <td style={{ padding: 8, color: '#3B4A63', unicodeBidi: 'isolate' }}>{f.app}</td>
+                    <td style={{ padding: 8, color: '#6B7A91', fontFamily: 'monospace' }}>{f.ip || '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* ── 미등록 앱 프로빙 (보조 정보 — 등록 앱 실패 신호를 가리지 않도록 기본 접힘) ── */}
+      <div style={card}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+          <div>
+            <h3 style={{ fontSize: 14, fontWeight: 700, color: '#0F1E33' }}>
+              미등록 앱 프로빙 <span style={{ fontWeight: 400, color: '#9BA7BC' }}>({data.recentProbes.length}건)</span>
+            </h3>
+            <p style={{ ...mutedText, marginTop: 2 }}>등록되지 않은 앱 이름으로 유입된 실패 시도 — 공격 또는 설정 오류 추정(참고용)</p>
+            <p style={{ ...mutedText, marginTop: 2 }}>※ 등록 해제되거나 앱 이름이 바뀐 앱의 과거 실패는 여기로 소급 분류될 수 있습니다.</p>
+          </div>
+          {data.recentProbes.length > 0 && (
+            <button
+              onClick={() => setShowProbes(v => !v)}
+              style={{
+                padding: '6px 12px', borderRadius: 8, border: '1.5px solid #E2E8F0',
+                background: '#fff', color: '#3B4A63', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+              }}
+            >
+              {showProbes ? '접기 ▲' : '목록 보기 ▼'}
+            </button>
+          )}
+        </div>
+        {data.recentProbes.length === 0 ? (
+          <div style={{ textAlign: 'center', color: '#9BA7BC', fontSize: 13, padding: '16px 0' }}>
+            프로빙 이벤트가 없습니다.
+          </div>
+        ) : showProbes && (
+          <div className="overflow-x-auto" style={{ marginTop: 10 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <thead>
+                <tr style={{ background: '#F5F7FA' }}>
+                  {['시각', '이벤트', '앱(미등록)', 'IP'].map(h => (
+                    <th key={h} style={{ padding: 8, textAlign: 'left', fontWeight: 600, color: '#3B4A63', borderBottom: '1px solid #E5EAF1' }}>
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {data.recentProbes.map((f, i) => (
+                  <tr key={i} style={{ borderBottom: '1px solid #F5F7FA' }}>
+                    <td style={{ padding: 8, whiteSpace: 'nowrap', color: '#0F1E33' }}>{fmtTime(f.createdAt)}</td>
+                    <td style={{ padding: 8, color: '#3B4A63' }}>{f.event}</td>
+                    <td
+                      title={f.app}
+                      style={{ padding: 8, color: '#3B4A63', whiteSpace: 'nowrap', wordBreak: 'keep-all', unicodeBidi: 'isolate' }}
+                    >
+                      {truncateProbeApp(f.app)}
+                    </td>
                     <td style={{ padding: 8, color: '#6B7A91', fontFamily: 'monospace' }}>{f.ip || '-'}</td>
                   </tr>
                 ))}

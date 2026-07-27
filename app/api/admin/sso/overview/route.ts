@@ -64,6 +64,7 @@ export async function GET(req: NextRequest) {
         apps: [],
         trend: [],
         recentFailures: [],
+        recentProbes: [],
         cron: { lastSuccessAt: null, staleHours: null },
         totals: { events90d: 0 },
       });
@@ -76,6 +77,7 @@ export async function GET(req: NextRequest) {
       last30Rows,
       trendRows,
       failureRows,
+      probeRows,
       tier2Rows,
       totalRows,
     ] = await Promise.all([
@@ -113,10 +115,20 @@ export async function GET(req: NextRequest) {
         WHERE created_at >= NOW() - INTERVAL '14 days'
         GROUP BY date, app
         ORDER BY date ASC`,
+      // 등록 앱(sso_clients)의 실패만 — 미등록 프로빙 노이즈가 실장애 신호를 밀어내지 않도록 별도 목록(recentProbes)으로 분리.
       sql`
         SELECT event, app, ip, created_at
         FROM sso_events
         WHERE event = ANY(${FAILURE_EVENTS}::text[])
+          AND EXISTS (SELECT 1 FROM sso_clients c WHERE c.app = sso_events.app)
+        ORDER BY created_at DESC
+        LIMIT 20`,
+      // 미등록 app 문자열로 들어온 실패 = 공격/오설정 프로빙. 카드·recentFailures와 분리해 별도 노출.
+      sql`
+        SELECT event, app, ip, created_at
+        FROM sso_events
+        WHERE event = ANY(${FAILURE_EVENTS}::text[])
+          AND NOT EXISTS (SELECT 1 FROM sso_clients c WHERE c.app = sso_events.app)
         ORDER BY created_at DESC
         LIMIT 20`,
       sql`
@@ -140,7 +152,7 @@ export async function GET(req: NextRequest) {
 
     // apps는 sso_clients 등록 앱 기준(§4.6 카드 목적 — 리다이렉트 URI·enabled·Tier2 설정을 가진 "관리 대상").
     // 미등록 app 문자열(공격 시도 등)로 카드를 스팸하지 않기 위해 등록 앱만 카드화하고,
-    // 그 가시성은 recentFailures(등록 여부 무관 전체)로 별도 보장한다 — 판단 근거는 PR 설명 참조.
+    // 그 가시성은 recentFailures(등록 앱)/recentProbes(미등록 프로빙)로 분리 보장한다 — 판단 근거는 PR 설명 참조.
     const apps: SsoAppSummary[] = (clientRows as Array<{ app: string; enabled: boolean; stats_url: string | null }>).map((c) => {
       const app = String(c.app);
       let tier2: SsoTier2Info | null = null;
@@ -174,12 +186,14 @@ export async function GET(req: NextRequest) {
       denied: Number(r.denied) || 0,
     }));
 
-    const recentFailures: SsoRecentFailure[] = (failureRows as Array<{ event: string; app: string; ip: string | null; created_at: unknown }>).map((r) => ({
+    const toRecentFailure = (r: { event: string; app: string; ip: string | null; created_at: unknown }): SsoRecentFailure => ({
       event: String(r.event),
       app: String(r.app),
       ip: r.ip ?? null,
       createdAt: toIso(r.created_at) ?? new Date(0).toISOString(),
-    }));
+    });
+    const recentFailures: SsoRecentFailure[] = (failureRows as Array<{ event: string; app: string; ip: string | null; created_at: unknown }>).map(toRecentFailure);
+    const recentProbes: SsoRecentFailure[] = (probeRows as Array<{ event: string; app: string; ip: string | null; created_at: unknown }>).map(toRecentFailure);
 
     const events90d = Number((totalRows as Array<{ n: number }>)[0]?.n) || 0;
 
@@ -199,6 +213,7 @@ export async function GET(req: NextRequest) {
       apps,
       trend,
       recentFailures,
+      recentProbes,
       cron: { lastSuccessAt: null, staleHours: null }, // v1은 cron 미도입(§4.3) — null 허용.
       totals: { events90d },
     });
