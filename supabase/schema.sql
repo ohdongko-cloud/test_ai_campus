@@ -279,3 +279,50 @@ CREATE TABLE IF NOT EXISTS resource_comment_likes (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (comment_id, user_id)
 );
+
+-- ─────────────────────────────────────────────────────────────
+-- sso_events: SSO 관측 이벤트(Tier1 — 허브가 발급/거부 시점에 직접 기록) (M013)
+-- docs/sso/SSO-HUB-BLUEPRINT.md §4.5. event: issue | deny_* | login_required | rate_limited | logout.
+-- email은 issue/logout 시에만 저장(거부·미로그인은 NULL). detail은 최소한만(토큰 원문·전체 쿼리 금지).
+-- 보존(90일): v1은 cron 부재 → ① 관리자 'SSO 현황' 탭 로드 시 lazy DELETE(after())
+--   + ② logSsoEvent 삽입 500회당 1회 확률 정리(탭 미방문 구간 폴백). 둘 다 best-effort.
+--   장기 미방문·저트래픽이 겹치면 정리가 지연될 수 있다 → Neon SQL Editor에서 수동 DELETE 가능.
+--   v1.5의 cron(sso-daily, §4.3)이 도입되면 그쪽이 주 경로가 되고 위 둘은 폴백으로 남는다.
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS sso_events (
+  id          BIGSERIAL PRIMARY KEY,
+  app         TEXT NOT NULL,
+  event       TEXT NOT NULL,
+  email       TEXT,
+  ip          TEXT,
+  user_agent  TEXT,
+  detail      TEXT,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS sso_events_app_idx     ON sso_events (app, created_at DESC);
+CREATE INDEX IF NOT EXISTS sso_events_created_idx ON sso_events (created_at);
+CREATE INDEX IF NOT EXISTS sso_events_email_idx   ON sso_events (email, created_at DESC);
+
+-- ─────────────────────────────────────────────────────────────
+-- sso_daily_stats: 앱별 일별 SSO 통계 — Tier1(source='hub') 집계 업서트 + Tier2(source='spoke') 풀 결과 (M013)
+-- docs/sso/SSO-HUB-BLUEPRINT.md §4.5. stat_date는 KST(Asia/Seoul) 기준 하루.
+-- self_logins/active_users/pageviews는 Tier2 전용(허브가 못 보는 값). 재전송·재집계는 PK 업서트로 멱등.
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS sso_daily_stats (
+  app          TEXT NOT NULL,
+  stat_date    DATE NOT NULL,
+  source       TEXT NOT NULL DEFAULT 'hub',
+  sso_logins   INT NOT NULL DEFAULT 0 CHECK (sso_logins   BETWEEN 0 AND 1000000),
+  unique_users INT NOT NULL DEFAULT 0 CHECK (unique_users BETWEEN 0 AND 1000000),
+  denied       INT NOT NULL DEFAULT 0 CHECK (denied       BETWEEN 0 AND 1000000),
+  self_logins  INT CHECK (self_logins  BETWEEN 0 AND 1000000),
+  active_users INT CHECK (active_users BETWEEN 0 AND 1000000),
+  pageviews    INT CHECK (pageviews    BETWEEN 0 AND 100000000),
+  extra        JSONB,
+  reported_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (app, stat_date, source)
+);
+
+-- sso_clients.stats_url: Tier2 스포크 참여 여부(M013). NULL = 미참여(cron이 건너뜀).
+ALTER TABLE sso_clients ADD COLUMN IF NOT EXISTS stats_url TEXT;

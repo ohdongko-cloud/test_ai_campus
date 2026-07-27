@@ -19,6 +19,7 @@ import { flattenOrgSeed, ORG_SEED_CORP } from '../../../../lib/org-seed';
  *   M010: sso_clients 테이블 생성 (SSO 허브 클라이언트 레지스트리 — PRD §3.2)
  *   M011: sso_nonces 테이블 생성 + 만료 인덱스 (SSO 1회성 nonce 스토어 — PRD §4.3)
  *   M012: resources / resource_likes / resource_comments / resource_comment_likes 테이블 생성 (자료실 게시판 — PRD 2026-06-24)
+ *   M013: sso_events / sso_daily_stats 테이블 생성 + sso_clients.stats_url 컬럼 추가 (SSO 관측 — Tier1 허브 이벤트 + Tier2 스포크 일별 통계, docs/sso/SSO-HUB-BLUEPRINT.md §4.5)
  */
 export async function POST(req: NextRequest) {
   const authCheck = await requireMaster(req);
@@ -296,6 +297,61 @@ export async function POST(req: NextRequest) {
     results.push({ id: 'M012', status: 'ok', message: 'resources / resource_likes / resource_comments / resource_comment_likes 테이블 및 인덱스 준비 완료' });
   } catch (e) {
     results.push({ id: 'M012', status: 'error', message: String(e) });
+  }
+
+  // M013: SSO 관측 — sso_events(Tier1: 허브 자체 발급/거부 기록) + sso_daily_stats(일별 집계, Tier1·Tier2 공용)
+  //       + sso_clients.stats_url 컬럼 추가(Tier2 스포크 참여 여부 — NULL = 미참여)
+  // 근거: docs/sso/SSO-HUB-BLUEPRINT.md §4.5 (롤아웃 1단계 "관측 선탑재" — env 없이도 휴면 배포 가능)
+  // sso_clients ALTER는 M010(sso_clients 생성) 선행 의존. migrate는 항상 M001부터 순차 실행되므로
+  // 동일 실행 내에서는 이미 존재하나, 혹시 부재 상태로 단독 재실행돼도 M013 전체가 실패하지 않도록
+  // to_regclass 가드로 존재 여부를 먼저 확인한다.
+  try {
+    await sql`
+      CREATE TABLE IF NOT EXISTS sso_events (
+        id          BIGSERIAL PRIMARY KEY,
+        app         TEXT NOT NULL,
+        event       TEXT NOT NULL,
+        email       TEXT,
+        ip          TEXT,
+        user_agent  TEXT,
+        detail      TEXT,
+        created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+      )`;
+    await sql`CREATE INDEX IF NOT EXISTS sso_events_app_idx     ON sso_events (app, created_at DESC)`;
+    await sql`CREATE INDEX IF NOT EXISTS sso_events_created_idx ON sso_events (created_at)`;
+    await sql`CREATE INDEX IF NOT EXISTS sso_events_email_idx   ON sso_events (email, created_at DESC)`;
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS sso_daily_stats (
+        app          TEXT NOT NULL,
+        stat_date    DATE NOT NULL,
+        source       TEXT NOT NULL DEFAULT 'hub',
+        sso_logins   INT NOT NULL DEFAULT 0 CHECK (sso_logins   BETWEEN 0 AND 1000000),
+        unique_users INT NOT NULL DEFAULT 0 CHECK (unique_users BETWEEN 0 AND 1000000),
+        denied       INT NOT NULL DEFAULT 0 CHECK (denied       BETWEEN 0 AND 1000000),
+        self_logins  INT CHECK (self_logins  BETWEEN 0 AND 1000000),
+        active_users INT CHECK (active_users BETWEEN 0 AND 1000000),
+        pageviews    INT CHECK (pageviews    BETWEEN 0 AND 100000000),
+        extra        JSONB,
+        reported_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+        PRIMARY KEY (app, stat_date, source)
+      )`;
+
+    const clientsTable = await sql`SELECT to_regclass('public.sso_clients') AS reg`;
+    const hasClientsTable = Boolean(clientsTable[0]?.reg);
+    if (hasClientsTable) {
+      await sql`ALTER TABLE sso_clients ADD COLUMN IF NOT EXISTS stats_url TEXT`;
+    }
+
+    results.push({
+      id: 'M013',
+      status: 'ok',
+      message: hasClientsTable
+        ? 'sso_events / sso_daily_stats 테이블 및 인덱스 준비 완료 (+ sso_clients.stats_url 컬럼 추가)'
+        : 'sso_events / sso_daily_stats 테이블 및 인덱스 준비 완료 (sso_clients 테이블 없음 — stats_url 컬럼은 M010 선행 후 재실행 시 추가됨)',
+    });
+  } catch (e) {
+    results.push({ id: 'M013', status: 'error', message: String(e) });
   }
 
   const hasError = results.some(r => r.status === 'error');
