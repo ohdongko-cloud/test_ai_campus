@@ -80,7 +80,7 @@ export interface ClickLog {
 
 export type TabType = 'home' | 'videos' | 'meeting' | 'board' | 'share' | 'guide' | 'resources';
 export type ReservationStatus = 'pending' | 'confirmed' | 'cancelled';
-export type AdminTabType = 'stats' | 'videos' | 'meetings' | 'chatroom' | 'services' | 'board' | 'guide' | 'members' | 'logs' | 'admins' | 'lectureRequests' | 'levelTests' | 'orgUnits' | 'aiLevelCoding' | 'aiLevelMatrix' | 'resources';
+export type AdminTabType = 'stats' | 'videos' | 'meetings' | 'chatroom' | 'services' | 'board' | 'guide' | 'members' | 'logs' | 'admins' | 'lectureRequests' | 'levelTests' | 'orgUnits' | 'aiLevelCoding' | 'aiLevelMatrix' | 'resources' | 'sso';
 
 // 자료실
 export interface Resource {
