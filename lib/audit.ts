@@ -48,12 +48,31 @@ export type SsoEventType =
 
 const SSO_EMAIL_PATTERN = /[\w.+-]+@[\w-]+\.[\w.-]+/g;
 
-/** 로그 인젝션·PII 방지: 제어문자 제거 + 이메일 패턴 마스킹 + 길이 상한(§4.4/§6-M2). */
+// 관리자 화면 스푸핑 방어: 아래 코드포인트는 app 이름·UA 같은 필드에 정당하게 쓰일 일이 없고
+// 남겨두면 로그를 화면에 표시할 때 문자 순서를 뒤집거나(bidi 오버라이드/격리) 문자열을 숨기는
+// 데(제로폭 문자) 악용될 수 있다. 코드포인트 비교로 판정해 정규식에 리터럴 제어/비가시 문자를
+// 직접 넣지 않는다(소스에 눈에 안 보이는 문자가 섞여 들어가는 것 자체를 방지).
+function isStrippedCodePoint(cp: number): boolean {
+  if (cp <= 0x1f || cp === 0x7f) return true; // C0 제어문자 + DEL
+  if (cp >= 0x200b && cp <= 0x200d) return true; // 제로폭 스페이스/ZWNJ/ZWJ
+  if (cp === 0xfeff) return true; // BOM/ZWNBSP
+  if (cp >= 0x202a && cp <= 0x202e) return true; // bidi 오버라이드(LRE/RLE/PDF/LRO/RLO)
+  if (cp >= 0x2066 && cp <= 0x2069) return true; // bidi 격리(LRI/RLI/FSI/PDI)
+  return false;
+}
+
+/** 로그 인젝션·PII 방지: 제어문자·bidi·제로폭 제거 + 이메일 패턴 마스킹 + 길이 상한(§4.4/§6-M2). */
 function sanitizeSsoLogText(input: string, maxLen: number): string {
   const masked = input.replace(SSO_EMAIL_PATTERN, '[email]');
-  // eslint-disable-next-line no-control-regex
-  const stripped = masked.replace(/[\x00-\x1f\x7f]/g, '');
-  return stripped.length > maxLen ? stripped.slice(0, maxLen) : stripped;
+  let stripped = '';
+  for (const ch of masked) {
+    const cp = ch.codePointAt(0) ?? 0;
+    if (!isStrippedCodePoint(cp)) stripped += ch;
+  }
+  if (stripped.length <= maxLen) return stripped;
+  // 코드포인트 단위로 자른다 — UTF-16 코드유닛 slice는 서러게이트 페어(이모지 등) 중간을 잘라
+  // 고립 서러게이트를 만들고, 그 값이 관리자 화면에서 U+FFFD로 렌더된다(한글 인코딩 가드).
+  return Array.from(stripped).slice(0, maxLen).join('');
 }
 
 /**
