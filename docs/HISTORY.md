@@ -31,7 +31,26 @@
   - 자료실에 실제 자료 등록(관리자 '자료실 관리' 탭) — 운영 작업.
   - (보안 후속) 가입 직후 durable 자동로그인의 공유PC 시 로그아웃 안내 검토.
   - (레벨테스트 후속) insert 실패 Sentry 가시화, `users.level_test_done_at` 폴백.
-  - SSO 허브 실제 활성화: Vercel env 키 4종 + `sso_clients` 등록 (테이블만 생성됨, 기능 OFF). **→ 활성화 런북·전체 로드맵은 `docs/sso/SSO-HUB-BLUEPRINT.md`(2026-07-27 설계 v2) 참조.**
+  - SSO 허브 실제 활성화 = 롤아웃 ② (아래 "다음 세션 착수 지점" 참조). **런북·로드맵은 `docs/sso/SSO-HUB-BLUEPRINT.md` §3·§7.**
+
+### 🎯 다음 세션 착수 지점 (2026-07-27 세션 종료 시점)
+
+**SSO 롤아웃 진행도**: ⓪ 보안 선행 패치 ✅배포 · ① 관측 선탑재 ✅배포 · **② 허브 활성화 ← 다음** · ③ 파일럿 · ④ 확대 · ⑤ 정착
+
+1. **[사용자 작업] `POST /api/admin/migrate` 1회 실행** — M013 미적용. 마스터 로그인 후 관리자 화면에서 실행.
+   - 순서 팁: 실행 **전에** 관리자 'SSO 현황' 탭을 먼저 열면 테이블 부재 시 graceful degrade(빈 화면, 500 아님)가 실측된다 → 이번 세션의 "확인필요" 2건이 닫힌다. 실행 후 재방문하면 정상 경로까지 확인.
+2. **[사용자 결정 — ② 착수 전 필수] 블루프린트 §9 미해결 질문**
+   - web-fashion(파일럿 스포크) URL 확정
+   - **PRD §6-10 문구 개정 승인** — "auth_logs 기록" → "sso_events 기록 + AdminLogs source='sso' 노출". ⚠️ 설계 렌즈 지적: **코드는 이미 이 개정을 전제로 배포됐다**(승인 순서가 뒤집힘). `sso_events`를 감사 로그로 격상할지 결정 필요 — 격상 시 "after() + 실패 삼킴"의 이중 무음 실패 구조가 완전성 보장 없는 로그임을 인지해야 함.
+   - Vercel Hobby ToS(비상업 조항)·무SLA 수용 여부 — 1,800명 사내앱 IdP. 비상 경로 = Pro $20/월.
+   - rememberMe 기본 체크 여부(SSO 체감 = 허브 세션 수명)
+3. **[② 실행] 허브 활성화** — 블루프린트 §3 런북 단계 0~7: RS256 키 생성 → Vercel env 4종(`SSO_PRIVATE_KEY`·`SSO_PUBLIC_KEY`·`SSO_KID`·`SSO_ISSUER`) → 재배포 → `sso_clients` 2단계 등록(enabled=false→검증→true) → 스모크 S1~S3 + AC2~AC7 → **known-good 6종 재실행**.
+4. **[코드 후속 — 비차단, 게이트 권고]**
+   - 계약 문서(`docs/sso-spoke-integration-contract.md`·`SSO-SPOKE-KIT.md`)에 **"userinfo는 단일 사용·재시도 금지·콜백 중 동기 1회"** 명문화 — ③ 파일럿 전 필수(⓪ 설계 렌즈 조건).
+   - §7 5단계(자동 리다이렉트) 완료 판정에 **`login_required` 표본/카운터 전환**을 선행 조건으로 명문화(① 설계 렌즈 권고).
+   - `recentFailures` 20건을 "등록앱 실패" vs "미등록 프로빙"으로 분리(공격 노이즈가 실장애 신호를 밀어냄).
+   - v1.5 cron `/api/cron/sso-daily`(§4.3) — 현재 보존은 ①탭 로드 lazy DELETE + ②삽입 500회당 1회 확률 폴백 2중. 90일 내 도입이 블루프린트 시한.
+- **로컬 개발 환경**: `.env.local` 없음(2026-07-27 확인) → 로컬 DB 실측 불가 상태였음. 템플릿은 코드의 `process.env` 전수 추출본으로 생성해 사용자에게 전달(SSO 4종은 ②에서 채움). 훅이 `.env*` 읽기·출력을 차단하므로 값 확인은 사용자만 가능.
 - **2026-07-27 설계 산출물(코드 무변경·미커밋)**: SSO 허브 설계도 v2([docs/sso/SSO-HUB-BLUEPRINT.md](sso/SSO-HUB-BLUEPRINT.md)) + 스포크 구현 패키지 설계([docs/sso/SSO-SPOKE-KIT.md](sso/SSO-SPOKE-KIT.md)). 신규 핵심 = 전 서비스 사용현황 중앙 관리(Tier1 sso_events / Tier2 일일 풀, M013 예정) + 보안 보강 필수 5건(§6 B1~B5: userinfo nonce 가드·Sentry 토큰 마스킹·sanitizeNext URL파서 패치·등록 2단계·키회전 SLA). 구현 착수 전 사용자 결정 필요 항목은 블루프린트 §9.
 
 ---
