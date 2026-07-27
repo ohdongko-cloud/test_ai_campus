@@ -1,7 +1,7 @@
 # PRD: 이랜드리테일 AI 캠퍼스 — 마스터 변경 이력 (CHANGELOG)
 
 - 최초 작성: 2026-05-30
-- 최종 갱신: 2026-07-15
+- 최종 갱신: 2026-07-27
 - 작성자/소유자: <오너> + Claude
 - 운영 URL: https://retail-ai-campus.vercel.app
 - GitHub: https://github.com/ohdongko-cloud/test_ai_campus
@@ -81,6 +81,9 @@
 
 | 커밋 | 메시지 | 비고 |
 |---|---|---|
+| `b62a6ab` | security(sentry): 이벤트·브레드크럼 SSO id_token 쿼리 마스킹 | 블루프린트 §6-B1①. `lib/sentry-scrub.ts` 신규(`?token=`/`id_token=` 값만 `[Filtered]`, 구분자 조건으로 오탐 없음, url·query_string 3형태·Referer·breadcrumb 커버) + client/server/edge config 3파일에 beforeSend·beforeSendTransaction·beforeBreadcrumb 연결. regex 7케이스 실측 |
+| `50ad909` | security(sso): userinfo nonce 1회 소비 가드 + IP 레이트리밋 | 블루프린트 §6-B1②(blocker)·G4 해소. `/sso/userinfo`에 payload.nonce 검증→`consumeNonce` 1회 소비(재사용 401, DB 오류 fail-closed 500) + IP 10회/분(`sso-userinfo`). authorize storeNonce 침묵 실패에 에러 로그. 정상 스포크 첫 호출 항상 통과(nonce TTL 90s > 토큰 60s). 스키마 무변경. sso-auth-architect 설계 렌즈 조건부 승인(후속=계약 문서에 userinfo 단일사용·재시도 금지 명문화) |
+| `2a9b42a` | security(login): sanitizeNext 오픈리다이렉트 우회 차단 — URL 파서 기반 재작성 | 블루프린트 §6-B3(major). 구 prefix 검사는 `/\t/evil.com`(탭/CR/LF) 우회 가능 → 더미 origin URL 파싱·origin 유지 판정으로 교체. 회귀 테스트 `tests/sanitize-next.test.mjs` 25케이스(공격13·정상6·경계3) + test:golden 체인. 게이트: tsc·build 73p·golden 43/43·gitleaks·security-reviewer ✅ |
 | `73150e8` | feat(video): 강의 영상 팝업 → 영상별 단독 페이지(/video/[id]) 전환·공유 링크 | PRD `2026-07-15-video-standalone-shareable-page.md`. 데스크톱 영상 모달 제거(VideoPage.tsx 2026→1010줄, handleWatch→router.push('/video/{id}')) + 신규 라우트 `app/video/[id]/page.tsx`(Server, force-dynamic·generateMetadata OG 제목+유튜브썸네일·robots noindex·getCurrentUser 로그인 게이트, 비로그인은 리다이렉트 대신 페이지 내 "로그인 후 시청"+`/login?next`) + `components/VideoWatch.tsx`(플레이어·워터마크·우클릭/단축키차단·외부이동오버레이·FLAG_SECURE·학습단계/자료/댓글탭·좋아요·전체화면·링크복사) + `lib/videos.ts`(getVideoById 파라미터화·폴백) + `GET /api/videos/[id]`(단건 404·PII없음). 모바일 `/m/video/[id]` 링크복사 추가 + versionCode 13. DB 마이그레이션 없음. 검증: tsc·build(/video/[id]=ƒ Dynamic)·golden18·preview(200게이트·OG·?next) PASS |
 | `0de28fd` | docs: 세션 연속성 — HISTORY.md 도입 + CLAUDE.md 규약 | `docs/HISTORY.md` 신규(사용자 요청·확정 질의응답·결과·커밋 시간순 + '현재 상태' 스냅샷). CLAUDE.md에 "⭐ 세션 연속성" 추가 — 매 세션 시작 시 HISTORY.md 먼저 읽고, 마일스톤마다 append. CLAUDE.md는 매 세션 자동 적용되므로 별도 훅 없이 동작 |
 | `5dfa9ec` | fix(auth/resources): 자료실 로그인 필수 복원 + 데스크톱 세션 30일 durable | 직전 공개화(`5534186`)를 되돌려 자료실 읽기 3엔드포인트(`/api/resources`·`.../comments`·`.../view`)를 **로그인 회원 전용**으로 복원. 근본원인 = 데스크톱 자동로그인 기본 OFF → 서버 JWT 세션 6h 만료로 '로그인했는데 401'. 해결: `WelcomePopup` 자동로그인 **기본 ON(30일)** + 가입 자동로그인 durable(`/api/users` rememberMe true) → 모바일·문서 정책과 일치. 빈 상태 문구('입력된 자료 없음')는 유지. 배포 후 기존 사용자는 1회 재로그인 시 30일 세션 |

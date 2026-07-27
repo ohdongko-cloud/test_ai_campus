@@ -9,7 +9,7 @@
 
 ---
 
-## 현재 상태 (Current State) — 2026-07-15 기준
+## 현재 상태 (Current State) — 2026-07-27 기준
 
 - **운영 URL**: https://retail-ai-campus.vercel.app · **운영 DB**: Neon (`.env.local` `DATABASE_URL`, host `ep-sparkling-breeze…ap-southeast-1.aws.neon.tech`). Vercel main 푸시 → 자동배포.
   - ⚠️ 한때 "prod는 Neon 아님"이라는 착오가 있었으나 **prod = Neon 확정**. 2026-06-23 만든 Prisma "AI-CAMPUS" DB는 별도 빈 DB(미사용). (메모리 `prod-db-is-neon` 참조)
@@ -18,7 +18,8 @@
   - **자료실**(배우기 영역, 게시판형) — 외부링크(드라이브/노션/URL) 연동·메타데이터만 DB·좋아요/댓글·관리자 큐레이션·데스크톱+모바일. **로그인 필수**.
   - **세션 30일 durable** — 데스크톱 자동로그인 기본 ON + 가입 자동로그인 durable (기존 6h 만료로 "로그인했는데 401" 버그 해소).
   - **레벨진단 팝업** — 30일 억제 + '30일간 보지 않기' 버튼 + 진단 완료자는 모달 미노출·30일 후 토스트.
-- **HEAD**: `73150e8` (origin/main 동기화됨, Vercel 배포 완료).
+- **HEAD**: `b62a6ab` — ⓪ 보안 선행 패치 3커밋(`2a9b42a`·`50ad909`·`b62a6ab`) **로컬만, 미푸시**. origin/main = `73150e8`(Vercel 배포 상태).
+- **2026-07-27 ⓪ 보안 선행 패치 완료(미푸시)**: sanitizeNext URL 파서 재작성(+회귀 25케이스) · userinfo nonce 1회 소비 가드+레이트리밋 · Sentry token 마스킹. 게이트 4종(security·release·설계렌즈·gitleaks) 전부 통과. SSO OFF 상태에서 배포 가능 — 롤아웃 다음 단계 = ① 관측 선탑재(M013).
 - **2026-07-15 추가 배포**:
   - **강의 영상 팝업 → 영상별 단독 페이지 `/video/[id]` 전환 + 공유 링크**. 목록 클릭 시 팝업 대신 페이지 이동(모달 제거로 `VideoPage.tsx` 2026→1010줄). 로그인 필수(비로그인은 페이지 내 "로그인 후 시청" 게이트 + `/login?next` 복귀), 썸네일+제목 OG 카드(`generateMetadata`, robots noindex), 워터마크·보호레이어 패리티 유지. 신규 `app/video/[id]/page.tsx`(Server, force-dynamic)·`components/VideoWatch.tsx`·`lib/videos.ts`·`GET /api/videos/[id]`. 모바일 `/m/video/[id]` 링크복사 + versionCode 13. DB 변경 없음. 게이트: security ✅·release ✅(tsc·build·golden18)·preview·prod 실측 ✅. **`73150e8`**
 - **2026-06-30 추가 배포**:
@@ -28,11 +29,55 @@
   - 자료실에 실제 자료 등록(관리자 '자료실 관리' 탭) — 운영 작업.
   - (보안 후속) 가입 직후 durable 자동로그인의 공유PC 시 로그아웃 안내 검토.
   - (레벨테스트 후속) insert 실패 Sentry 가시화, `users.level_test_done_at` 폴백.
-  - SSO 허브 실제 활성화: Vercel env 키 4종 + `sso_clients` 등록 (테이블만 생성됨, 기능 OFF).
+  - SSO 허브 실제 활성화: Vercel env 키 4종 + `sso_clients` 등록 (테이블만 생성됨, 기능 OFF). **→ 활성화 런북·전체 로드맵은 `docs/sso/SSO-HUB-BLUEPRINT.md`(2026-07-27 설계 v2) 참조.**
+- **2026-07-27 설계 산출물(코드 무변경·미커밋)**: SSO 허브 설계도 v2([docs/sso/SSO-HUB-BLUEPRINT.md](sso/SSO-HUB-BLUEPRINT.md)) + 스포크 구현 패키지 설계([docs/sso/SSO-SPOKE-KIT.md](sso/SSO-SPOKE-KIT.md)). 신규 핵심 = 전 서비스 사용현황 중앙 관리(Tier1 sso_events / Tier2 일일 풀, M013 예정) + 보안 보강 필수 5건(§6 B1~B5: userinfo nonce 가드·Sentry 토큰 마스킹·sanitizeNext URL파서 패치·등록 2단계·키회전 SLA). 구현 착수 전 사용자 결정 필요 항목은 블루프린트 §9.
 
 ---
 
 ## 세션 로그 (최신이 위)
+
+### 2026-07-27 — ⓪ 보안 선행 패치 3건 구현·커밋 (롤아웃 §7 단계 0 완료, 미푸시)
+
+**요청·결정·결과**
+
+| # | 사용자 요청 | 확정 질의응답 | 결과 / 커밋 |
+|---|---|---|---|
+| 1 | 블루프린트 §7 롤아웃 단계 ⓪(보안 선행 패치)부터 시작 — 0-1 sanitizeNext(ui-builder)·0-2 userinfo nonce(sso-hub-builder)·0-3 Sentry 마스킹(직접) 분담표 제시 | — (푸시는 미승인 상태로 커밋까지만) | **`2a9b42a`** sanitizeNext URL 파서 재작성+회귀테스트 25케이스 · **`50ad909`** userinfo nonce 1회 소비 가드+IP 레이트리밋 10/분+authorize storeNonce 실패 로그 · **`b62a6ab`** Sentry token 마스킹(lib/sentry-scrub.ts + config 3파일). **전부 로컬 커밋만, 미푸시** |
+
+**게이트 통과 기록**
+- ✅ security-reviewer (차단 0 — gitleaks no leaks·§6 전항·구버전이 실제 `/\t/evil.com` 통과하던 것 HEAD 대조 확증)
+- ✅ release-verifier (tsc 0에러 · build 73/73 · golden 43/43(18+25) · userinfo 코드 순서 소스 대조 · SSO OFF 시 통일 500 실HTTP 실측)
+- ✅ sso-auth-architect 설계 렌즈 — **조건부 승인**: consumeNonce 원자적 UPDATE라 TOCTOU 불가, 첫 호출 선점 레이스는 실효 낮음(수용). 조건 = 후속 문서화 갭
+- ✅ pre-commit gitleaks 3커밋 각각 clean
+
+**핵심 발견·결정**
+- 보안 게이트 권고 반영 소패치 2건: userinfo 레이트리밋 try/catch fail-closed 통일 500(authorize의 fail-open과 의도적 비대칭 — 주석 명시), authorize storeNonce 침묵 실패에 console.error(401 "재사용 vs 미저장" 사후 구분).
+- `TransactionEvent` 타입은 @sentry/nextjs가 재export 안 함(v10) → `@sentry/core`에서 직접 import.
+- 정상 스포크 첫 userinfo 호출 항상 통과 보장: nonce TTL 90s > 토큰 60s, authorize는 storeNonce만 호출(consumeNonce 호출처는 userinfo 유일).
+
+**남은 후속 (비차단 — 설계 렌즈 조건)**
+- 계약 문서(`docs/sso-spoke-integration-contract.md`·`SSO-SPOKE-KIT.md`)에 "userinfo는 단일 사용·재시도 금지·콜백 중 동기 1회" 규약 명문화 — 파일럿(§7-3) 전.
+- Tier1 관측(`sso_events`, M013)은 다음 단계 ①에서 — storeNonce 실패·userinfo 401 구분의 구조적 해소.
+
+### 2026-07-27 — SSO 허브 설계도 v2 + 스포크 킷 설계 (문서만, 코드 무변경)
+
+**요청·결정·결과**
+
+| # | 사용자 요청 | 확정 질의응답 | 결과 / 커밋 |
+|---|---|---|---|
+| 1 | 이 서비스를 다른 자작 서비스들의 SSO 허브로 만들고, SSO 연결 전 서비스의 사용자 로그·접속 현황을 한 곳에서 관리(일/주 1회 갱신이면 충분). 허브 설계도 + 스포크 구현 패키지 가이드 + 우려점·한계·장단점 정리 | — (자율 세션 — 미해결 질문은 블루프린트 §9로 등재) | 멀티에이전트 워크플로우(현황 판독 3 → 설계 3 → 검증 3렌즈, 9 에이전트) 후 통합. 산출물: `docs/sso/SSO-HUB-BLUEPRINT.md`(설계도 v2 — 활성화 런북·사용현황 중앙관리·운영·보안보강·롤아웃) + `docs/sso/SSO-SPOKE-KIT.md`(copy-paste 킷 v2.0.0 설계 + 계약 v2 개정 목록). **미커밋**(문서만, 푸시는 사용자 승인 후) |
+
+**핵심 발견·결정**
+- SSO 허브는 2026-06-20 PRD로 이미 구현 완료·기능 OFF(코드·M010/M011·계약 v1.1 존재). 유일한 하드 차단 = Vercel env 4종. **단, SSO 감사 로그는 미구현**(PRD §6-10 문구와 불일치 — app/sso/**에 logAuth 0건).
+- 사용현황 관리 = 2계층: **Tier1** 허브 관측(`sso_events` 신규 M013, 스포크 작업 0, authorize 발급 시점 기록) / **Tier2** 스포크 일별 집계 풀(허브 cron `sso-daily` 일 1회, `days=7` 백필). **인증은 허브 RS256 요청 토큰(scope=stats:read)으로 통일** — 설계 초안 간 모순(blocker)을 해소, 신규 시크릿 0.
+- PII 원칙: email은 원 소유 서비스 밖으로 안 나감(Tier2는 집계값만). 관리자 overview 응답은 email 필드 없는 타입으로 강제.
+- 보안 보강 필수(구현 전): ① `/sso/userinfo` nonce 1회성 가드(현행은 60초 내 토큰 재사용으로 PII 반복 조회 가능) ② Sentry/로그 token 쿼리 마스킹 ③ **운영 중인 `sanitizeNext`의 탭/개행 오픈리다이렉트 우회 → URL 파서 기반 검증으로 패치**(킷 배포 전 선행) ④ sso_clients 2단계 등록(enabled=false→검증→true) ⑤ 키 회전 실전파 +10분 SLA 명시.
+- 무료티어 실측(2026-07 웹 검증): Vercel cron은 전 플랜 100개/프로젝트(2026-01 변경)·Hobby는 일 1회·±1h·무재시도. Neon Free 0.5GB → `sso_events` 90일 보존(≈135MB) 확정. **Vercel Hobby 비상업 조항·무SLA는 수용 리스크로 명문화**(1,800명 사내앱 IdP — Pro $20/월 전환을 비상 경로로).
+- 스포크 패키지 = copy-paste 킷(npm private 유료·PAT 부채로 기각). 어댑터 2메서드만 앱별 작성, `kit=` 텔레메트리로 전 스포크 버전 드리프트 자동 관측. 파일럿 = web-fashion(URL 사용자 최종 확인 대기).
+
+**다음 할 일**
+- 사용자 결정: 블루프린트 §9 (web-fashion URL 확정·PRD §6-10 문구 개정 승인·Hobby ToS 수용 여부·rememberMe 기본체크 등)
+- 구현 순서: 롤아웃 §7 — ⓪보안 선행 패치 → ①관측 선탑재(M013) → ②허브 활성화 → ③파일럿 → ④확대 → ⑤정착
 
 ### 2026-07-15 — 강의 영상 팝업 → 영상별 단독 공유 페이지 (/prd-flow)
 
