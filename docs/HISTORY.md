@@ -18,7 +18,8 @@
   - **자료실**(배우기 영역, 게시판형) — 외부링크(드라이브/노션/URL) 연동·메타데이터만 DB·좋아요/댓글·관리자 큐레이션·데스크톱+모바일. **로그인 필수**.
   - **세션 30일 durable** — 데스크톱 자동로그인 기본 ON + 가입 자동로그인 durable (기존 6h 만료로 "로그인했는데 401" 버그 해소).
   - **레벨진단 팝업** — 30일 억제 + '30일간 보지 않기' 버튼 + 진단 완료자는 모달 미노출·30일 후 토스트.
-- **HEAD**: `bda5ab9` (origin/main 동기화, Vercel 배포 READY — dpl_3LzFe…, alias retail-ai-campus.vercel.app).
+- **HEAD**: `566e8a8` — ① 관측 선탑재 4커밋 **로컬만, 미푸시**. origin/main = `e325dc0`(Vercel 배포 READY).
+- **2026-07-27 ① 관측 선탑재 완료(미푸시)**: M013(`sso_events`·`sso_daily_stats`·`stats_url`) + `logSsoEvent` + authorize/logout 계측 + `GET /api/admin/sso/overview`(master) + AdminSso 탭. env 없이 휴면 동작. 게이트: security(차단1건 수정 후 통과)·설계렌즈(조건부 승인)·release-verifier 통과. **배포 후 `POST /api/admin/migrate` 1회 실행 필요**.
 - **2026-07-27 ⓪ 보안 선행 패치 배포 완료**: sanitizeNext URL 파서 재작성(+회귀 25케이스) · userinfo nonce 1회 소비 가드+레이트리밋 · Sentry token 마스킹 (`2a9b42a`·`50ad909`·`b62a6ab`+docs `bda5ab9`). 게이트 4종(security·release·설계렌즈·gitleaks) 통과, 사용자 승인 후 푸시. 운영 스모크: 홈/login/m 200 · admin API 401 · userinfo 401 통일응답 · jwks 500(SSO OFF 불변). 롤아웃 다음 단계 = ① 관측 선탑재(M013).
 - **2026-07-15 추가 배포**:
   - **강의 영상 팝업 → 영상별 단독 페이지 `/video/[id]` 전환 + 공유 링크**. 목록 클릭 시 팝업 대신 페이지 이동(모달 제거로 `VideoPage.tsx` 2026→1010줄). 로그인 필수(비로그인은 페이지 내 "로그인 후 시청" 게이트 + `/login?next` 복귀), 썸네일+제목 OG 카드(`generateMetadata`, robots noindex), 워터마크·보호레이어 패리티 유지. 신규 `app/video/[id]/page.tsx`(Server, force-dynamic)·`components/VideoWatch.tsx`·`lib/videos.ts`·`GET /api/videos/[id]`. 모바일 `/m/video/[id]` 링크복사 + versionCode 13. DB 변경 없음. 게이트: security ✅·release ✅(tsc·build·golden18)·preview·prod 실측 ✅. **`73150e8`**
@@ -35,6 +36,36 @@
 ---
 
 ## 세션 로그 (최신이 위)
+
+### 2026-07-27 — ① 관측 선탑재 (Tier1 SSO 이벤트 + 관리자 SSO 현황 탭) — 커밋 완료·미푸시
+
+**요청·결정·결과**
+
+| # | 사용자 요청 | 확정 질의응답 | 결과 / 커밋 |
+|---|---|---|---|
+| 1 | ⓪ 완료 후 롤아웃 ① 착수 | — (푸시 미승인 상태) | 3영역 병렬(migration-guard·api-route-builder·ui-builder) 후 통합. **`5682503`** M013 스키마 · **`93bddec`** logSsoEvent+계측 · **`c7909bc`** overview API · **`566e8a8`** AdminSso 탭. cron(`sso-daily`)은 v1.5라 범위 밖 |
+
+**게이트 통과 기록**
+- ✅ security-reviewer — **1차 🚫 차단 1건 → 수정 → 재검토 통과**
+- ✅ sso-auth-architect 설계 렌즈 — 조건부 승인(차단 0)
+- ✅ release-verifier — tsc 0에러·build 73/73(`/api/admin/sso/overview`=ƒ)·golden 43/43·비인증 401 실측·기존 SSO 응답 불변 런타임 확인
+- ✅ pre-commit gitleaks 4커밋 각각 clean
+
+**보안 게이트가 잡은 것 (실제 취약점 — 기록 가치 높음)**
+- **차단**: `/sso/logout`은 인증·레이트리밋 없는 GET인데 계측 추가로 요청당 `sso_events` 1행 INSERT가 생겼다(이전엔 DB 무접촉 = 신규 벡터). `<img src>`로 제3자가 방문자 IP를 빌려 분산 유발 가능 → Neon Free 0.5GB 소진 시 1,800명 로그인 동반 중단. **수정**: 유효 세션 + 레이트리밋(10/분/IP)일 때만 기록.
+- 경고 반영: UA 원문 무제한 저장 → 255자 절단(헤더 8~16KB 증폭) · 429마다 로깅 → 저빈도 버킷(3/분)으로 레이트리밋이 DB 쓰기를 실제로 막게 · issue 로깅 `after()` 이동 · `kit` 화이트리스트.
+- **내가 만든 회귀를 재검토가 잡음**: 로깅용 보조 `checkRateLimit`을 바깥 try 안에 넣어, throw 시 `return tooManyRequests()`를 건너뛰고 차단 대상이 통과할 수 있었다 → 판정과 429 반환을 try 밖으로 분리.
+
+**설계 렌즈 핵심 지적 (반영)**
+- **SSO OFF인 지금도 `deny_*` 이벤트는 쌓인다** — 검증 분기가 키 사용보다 앞이라 env 무관하게 동작. 그런데 그 기간이 관리자가 SSO 탭을 열 유인이 가장 낮은 구간 = 90일 lazy 정리가 안 도는 구간. **반영**: `logSsoEvent` 삽입 500회당 1회 확률 정리 폴백 추가(신규 테이블·cron 0).
+- PII 설계는 "타입 강제"를 초과 달성(SQL 프로젝션 레벨에서도 email 미투영) 판정.
+- 후속 권고(비차단): §7 5단계(자동 리다이렉트) 전에 `login_required` 표본/카운터 전환 게이트 명문화 · `recentFailures`를 등록앱 실패 vs 미등록 프로빙으로 분리 · **PRD §6-10 문구 개정(§9-3)은 여전히 사용자 승인 대기** — 코드가 그 개정을 전제로 먼저 배포되는 순서임.
+
+**확인필요 (실행 증거 없음)**
+- M013 graceful degrade(테이블 부재 시 빈 응답) 실측 — 로컬 `.env.local` 부재로 DB 접근 불가. 배포 후 migrate 실행 전 AdminSso 탭 열면 그 경로가 그대로 재현됨.
+- AdminSso 탭 실제 렌더 — 마스터 세션 필요.
+- **배포 후 `POST /api/admin/migrate` 1회 실행 필요**(M013 미적용 상태).
+
 
 ### 2026-07-27 — ⓪ 보안 선행 패치 3건 구현·커밋·배포 (롤아웃 §7 단계 0 완료)
 
