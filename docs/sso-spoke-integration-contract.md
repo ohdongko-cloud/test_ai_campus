@@ -45,8 +45,31 @@
 |---|---|
 | `GET /sso/authorize` | SSO 인증 시작점. 스포크가 사용자를 이 URL로 보냄. |
 | `GET /.well-known/jwks.json` | RS256 공개키 배포. 스포크가 토큰 검증에 사용. |
-| `GET /sso/userinfo` | Bearer id_token으로 추가 프로필 조회(선택, 60초 내 호출 필요). |
+| `GET /sso/userinfo` | Bearer id_token으로 추가 프로필 조회(선택, **콜백 트랜잭션 내 동기 1회만 — 재시도 금지**, 60초 내 호출 필요. 상세 §2.1). |
 | `GET /sso/logout` | 허브 세션만 종료. 스포크 세션은 미변경. |
+
+### 2.1 `/sso/userinfo` 단일 사용 규약 (MUST)
+
+- 스포크가 `/sso/userinfo`를 호출하기로 한 경우, **콜백 처리 트랜잭션 안에서 동기적으로 정확히 1회만** 호출해야 한다(MUST).
+- **재시도 금지(MUST NOT)**: 백오프 재시도·병렬 중복 호출(SSR+CSR 이중 fetch 등)·이후 재호출을 모두 금지한다. 허브의 nonce는 이 호출 시점에 원자적 UPDATE 1문으로 소비되므로, 1회차가 이미 성공했더라도 2회차는 반드시 실패한다. **네트워크 예외(타임아웃·커넥션 리셋 등 응답 자체를 받지 못한 경우)도 동일한 실패로 취급하며, 이 호출에는 HTTP 클라이언트의 자동 재시도 옵션(예: undici `RetryAgent`, `axios-retry`, fetch 재시도 래퍼)을 반드시 비활성화한다(MUST)** — 재시도 래퍼 없는 네이티브 단발 호출이면 이 요건을 만족한다.
+- `/sso/userinfo`는 **email 외 프로필 보강(name·corporation_name·organization_name·position)에만** 쓰인다. `sub` 클레임(email)은 이미 RS256 서명·`iss`·`aud`·`exp` 검증(§3.1 2단계)을 통과했고 역할/권한 정보는 userinfo도 제공하지 않으므로(N2, `lib/sso.ts:37` — 인가는 스포크 책임), userinfo 성공 여부는 세션 발급 가능 여부에 영향을 주지 않는다.
+- **호출 실패 시 기본 처리(MUST)**: 아래 §2.1.1 응답 코드표의 어느 코드로 실패하든(네트워크 예외 포함) **재시도하지 말고, `/sso/authorize`나 `/sso/login`으로 자동 재진입시키지 않는다(MUST NOT)**. 허브 세션이 살아 있으면 사용자 상호작용 없이 즉시 새 토큰이 발급되어(`app/sso/authorize/route.ts:68-85`) 콜백→userinfo 실패→재진입이 무한 루프가 되기 때문이다. 대신 이미 검증된 id_token 클레임(email)만으로 콜백을 계속 진행해 세션을 발급하고, 프로필 필드는 비워두거나(또는 이전 로그인 값 유지) 다음 로그인 시 보강한다. 이 경로는 자동 리다이렉트를 전혀 발생시키지 않으므로 루프가 구조적으로 불가능하다.
+- **예외 처리(프로필 필드가 세션 발급의 필수 전제조건인 스포크만, 선택)**: 기본 처리 대신 실패를 치명적으로 다루려면, 자동 재진입이 아니라 **스포크 자체 로그인/에러 페이지로 302 이동**시킨다(예: `/login?sso_error=userinfo_failed`). 그 페이지에서는 **사용자가 직접 "다시 로그인" 버튼을 눌러야** SSO가 재개되어야 하며, 페이지 로드만으로 `/sso/authorize`·`/sso/login`으로 다시 나가는 자동 리다이렉트를 두어서는 안 된다(MUST NOT) — 그 순간 같은 무한 루프가 된다.
+- 실패 원인(토큰 만료·nonce 재사용·미등록 클라이언트 등)은 다수가 동일한 `401 { "error": "unauthorized" }`으로 응답되어 문자열만으로 구분할 수 없다 — 원인 조사를 시도하지 말고 위 기본/예외 처리로 일원화한다.
+- 응답 값(email·name·corporation_name·organization_name·position)은 그 트랜잭션 안에서 **즉시 소비**(provisioning·세션 발급)하고, 토큰·응답 원문을 저장·로깅해서는 안 된다(MUST NOT). 응답에는 `Cache-Control: no-store`가 붙는다 — 스포크 측에서도 캐싱 금지.
+
+**2.1.1 `/sso/userinfo` 응답 코드표(실측, `app/sso/userinfo/route.ts` 기준)**
+
+| 코드 | 실제 발생 조건(코드 근거) | 스포크의 올바른 대응 |
+|---|---|---|
+| `200` | 정상 — Bearer 검증·nonce 소비·`users` 조회 모두 성공(`:99-108`) | 프로필 필드로 세션 보강 |
+| `401 unauthorized` | Authorization 헤더 누락(`:31-35`) · `sub`/`nonce` 클레임 타입 이상(`:59-64`) · `aud`가 미등록/비활성 클라이언트(`:65-69`) · RS256 서명/`iss`/`exp` 불일치 또는 검증 중 예외(`:54-58,72-74`) · nonce가 이미 소비/만료/미존재(`:87-89` — `authorize`의 `storeNonce` 실패가 삼켜진 경우 최초 호출부터 결정적, `app/sso/authorize/route.ts:89-95`) | 재시도·자동 재진입 금지. id_token 클레임만으로 세션 발급(기본) 또는 예외 처리 |
+| `404 not found` | 토큰은 유효하나 허브 `users` 테이블에 해당 email 행 없음(`:96-98`) — 예: 허브 세션(최대 30일) 생존 중 계정 삭제 | 동일 — 스포크 자체 provisioning은 스포크 자기 DB 기준이라 영향 없음 |
+| `429` | IP당 10회/분 레이트리밋 초과(`:25-26`) | 동일 — 같은 창 안에서 재시도 금지 |
+| `500 서버 오류가 발생했습니다` | 레이트리밋 백엔드 오류(`:23-29`) · `SSO_PUBLIC_KEY` 미설정/형식오류(`:40-47`, 해결 전까지 전건 결정적) · nonce 소비 DB 오류(`:81-86`) · 프로필 조회 DB 오류(`:91-111`) | 동일 |
+| (무응답) 타임아웃/커넥션 리셋 | 네트워크 계층 예외 — 상태코드 자체를 못 받음 | 동일 취급 + 클라이언트 자동 재시도 비활성화(위 MUST) |
+
+> 결론: 코드별 원인은 서로 다르지만 스포크의 대응은 하나다 — **"모든 실패=401"이 아니라 "모든 코드=동일 대응(재시도·자동 재진입 금지)"**이 본 절의 요지다.
 
 ---
 
@@ -219,6 +242,7 @@ return Response.redirect(authorizeUrl.toString(), 302);
 - [ ] `audience: '<your-app>'` 검증 (자기 app 식별자와 일치)
 - [ ] `state` CSRF 검증 (저장 값과 콜백 값 일치)
 - [ ] `nonce` 1회성 소비 (재수신 거부)
+- [ ] (선택) `/sso/userinfo` 호출 시 콜백 트랜잭션 내 동기 1회만 — 재시도·캐싱 금지, 네트워크 예외 포함 실패 시 `/sso/authorize`·`/sso/login` 자동 재진입 금지(MUST NOT) 후 id_token 클레임만으로 세션 발급(§2.1) — 프로필 필수 스포크만 예외로 사용자 클릭형 에러 페이지
 - [ ] `email.endsWith('@eland.co.kr')` 재검증
 - [ ] provision 시 기본 역할 `viewer`(읽기전용)
 - [ ] 세션 쿠키 httpOnly 발급 (자기 시크릿으로)
@@ -230,5 +254,7 @@ return Response.redirect(authorizeUrl.toString(), 302);
 ## 8. 질문 / 이슈 창구
 
 - 허브 `sso_clients` 등록 요청(운영 URL 확정 후) → <오너>에게 전달.
-- 토큰 검증 오류·JWKS 이슈 → 허브 Sentry + `auth_logs` 테이블 확인.
+- SSO 발급/거부 이벤트(`issue`·`deny_*`·`rate_limited`·`logout`) → 허브 **`sso_events` 테이블**(관리자 'SSO 현황' 탭)에서 확인. `auth_logs`에는 `app` 컬럼이 없어 앱별 조회가 불가능하므로 SSO 이벤트는 그쪽에 남지 않는다.
+- **`/sso/userinfo` 실패는 허브 측에 전혀 기록되지 않는다** — `app/sso/userinfo/route.ts`는 `logSsoEvent`·에러 리포터를 호출하지 않고 모든 예외를 자체 `catch`에서 응답으로 변환한다(Sentry `onRequestError` 미도달). 단서는 **Vercel HTTP 액세스 로그의 상태코드(401/404/429/500)와 스포크 자체 로그뿐**이다.
+- 토큰 서명·JWKS 이슈 → 토큰 헤더의 `kid`가 `GET /.well-known/jwks.json`의 `kid`와 일치하는지 먼저 확인(키 회전 시 스포크 JWKS 캐시 전파에 최대 10분).
 - 이 계약 문서 갱신 → `docs/sso-spoke-integration-contract.md` (허브 레포).
