@@ -55,6 +55,15 @@
 8. **빌드 게이트** — 위 tsc + build
 9. **env/시크릿 위생** — 새 변수는 `.env.local.example` + (자리표시자면) `.gitleaks.toml` allowlist 동기화
 
+## known-good (깨지 마 — auth/세션/모바일 변경 후 "완료" 전 재실행)
+아래는 운영(~1,800명 실데이터) 검증 경로다. **JWT/세션·가입/OTP·재설정·권한·모바일(app/m·Capacitor)을 건드린 변경 직후, "완료" 선언 전에 재실행**하고 통과/실패를 보고한다(전역 known-good 재실행 규율). 깨지면 재패치로 덮지 말고 근본원인.
+1. **로그인** — JWT httpOnly 로그인(user/admin/master 각각 진입).
+2. **가입 OTP** — `@eland.co.kr` 가입 → 이메일 OTP 인증 통과.
+3. **비번 재설정** — 재설정 플로우(비밀번호 메일발송 금지·enumeration 동일응답).
+4. **강의 영상 재생** — VideoPage 재생·워터마크·복사차단.
+5. **모바일 패리티** — `app/m/*` 동반 동작, Capacitor `versionCode` 증가.
+6. **admin API 권한** — master/admin/user 체크·공개 API 레이트리밋.
+
 ## DB 마이그레이션 / 권한
 - 신규 컬럼·테이블은 멱등 엔드포인트 **`POST /api/admin/migrate`**(마스터 전용)로 1회 실행. 또는 Neon SQL Editor.
 - 권한 모델: `master`(env `MASTER_ADMIN_EMAILS`) > `admin`(DB role + permissions JSONB) > `user`.
