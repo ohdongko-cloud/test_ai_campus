@@ -1,6 +1,7 @@
 // Sentry 클라이언트(브라우저) 초기화.
 // NEXT_PUBLIC_SENTRY_DSN 환경변수 필요 (Vercel에 등록).
 import * as Sentry from '@sentry/nextjs';
+import { scrubEvent, scrubBreadcrumb } from './lib/sentry-scrub';
 
 const DSN = process.env.NEXT_PUBLIC_SENTRY_DSN;
 
@@ -17,5 +18,9 @@ if (DSN) {
     maxBreadcrumbs: 50,
     // 환경 라벨
     environment: process.env.VERCEL_ENV || process.env.NODE_ENV,
+    // SSO id_token(?token=) 마스킹 — §6-B1① (lib/sentry-scrub.ts)
+    beforeSend: scrubEvent,
+    beforeSendTransaction: scrubEvent,
+    beforeBreadcrumb: scrubBreadcrumb,
   });
 }
