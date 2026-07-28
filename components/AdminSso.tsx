@@ -265,17 +265,21 @@ export default function AdminSso() {
         )}
       </div>
 
-      {/* ── 미등록 앱 프로빙 (보조 정보 — 등록 앱 실패 신호를 가리지 않도록 기본 접힘) ── */}
+      {/* ── 미등록 앱 프로빙 (보조 정보 — 등록 앱 실패 신호를 가리지 않도록 기본 접힘) ──
+           배포 전환 중 구버전 서버리스 인스턴스가 recentProbes 없는 응답을 주면 화면이 깨지므로 폴백을 둔다. */}
+      {(() => {
+      const probes = data.recentProbes ?? [];
+      return (
       <div style={card}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
           <div>
             <h3 style={{ fontSize: 14, fontWeight: 700, color: '#0F1E33' }}>
-              미등록 앱 프로빙 <span style={{ fontWeight: 400, color: '#9BA7BC' }}>({data.recentProbes.length}건)</span>
+              미등록 앱 프로빙 <span style={{ fontWeight: 400, color: '#9BA7BC' }}>({probes.length}건)</span>
             </h3>
             <p style={{ ...mutedText, marginTop: 2 }}>등록되지 않은 앱 이름으로 유입된 실패 시도 — 공격 또는 설정 오류 추정(참고용)</p>
             <p style={{ ...mutedText, marginTop: 2 }}>※ 등록 해제되거나 앱 이름이 바뀐 앱의 과거 실패는 여기로 소급 분류될 수 있습니다.</p>
           </div>
-          {data.recentProbes.length > 0 && (
+          {probes.length > 0 && (
             <button
               onClick={() => setShowProbes(v => !v)}
               style={{
@@ -287,7 +291,7 @@ export default function AdminSso() {
             </button>
           )}
         </div>
-        {data.recentProbes.length === 0 ? (
+        {probes.length === 0 ? (
           <div style={{ textAlign: 'center', color: '#9BA7BC', fontSize: 13, padding: '16px 0' }}>
             프로빙 이벤트가 없습니다.
           </div>
@@ -304,7 +308,7 @@ export default function AdminSso() {
                 </tr>
               </thead>
               <tbody>
-                {data.recentProbes.map((f, i) => (
+                {probes.map((f, i) => (
                   <tr key={i} style={{ borderBottom: '1px solid #F5F7FA' }}>
                     <td style={{ padding: 8, whiteSpace: 'nowrap', color: '#0F1E33' }}>{fmtTime(f.createdAt)}</td>
                     <td style={{ padding: 8, color: '#3B4A63' }}>{f.event}</td>
@@ -322,6 +326,8 @@ export default function AdminSso() {
           </div>
         )}
       </div>
+      );
+      })()}
 
       {/* ── cron 상태 ── */}
       <div style={{ ...card, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>

@@ -54,10 +54,14 @@ const SSO_EMAIL_PATTERN = /[\w.+-]+@[\w-]+\.[\w.-]+/g;
 // 직접 넣지 않는다(소스에 눈에 안 보이는 문자가 섞여 들어가는 것 자체를 방지).
 function isStrippedCodePoint(cp: number): boolean {
   if (cp <= 0x1f || cp === 0x7f) return true; // C0 제어문자 + DEL
-  if (cp >= 0x200b && cp <= 0x200d) return true; // 제로폭 스페이스/ZWNJ/ZWJ
-  if (cp === 0xfeff) return true; // BOM/ZWNBSP
+  if (cp >= 0x80 && cp <= 0x9f) return true; // C1 제어문자
+  if (cp === 0x61c) return true; // ARABIC LETTER MARK(비가시 bidi)
+  if (cp >= 0x200b && cp <= 0x200f) return true; // 제로폭(ZWSP/ZWNJ/ZWJ) + LRM/RLM
   if (cp >= 0x202a && cp <= 0x202e) return true; // bidi 오버라이드(LRE/RLE/PDF/LRO/RLO)
+  if (cp >= 0x2060 && cp <= 0x2064) return true; // WORD JOINER + 비가시 연산자
   if (cp >= 0x2066 && cp <= 0x2069) return true; // bidi 격리(LRI/RLI/FSI/PDI)
+  if (cp === 0x3164 || cp === 0xffa0) return true; // 한글 필러(비가시 — 이름 위장에 쓰임)
+  if (cp === 0xfeff) return true; // BOM/ZWNBSP
   return false;
 }
 

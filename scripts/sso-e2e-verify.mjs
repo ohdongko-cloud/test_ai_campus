@@ -4,7 +4,11 @@
 //
 // 원칙
 //   - 신규 의존성 0 — repo에 이미 설치된 jose만 사용한다.
-//   - 읽기/리다이렉트만 수행한다(운영 쓰기 없음). 단 T10은 설계상 nonce를 1회 소비한다.
+//   - **운영에 쓰기가 발생한다** — 1회 실행마다 `sso_events` 3~4행(T2 deny_unknown_app,
+//     T3 deny_redirect_mismatch, T4 deny_state_missing, 세션 제공 시 T8 issue = 실행자 email 포함)
+//     + `sso_nonces` 1행(authorize storeNonce), 그리고 0.2% 확률로 90일 초과분 정리 DELETE.
+//     T2가 넣는 미등록 app 문자열은 관리자 'SSO 현황'의 **미등록 앱 프로빙 패널에 그대로 뜬다** —
+//     공격이 아니라 자체검증 노이즈임을 식별할 수 있도록 app 이름에 selftest를 명시한다.
 //   - 토큰·쿠키·이메일 원문을 절대 출력하지 않는다(CLAUDE.md §6-1 PII, §6-8).
 //   - **미검증을 통과로 집계하지 않는다** — 조기 반환은 SKIP이며, SKIP이 하나라도 있으면
 //     "활성화 완료" 판정을 낼 수 없다(exit 2).
@@ -18,7 +22,9 @@
 //   PowerShell : $env:SSO_TEST_COOKIE = 'user_session=<값>'
 //   bash       : export SSO_TEST_COOKIE='user_session=<값>'
 //   (DevTools → Application → Cookies → user_session. httpOnly라 JS로는 못 읽는다.)
-// ⚠️ 검증이 끝나면 환경변수를 반드시 지울 것. 이 스크립트는 쿠키 값을 출력하지 않는다.
+// ⚠️ 이 값은 자리표시자가 아니라 **살아 있는 세션 쿠키**다. `.env`/`.env.local`에 절대 기입하지 말 것
+//    (자리표시자가 아니므로 gitleaks allowlist 대상도 아니다). 셸 히스토리에 남는 점도 주의.
+//    검증이 끝나면 환경변수를 지우고 해당 세션을 로그아웃할 것. 스크립트는 쿠키 값을 출력하지 않는다.
 //
 // ⚠️ 재실행 간격: /sso/userinfo 레이트리밋이 IP당 10회/분인데 1회 실행이 최대 4회를 쓴다.
 //    60초 안에 3회 이상 연달아 돌리지 말 것(429는 FAIL이 아니라 RATE_LIMITED로 분류된다).
@@ -174,7 +180,7 @@ await check('T1', 'JWKS 200 · 공개 성분만 노출(d/p/q 부재)', async () 
 // S2 — 미등록 app → 400 (리다이렉트 금지)
 await check('T2', '미등록 app → 400 unknown app (오픈리다이렉트 차단)', async () => {
   const res = await get(
-    authorizeUrl({ app: '__no_such_app__', redirect_uri: 'https://evil.example/cb', state: 'x' }),
+    authorizeUrl({ app: '__selftest_unknown__', redirect_uri: 'https://evil.example/cb', state: 'x' }),
     { manual: true },
   );
   guardRateLimit(res, 'authorize');
