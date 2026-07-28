@@ -4,9 +4,13 @@
 //
 // 원칙
 //   - 신규 의존성 0 — repo에 이미 설치된 jose만 사용한다.
-//   - **운영에 쓰기가 발생한다** — 1회 실행마다 `sso_events` 3~4행(T2 deny_unknown_app,
-//     T3 deny_redirect_mismatch, T4 deny_state_missing, 세션 제공 시 T8 issue = 실행자 email 포함)
-//     + `sso_nonces` 1행(authorize storeNonce), 그리고 0.2% 확률로 90일 초과분 정리 DELETE.
+//   - **운영에 쓰기가 발생한다.** 1회 실행 기준 인벤토리:
+//       · `sso_events` INSERT 3행 — T2 deny_unknown_app · T3 deny_redirect_mismatch · T4 deny_state_missing
+//         (T7 prompt=none은 설계상 원시 행을 기록하지 않는다)
+//       · 세션 제공 시에만 추가로: `sso_events` issue 1행(실행자 email 포함) + `sso_nonces` INSERT 1행
+//         + T10의 `sso_nonces` UPDATE 1행(consumed=true — nonce 1회 소비)
+//       · 레이트리밋에 걸리면 `sso_events` rate_limited 행(IP당 3/분 상한)
+//       · 90일 초과분 정리 DELETE — INSERT당 0.2% 확률이라 1회 실행(3~4 INSERT) 기준 약 0.7%
 //     T2가 넣는 미등록 app 문자열은 관리자 'SSO 현황'의 **미등록 앱 프로빙 패널에 그대로 뜬다** —
 //     공격이 아니라 자체검증 노이즈임을 식별할 수 있도록 app 이름에 selftest를 명시한다.
 //   - 토큰·쿠키·이메일 원문을 절대 출력하지 않는다(CLAUDE.md §6-1 PII, §6-8).
