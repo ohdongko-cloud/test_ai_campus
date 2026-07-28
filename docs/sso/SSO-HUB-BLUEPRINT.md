@@ -91,7 +91,7 @@ flowchart LR
 | **2. SSO_KID** | `aicampus-rsa-YYYYMMDD` — 회전마다 반드시 갱신(스포크 JWKS 캐시 미스 유발 + 허브 publicJwksCache 키) | 고정 kid 금지 |
 | **3. Vercel env 등록** | 4종을 **Production에만**: `vercel env add SSO_PRIVATE_KEY production < sso_private_pkcs8.pem` 방식(CLI 권장 — 멀티라인 PEM 복붙 실수 차단). `SSO_ISSUER=https://retail-ai-campus.vercel.app` 명시(trailing slash 없음, 스포크 issuer 검증값과 바이트 일치). `SSO_CLIENTS_JSON`은 설정하지 않음(DB 단일 소스). 등록 후 **재배포 필수** | Preview/Dev에는 미설정(=OFF가 안전 기본값) |
 | **4. M010/M011 실행** | `POST /api/admin/migrate`(마스터 세션) → 응답에서 M010/M011 `ok|skip` 확인 → Neon으로 테이블 존재 재확인 | 건너뛰면 authorize 전부 400 + nonce 저장 조용한 실패 |
-| **5. sso_clients 등록** | 표준 upsert문만 사용(아래). **2단계 등록 원칙**: 신규 앱은 `enabled=false`로 먼저 삽입 → 스포크 배포·출처 확인 후 별도 `UPDATE … SET enabled=true`(§6-B4). **[결정 2026-07-27]** ② 허브 활성화 단계에서는 `sso-selftest` 1건만 등록하고 실앱(web-fashion 등)은 URL 확정 후 ③ 파일럿에서 등록한다(§9-1) | 수기 UPDATE 금지, 삭제 대신 enabled=false |
+| **5. sso_clients 등록** | 표준 upsert문만 사용(아래). **2단계 등록 원칙**: 신규 앱은 `enabled=false`로 먼저 삽입 → 스포크 배포·출처 확인 후 별도 `UPDATE … SET enabled=true`(§6-B4). **[결정 2026-07-28]** ② 허브 활성화 단계에서는 `sso-selftest` 1건만 등록하고 실앱(web-fashion 등)은 URL 확정 후 ③ 파일럿에서 등록한다(§9-1) | 수기 UPDATE 금지, 삭제 대신 enabled=false |
 | **6. 스모크** | S1 JWKS 200(개인키 성분 d/p/q 부재) · S2 미등록 app→400 · S3 state 누락→400. **+ known-good 6종 재실행**(로그인/가입OTP/재설정/영상/모바일/admin) 후에만 "활성화 완료" 선언 | CLAUDE.md known-good 규율 |
 | **7. E2E (AC2~AC8)** | `sso-selftest` 임시 클라이언트(콜백=허브 자기 도메인 404 경로)로 스포크 없이 AC2~AC7 검증 + **`node scripts/sso-e2e-verify.mjs`**(T1~T11, 신규 의존성 0 — repo의 jose 재사용). 세션 필요 항목(T8~T11)은 `SSO_TEST_COOKIE` 환경변수로 허브 세션 쿠키를 넘길 때만 실행된다. **종료코드 0=전항 통과 / 1=실패 / 2=미검증(SKIP) 존재 → 0이 아니면 활성화 완료 선언 불가.** AC8은 파일럿(§7) | 검증 후 selftest `enabled=false` |
 
@@ -290,7 +290,7 @@ v1은 관리자 UI 없이 Neon SQL 직접(변경 빈도 연 수회·등록 주�
 | 허브(Vercel) 다운 | SSO 로그인 불가. **기존 스포크 세션은 무영향**(host-only 쿠키·자기 시크릿). 신규 로그인은 자체 로그인 폴백 | 계약에 명문화: 자동 리다이렉트를 쓰더라도 "자체 로그인으로 진행" 우회 링크 **필수(강등 불가)** |
 | Neon 다운 | SSO 발급 중단(레지스트리 조회 불가). 스포크 자체 로그인은 각자 DB라 무영향 | JWKS 라우트는 env만 사용 — **기발급 토큰의 스포크 검증은 Neon 다운 중에도 정상** |
 | Upstash 미설정/다운 | 레이트리밋이 인스턴스별 인메모리 폴백(약화) | 수용. Upstash free는 월 50만 커맨드(2025-03 개정)로 여유 — 활성화 단계 0에서 월 사용량 1회 확인 |
-| **Vercel Hobby ToS·무SLA (수용 리스크 — 검증 반영)** | Hobby는 비상업 용도 한정. **1,800명 임직원용 사내 앱은 정의상 상업적 사용에 해당할 소지**가 있고 SLA도 없다. 허브 승격 시 통지/중단의 피해 반경이 "앱 1개"→"전사 SSO"로 확대 | (a) 자체 로그인 폴백이 "허브 계정 중단" 시나리오까지 커버함을 명시, (b) 통지 수신 시 **Pro 전환($20/월) 또는 허브 이전을 비상 경로로 문서화**, (c) 이 리스크를 인지하고 수용함을 본 설계에 기록, (d) **[결정 2026-07-27] Hobby 유지·리스크 수용 확정**(§9-6) — Pro 전환은 비상 경로로만 유지 |
+| **Vercel Hobby ToS·무SLA (수용 리스크 — 검증 반영)** | Hobby는 비상업 용도 한정. **1,800명 임직원용 사내 앱은 정의상 상업적 사용에 해당할 소지**가 있고 SLA도 없다. 허브 승격 시 통지/중단의 피해 반경이 "앱 1개"→"전사 SSO"로 확대 | (a) 자체 로그인 폴백이 "허브 계정 중단" 시나리오까지 커버함을 명시, (b) 통지 수신 시 **Pro 전환($20/월) 또는 허브 이전을 비상 경로로 문서화**, (c) 이 리스크를 인지하고 수용함을 본 설계에 기록, (d) **[결정 2026-07-28] Hobby 유지·리스크 수용 확정**(§9-6) — Pro 전환은 비상 경로로만 유지 |
 
 **세션 체감**: SSO의 "한 번 로그인" 체감 = 허브 `user_session` 수명(기본 6h — rememberMe 미체크 시 브라우저 세션 쿠키라 **브라우저 종료마다 재로그인** / rememberMe 30일). 정책은 무변경하되, **SSO 경유 로그인 화면에 "로그인 유지를 켜면 다른 사내 앱도 자동 로그인됩니다" 안내 1줄을 파일럿과 동시 시행**(검증 반영 — 파일럿 성공 판정이 "한 번 로그인 체감"인데 그 레버를 뒤로 미루지 않는다). 기본 체크 여부만 v1.1 결정으로 남김.
 
@@ -339,7 +339,7 @@ v1은 관리자 UI 없이 Neon SQL 직접(변경 빈도 연 수회·등록 주�
 
 ### 우려점 (수용/완화 결정 포함)
 1. **URL 토큰 노출면**(§6-B1) — 60s TTL+nonce로 완화하되 로그·Sentry 마스킹과 userinfo 가드가 **필수 전제**. 보안 요구가 오르면 code 교환으로 승격.
-2. **Vercel Hobby ToS·무SLA**(§5.3) — 1,800명 사내앱의 IdP를 Hobby에 두는 것은 약관상 회색지대 + 중단 시 전사 SSO 영향. 자체 로그인 폴백 + Pro 전환 비상 경로로 수용. **[결정 2026-07-27]** Hobby를 유지하고 이 리스크를 수용한다 — 각 스포크의 자체 로그인 폴백이 항상 살아 있어 허브 중단이 전면 장애가 되지 않기 때문이며, Pro 전환($20/월)·허브 이전은 ToS 통지나 중단 발생 시 발동하는 **비상 경로**로만 유지한다(§9-6).
+2. **Vercel Hobby ToS·무SLA**(§5.3) — 1,800명 사내앱의 IdP를 Hobby에 두는 것은 약관상 회색지대 + 중단 시 전사 SSO 영향. 자체 로그인 폴백 + Pro 전환 비상 경로로 수용. **[결정 2026-07-28]** Hobby를 유지하고 이 리스크를 수용한다 — 각 스포크의 자체 로그인 폴백이 항상 살아 있어 허브 중단이 전면 장애가 되지 않기 때문이며, Pro 전환($20/월)·허브 이전은 ToS 통지나 중단 발생 시 발동하는 **비상 경로**로만 유지한다(§9-6).
 3. **허브 = SPOF 집중** — 로그인(폴백 있음)뿐 아니라 이제 관측·통계도 허브에 집중된다. 통계는 유실돼도 서비스 영향 없음(수용).
 4. **cron 무재시도** — 7일 재집계 윈도·days=7 백필·발송 마커로 결손을 자가 치유하되, 48h 무실행 경고로 관측.
 
@@ -354,10 +354,10 @@ v1은 관리자 UI 없이 Neon SQL 직접(변경 빈도 연 수회·등록 주�
 
 ## 9. 미해결 질문 (사용자 결정 필요)
 
-1. **web-fashion 운영 URL**이 `https://eland-apparel.vercel.app`이 맞는지 최종 확인 — 확인 전 활성 등록 금지. → **[결정 2026-07-27] 미확정.** ② 허브 활성화는 `sso-selftest` 임시 클라이언트만으로 진행한다(런북 §3 단계 5 = selftest 1건만 등록). 실앱 `sso_clients` 등록은 URL 확정 후 ③ 파일럿 단계에서 수행.
+1. **web-fashion 운영 URL**이 `https://eland-apparel.vercel.app`이 맞는지 최종 확인 — 확인 전 활성 등록 금지. → **[결정 2026-07-28] 미확정.** ② 허브 활성화는 `sso-selftest` 임시 클라이언트만으로 진행한다(런북 §3 단계 5 = selftest 1건만 등록). 실앱 `sso_clients` 등록은 URL 확정 후 ③ 파일럿 단계에서 수행.
 2. measure-web·OPR **운영 도메인 확정 시점** (+ OPR의 실제 스택 — Pages Router/비Next.js면 킷 수동 이식). → **미정(② 허브 활성화에 비차단)**
-3. PRD §6-10 문구 개정 승인: "auth_logs 기록" → "sso_events 기록 + AdminLogs source='sso'". → **[결정 2026-07-27] 승인.** 단 개정 문구에 `sso_events`의 등급을 **"가용성 우선 관측 로그 — `after()` + 실패 삼킴 구조라 완전성 미보장"**으로 명시하고, **감사 증적으로 격상하지 않는다**. (구조 근거: `app/sso/authorize/route.ts:113`이 응답 이후 `after()`로 기록, `lib/audit.ts:108-110`이 기록 실패를 삼킴.) 완전성이 보장되는 감사 등급이 필요해지면 **별도 과제**로 분리한다.
+3. PRD §6-10 문구 개정 승인: "auth_logs 기록" → "sso_events 기록 + AdminLogs source='sso'". → **[결정 2026-07-28] 승인.** 단 개정 문구에 `sso_events`의 등급을 **"가용성 우선 관측 로그 — `after()` + 실패 삼킴 구조라 완전성 미보장"**으로 명시하고, **감사 증적으로 격상하지 않는다**. (구조 근거: `app/sso/authorize/route.ts:113`이 응답 이후 `after()`로 기록, `lib/audit.ts:108-110`이 기록 실패를 삼킴.) 완전성이 보장되는 감사 등급이 필요해지면 **별도 과제**로 분리한다.
 4. 주간 요약 메일 수신 범위: `MASTER_ADMIN_EMAILS`만 vs admin 포함. → **미정(② 허브 활성화에 비차단)**
 5. `@eland.co.kr` 예외 허용 계정의 스포크 allowlist 정책(PRD 미해결 4 승계). → **미정(② 허브 활성화에 비차단)**
-6. Vercel Hobby ToS 리스크(§5.3)의 수용 vs Pro 선제 전환. → **[결정 2026-07-27] Hobby 유지 · 리스크 수용.** 근거 = 각 스포크에 자체 로그인 폴백이 항상 살아 있어(§2 원칙 2·§5.3) 허브 중단이 전면 장애가 되지 않는다. Pro 전환($20/월)은 폐기하지 않고 **비상 경로**로 유지.
-7. SSO 경유 로그인의 rememberMe **기본 체크** 여부(안내 문구는 파일럿과 동시 시행 확정). → **[결정 2026-07-27] 현행 기본 ON 확정 — 항목 종결.** 실측 근거: `components/WelcomePopup.tsx:146`·`app/m/_components/MobileWelcome.tsx:81`이 모두 `const [rememberMe, setRememberMe] = useState(true)`(웹·모바일 기본 체크), `lib/session.ts:7-11`에서 rememberMe면 `SESSION_TTL_LONG`(30일) maxAge 영구 쿠키·미체크면 `SESSION_TTL_SHORT`(6시간) 세션 쿠키. 별도 코드 변경 없이 "한 번 로그인" 체감이 기본값으로 성립한다. 공유 PC 안내 문구는 ③ 파일럿과 동시 시행.
+6. Vercel Hobby ToS 리스크(§5.3)의 수용 vs Pro 선제 전환. → **[결정 2026-07-28] Hobby 유지 · 리스크 수용.** 근거 = 각 스포크에 자체 로그인 폴백이 항상 살아 있어(§2 원칙 2·§5.3) 허브 중단이 전면 장애가 되지 않는다. Pro 전환($20/월)은 폐기하지 않고 **비상 경로**로 유지.
+7. SSO 경유 로그인의 rememberMe **기본 체크** 여부(안내 문구는 파일럿과 동시 시행 확정). → **[결정 2026-07-28] 현행 기본 ON 확정 — 항목 종결.** 실측 근거: `components/WelcomePopup.tsx:146`·`app/m/_components/MobileWelcome.tsx:81`이 모두 `const [rememberMe, setRememberMe] = useState(true)`(웹·모바일 기본 체크), `lib/session.ts:7-11`에서 rememberMe면 `SESSION_TTL_LONG`(30일) maxAge 영구 쿠키·미체크면 `SESSION_TTL_SHORT`(6시간) 세션 쿠키. 별도 코드 변경 없이 "한 번 로그인" 체감이 기본값으로 성립한다. 공유 PC 안내 문구는 ③ 파일럿과 동시 시행.
