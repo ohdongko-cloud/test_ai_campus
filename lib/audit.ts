@@ -37,7 +37,8 @@ export async function logAuth(opts: {
 //   issue                  : id_token 발급 성공
 //   deny_unknown_app       : 미등록 app
 //   deny_redirect_mismatch : redirect_uri 화이트리스트 불일치
-//   deny_state_missing     : state 파라미터 누락(CSRF 방어)
+//   deny_state_missing     : state 파라미터 누락(CSRF 방어) — 필수 파라미터 형식 위반도 겸한다.
+//                            nonce 형식 위반은 detail='nonce_invalid'로 구분(app/sso/authorize/route.ts).
 //   login_required         : 미로그인(허브 세션 없음) — v1은 원시 행 미기록(§4.1, 로그인 관련 판단 근거는
 //                             app/sso/authorize/route.ts 주석 참조), 타입만 예약.
 //   rate_limited           : authorize IP 레이트리밋 초과
