@@ -123,18 +123,28 @@ export async function getAdminContext(req: Request): Promise<AdminContext | null
  * permission 인자가 주어지면 master/legacy 는 자동 통과, admin은 permissions[key]=true 필요.
  * 통과 시 AdminContext, 실패 시 NextResponse (401/403).
  */
+/**
+ * 인증/권한 거부 응답. 본문에 PII는 없지만 `no-store`를 붙인다 —
+ * 이 거부는 **요청자의 쿠키에 따라 달라지는 응답**이므로 공유 캐시가 저장하면
+ * 사용자마다 다른 결과가 섞일 수 있다. 라우트 쪽 noStoreJson은 라우트가 직접 만든
+ * 응답에만 적용되므로, 헬퍼가 만드는 거부 응답은 여기서 일괄로 처리해야 한다(§6-7).
+ */
+function denied(message: string, status: 401 | 403) {
+  return NextResponse.json({ error: message }, { status, headers: { 'Cache-Control': 'no-store' } });
+}
+
 export async function requireAdmin(
   req: Request,
   permission?: PermissionKey,
 ): Promise<AdminContext | NextResponse> {
   const ctx = await getAdminContext(req);
   if (!ctx) {
-    return NextResponse.json({ error: '관리자 인증이 필요합니다.' }, { status: 401 });
+    return denied('관리자 인증이 필요합니다.', 401);
   }
   if (permission) {
     if (ctx.role === 'master' || ctx.role === 'legacy') return ctx;
     if (ctx.permissions?.[permission]) return ctx;
-    return NextResponse.json({ error: `'${permission}' 권한이 없습니다.` }, { status: 403 });
+    return denied(`'${permission}' 권한이 없습니다.`, 403);
   }
   return ctx;
 }
@@ -143,10 +153,10 @@ export async function requireAdmin(
 export async function requireMaster(req: Request): Promise<AdminContext | NextResponse> {
   const ctx = await getAdminContext(req);
   if (!ctx) {
-    return NextResponse.json({ error: '관리자 인증이 필요합니다.' }, { status: 401 });
+    return denied('관리자 인증이 필요합니다.', 401);
   }
   if (ctx.role === 'master' || ctx.role === 'legacy') return ctx;
-  return NextResponse.json({ error: '마스터 관리자 권한이 필요합니다.' }, { status: 403 });
+  return denied('마스터 관리자 권한이 필요합니다.', 403);
 }
 
 /** 응답 시 helper — denied가 NextResponse이면 그것을 그대로 반환 */
