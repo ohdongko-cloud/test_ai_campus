@@ -72,7 +72,7 @@ DO NOT EDIT 파일 상단에는 공통 헤더가 있다:
 | 변수 | 필수 | 예시 | 설명 |
 |---|---|---|---|
 | `SSO_APP_ID` | **필수** | `web-fashion` | 자기 app 식별자 = id_token `aud`. 허브 `sso_clients.app`과 바이트 정확 일치해야 `/sso/authorize`가 통과한다. 미설정 시 `getSsoConfig()`가 즉시 throw(fail-fast). |
-| `SSO_SELF_URL` | **필수** | `https://eland-apparel.vercel.app` | canonical https 오리진, **트레일링 슬래시 금지**(콜백 URL을 `${selfUrl}/sso/callback` 문자열 결합으로 만들기 때문 — 슬래시가 남으면 `//sso/callback`이 되어 허브 정확매칭에서 항상 400). Host 헤더로 유도하지 말고 반드시 고정 env. `sso_clients` 등록값과 정규화 후 정확매칭. |
+| `SSO_SELF_URL` | **필수** | `https://<PILOT_ORIGIN>` | canonical https 오리진, **트레일링 슬래시 금지**(콜백 URL을 `${selfUrl}/sso/callback` 문자열 결합으로 만들기 때문 — 슬래시가 남으면 `//sso/callback`이 되어 허브 정확매칭에서 항상 400). Host 헤더로 유도하지 말고 반드시 고정 env. `sso_clients` 등록값과 정규화 후 정확매칭. |
 | `SSO_HUB_URL` | 선택 | `https://retail-ai-campus.vercel.app`(기본값) | 허브 오리진. JWKS 조회·authorize 리다이렉트·logout 링크의 베이스로 쓰인다. |
 | `SSO_HUB_ISSUER` | 선택 | `= SSO_HUB_URL`(기본값) | `jwtVerify`의 `issuer` 옵션. 허브 `SSO_ISSUER`(Vercel Sensitive env — 코드로 확인 불가)와 바이트 일치해야 한다. **파일럿 시 실제 발급된 id_token을 디코드해 `iss`를 재확인**하는 것을 권장(가정만으로 진행 금지). |
 | `SSO_ALLOWED_EMAIL_DOMAINS` | 선택 | `eland.co.kr`(기본값) | 콤마 구분, 소문자 비교. `verifyHubToken` 내부에서 email이 이 도메인 중 하나로 끝나는지 재검증한다. |
@@ -106,7 +106,7 @@ export interface SpokeAdapter {
 
 | 스포크 | `app` 식별자 | 콜백 URL | 세션 쿠키명 | 세션 시크릿 env | 세션 클레임 | provision 정책 | 비고 |
 |---|---|---|---|---|---|---|---|
-| **web/fashion** | `web-fashion` | `https://eland-apparel.vercel.app/sso/callback` | `cu_session` | `JWT_SECRET` | `{ uid, email, role }` | email lookup; 없으면 자동 생성·기본 역할 `viewer` | `uid`는 자기 DB `users.id`; `role`은 자기 DB에서 조회해 클레임에 포함(허브 토큰엔 역할 없음) |
+| **web/fashion** | `web-fashion` | `https://<PILOT_ORIGIN>/sso/callback` | `cu_session` | `JWT_SECRET` | `{ uid, email, role }` | email lookup; 없으면 자동 생성·기본 역할 `viewer` | `uid`는 자기 DB `users.id`; `role`은 자기 DB에서 조회해 클레임에 포함(허브 토큰엔 역할 없음) |
 | **measure-web** | `measure-web` | `https://<measure>.vercel.app/sso/callback` | `measure_session` | `SESSION_SECRET` | `{ userId, email, role }` | 동일 | 클레임 키가 `userId`(허브 `sub`=email, 자기 user id는 자기 DB 값) |
 | **OPR** | `opr` | `https://<opr>.vercel.app/sso/callback` | `opr_sess` | `SESSION_SECRET` | `{ email }` only | email만으로 세션 | 역할 개념 없음 — email만 담으면 됨 |
 

@@ -115,11 +115,16 @@ ON CONFLICT (app) DO UPDATE SET
 
 **표준 등록 SQL — 실앱용 예시(③ 파일럿 단계에서 사용, ②에서는 실행하지 않는다)**:
 
+> 🚫 **`<PILOT_ORIGIN>`을 실제 운영 오리진으로 치환하기 전에는 실행하지 말 것.**
+> 이전 예시값 `https://eland-apparel.vercel.app`은 **2026-08-06 폐기 확정**됐다(앱 `web-fashion`은 유지, 도메인만 이전).
+> `redirect_uri`는 정확매칭이라 폐기 도메인을 등록하면 파일럿 로그인이 전부 400이 난다.
+> 새 오리진은 **커스텀 도메인이 정본이면 그쪽**을 쓰고, 끝 슬래시 없이 넣는다.
+
 ```sql
 INSERT INTO sso_clients (app, name, redirect_uris, post_logout_redirect_uris, enabled)
 VALUES ('web-fashion', '이랜드 패션 웹',
-        ARRAY['https://eland-apparel.vercel.app/sso/callback'],
-        ARRAY['https://eland-apparel.vercel.app/login'],
+        ARRAY['https://<PILOT_ORIGIN>/sso/callback'],
+        ARRAY['https://<PILOT_ORIGIN>/login'],
         false)  -- ★ 항상 false로 삽입, 검증 후 별도 UPDATE로 활성화
 ON CONFLICT (app) DO UPDATE SET
   name = EXCLUDED.name, redirect_uris = EXCLUDED.redirect_uris,
@@ -354,7 +359,10 @@ v1은 관리자 UI 없이 Neon SQL 직접(변경 빈도 연 수회·등록 주�
 
 ## 9. 미해결 질문 (사용자 결정 필요)
 
-1. **web-fashion 운영 URL**이 `https://eland-apparel.vercel.app`이 맞는지 최종 확인 — 확인 전 활성 등록 금지. → **[결정 2026-08-06] 미확정.** ② 허브 활성화는 `sso-selftest` 임시 클라이언트만으로 진행한다(런북 §3 단계 5 = selftest 1건만 등록). 실앱 `sso_clients` 등록은 URL 확정 후 ③ 파일럿 단계에서 수행.
+1. **web-fashion 운영 URL 확정** — 확인 전 활성 등록 금지.
+   → **[결정 2026-08-06] 구 후보 `https://eland-apparel.vercel.app`은 폐기 확정.** 파일럿 대상 앱은 **`web-fashion` 유지**이고 도메인만 이전됐다. 새 운영 오리진은 **미확정** — 이것이 ③ 파일럿의 **유일한 잔여 차단**이다.
+   → ② 허브 활성화는 `sso-selftest` 임시 클라이언트만으로 이미 완료했다(런북 §3 단계 5). 실앱 등록은 새 URL 확정 후 ③에서 수행한다.
+   → 참고(2026-08-06 실측): `eland-fashion.vercel.app` 404 · `web-fashion.vercel.app`은 200이지만 `<title>React App</title>`(CRA 기본값)이라 **무관한 제3자 프로젝트로 추정** — 이름이 비슷하다고 등록하지 말 것.
 2. measure-web·OPR **운영 도메인 확정 시점** (+ OPR의 실제 스택 — Pages Router/비Next.js면 킷 수동 이식). → **미정(② 허브 활성화에 비차단)**
 3. PRD §6-10 문구 개정 승인: "auth_logs 기록" → "sso_events 기록 + AdminLogs source='sso'". → **[결정 2026-08-06] 승인.** 단 개정 문구에 `sso_events`의 등급을 **"가용성 우선 관측 로그 — `after()` + 실패 삼킴 구조라 완전성 미보장"**으로 명시하고, **감사 증적으로 격상하지 않는다**. (구조 근거: `app/sso/authorize/route.ts:113`이 응답 이후 `after()`로 기록, `lib/audit.ts:108-110`이 기록 실패를 삼킴.) 완전성이 보장되는 감사 등급이 필요해지면 **별도 과제**로 분리한다.
 4. 주간 요약 메일 수신 범위: `MASTER_ADMIN_EMAILS`만 vs admin 포함. → **미정(② 허브 활성화에 비차단)**

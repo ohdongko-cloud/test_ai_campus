@@ -205,7 +205,7 @@ export async function GET(req: NextRequest) {
 
 | 스포크 | app 식별자 | 콜백 URL 등록 형태 | 발급 쿠키명 | 세션 시크릿 env | 세션 클레임 | provision 정책 | 특이 사항 |
 |---|---|---|---|---|---|---|---|
-| **web/fashion** | `web-fashion` | `https://eland-apparel.vercel.app/sso/callback` | `cu_session` | `JWT_SECRET` | `{ uid, email, role }` | email lookup; 없으면 자동 생성·기본 역할 viewer | `uid`는 자기 DB users.id; role은 자기 DB에서 조회해 클레임에 포함 |
+| **web/fashion** | `web-fashion` | `https://<PILOT_ORIGIN>/sso/callback` | `cu_session` | `JWT_SECRET` | `{ uid, email, role }` | email lookup; 없으면 자동 생성·기본 역할 viewer | `uid`는 자기 DB users.id; role은 자기 DB에서 조회해 클레임에 포함 |
 | **measure-web** | `measure-web` | `https://<measure>.vercel.app/sso/callback` | `measure_session` | `SESSION_SECRET` | `{ userId, email, role }` | 동일 | 클레임 키가 `userId`(허브 sub=email, 자기 user id는 자기 DB 값) |
 | **OPR** | `opr` | `https://<opr>.vercel.app/sso/callback` | `opr_sess` | `SESSION_SECRET` | `{ email }` only | email만으로 세션 | 역할 개념 없음 — email만 담으면 됨 |
 
