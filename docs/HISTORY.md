@@ -18,7 +18,7 @@
   - **자료실**(배우기 영역, 게시판형) — 외부링크(드라이브/노션/URL) 연동·메타데이터만 DB·좋아요/댓글·관리자 큐레이션·데스크톱+모바일. **로그인 필수**.
   - **세션 30일 durable** — 데스크톱 자동로그인 기본 ON + 가입 자동로그인 durable (기존 6h 만료로 "로그인했는데 401" 버그 해소).
   - **레벨진단 팝업** — 30일 억제 + '30일간 보지 않기' 버튼 + 진단 완료자는 모달 미노출·30일 후 토스트.
-- **HEAD**: `66101aa` — origin/main 동기화·Vercel 배포 완료.
+- **HEAD**: `fc21143` — origin/main 동기화·Vercel 배포 완료. 골든 47/47(dot-segment 4케이스 추가).
 - **🟢 SSO 허브 ON** (2026-08-06 활성화). JWKS 200(`kid=aicampus-rsa-20260806`) · Vercel Production env 4종 등록 · `sso_clients`는 `sso-selftest` 1건(검증 후 `enabled=false`) → **활성 스포크 0개**.
 - **마이그레이션**: **M001~M013 전부 prod(Neon) 적용 완료** (2026-08-06 `POST /api/admin/migrate` 1회 실행, 전 항목 `ok`).
 - **2026-07-27 ① 관측 선탑재 배포 완료**: M013(`sso_events`·`sso_daily_stats`·`stats_url`) + `logSsoEvent` + authorize/logout 계측 + `GET /api/admin/sso/overview`(master) + AdminSso 탭. env 없이 휴면 동작. 게이트: security(차단1건 수정 후 통과)·설계렌즈(조건부 승인)·release-verifier 통과. 운영 스모크: 홈/login/m 200 · overview 401(`관리자 인증이 필요합니다.`) · admin matrix 401 · userinfo 401 · logout 302 · authorize 미등록앱 400(`unknown app`).
@@ -41,7 +41,7 @@
 
 **③ 착수 전 필요한 것**
 - **web-fashion 운영 URL 확정**(§9-1, 미해결) → 확정되면 블루프린트 §3의 "실앱용 예시 SQL"로 `enabled=false` 등록 → 스포크 배포·출처 확인 후 `true`.
-- 스포크 측 `/sso/callback` 구현 — 계약 v1.1 + **신설 §2.2(nonce 형식 요건)** + §2.1(userinfo 무재진입) 준수. 킷은 아직 설계 문서 상태(실 .ts 파일 미작성).
+- ~~스포크 측 `/sso/callback` 구현~~ → **킷 실코드 완비**(`docs/sso/spoke-kit/`, `fc21143`). 스포크는 6파일 복사 + `npm i jose` + env + 어댑터 1파일 작성이면 된다(README 참조).
 - 파일럿 시 처음으로 검증되는 것: **AC8**(실제 스포크 왕복) · `nonce` 400 분기(등록·활성 앱이 있어야 도달) · `kit=` 텔레메트리.
 
 1. ~~**[사용자 작업] `POST /api/admin/migrate` 1회 실행**~~ → ✅ **2026-08-06 완료** (M001~M013 전 항목 `ok`). 실행 전 degrade·실행 후 적재까지 실측 완료(아래 세션 로그).
@@ -60,6 +60,53 @@
 ---
 
 ## 세션 로그 (최신이 위)
+
+### 2026-08-06 — 스포크 킷 실코드 구현 + **로그인 오픈리다이렉트 실취약점 수정** (커밋 2개, 배포 완료)
+
+> [배포 완료] `6adf7b7..fc21143` push → Vercel READY → **운영 배포본을 번들에서 꺼내 실행 검증**.
+
+**🔴 이번 라운드의 핵심 — 운영에 살아 있던 오픈리다이렉트**
+
+킷을 만들다 보안 게이트가 킷의 `sanitizeReturnTo`에서 dot-segment 우회를 찾았고, **허브 원본(`app/login/page.tsx` `sanitizeNext`)에도 같은 결함이 있음**을 확인했다. 독립 재현 성공:
+
+```
+/login?next=%2F..%2F%2Fevil.com → sanitizeNext → "//evil.com" → https://evil.com/
+```
+
+- **원인**: `if (u.origin !== base)` 검사가 정규화 **이전** 값 기준이다. `new URL('/..//evil.com', base)`는 origin이 base 그대로여서 통과하지만, 파서가 `..`를 걷어낸 `pathname`만 `//evil.com`(프로토콜 상대)이 되고, 그 값을 리다이렉트 대상으로 쓰면 외부 오리진으로 해석된다.
+- **⓪ 보안 선행 패치(B3)가 고쳤다던 바로 그 함수다.** prefix 문자열 검사 → URL 파서 검증으로 교체해 탭/CR/LF 우회는 막았으나, **정규화 결과를 다시 보지 않아** 이 경로가 남았다.
+- **왜 골든 25케이스가 못 잡았나**: 공격 코퍼스에 dot-segment 입력이 아예 없었다. 4종(`/..//evil.com`·`/%2e%2e//evil.com`·`/foo/..//evil.com`·`/..///evil.com`)을 추가해 고정(43 → **47건**).
+- **수정**: 정규화 결과 `out`을 base에 한 번 더 상대 해석해 origin 유지를 재판정. 허브·킷 양쪽 동시 패치.
+- **운영 실행 검증**: 배포된 minify 번들에서 함수를 그대로 꺼내 실행 — 공격 8종 전부 `/`, 정상 4종 보존(`/foo/../bar` → `/bar`). 추정이 아니라 실행 증거. **`be768d0`**
+
+**표류 방지 장치가 작동한 사례**: 프로덕션만 고치고 테스트 미러를 안 고쳤을 때 골든 PART 2의 소스 계약 검사(C1)가 정확히 실패했다. 미러·계약 패턴까지 갱신해야 통과한다.
+
+**스포크 킷 실코드 6파일 (`fc21143`)**
+
+`docs/sso/spoke-kit/` — 설계 문서로만 있던 것을 "복사 = 설치"가 성립하는 실제 `.ts`로.
+`lib/sso-spoke.ts`(코어) · `lib/sso-adapter.example.ts` · `app/sso/login|callback/route.ts` · `app/api/sso/stats/route.ts` · `README.md`.
+
+주요 설계 결정:
+- **userinfo 기본 OFF** — 어댑터가 `mergeUserinfo`를 정의한 경우에만 콜백이 동기 1회 호출. 이렇게 해야 "콜백은 DO NOT EDIT"과 "userinfo 확장"이 동시에 성립한다(설계문서의 자기모순 해소). `fetchUserinfoOnce`는 재시도를 **아예 구현하지 않아** 계약 §2.1 MUST NOT을 코드로 강제.
+- `randomToken` = `randomBytes(32).base64url`(43자) — 계약 §2.2 nonce 요건과 `kit=` 화이트리스트를 항상 만족.
+- `SSO_SELF_URL` trailing slash 제거 — 콜백 URL을 문자열 결합으로 만들어 슬래시가 남으면 `//sso/callback`이 되어 허브 정확매칭에서 **항상 400**.
+- 미들웨어는 실제 파일로 배포하지 않고 README 스니펫으로만 — Next는 루트 `middleware.ts`를 자동 활성화하므로 스포크 기존 미들웨어와 충돌 위험. §7-5 선행조건 경고 동봉.
+- `tsconfig.json` exclude에 `docs/sso/spoke-kit` 추가 — 킷의 `@/lib/sso-adapter`는 허브에 없는 경로라 방치하면 허브 tsc 게이트가 깨진다.
+
+**web-fashion URL 후보 실측 (2026-08-06)** — 확정은 여전히 사용자 몫
+
+| 후보 | 응답 | 판단 |
+|---|---|---|
+| `https://eland-apparel.vercel.app` | **307 → `/dashboard`** | 살아 있는 앱. 루트를 대시보드로 보내는 실서비스 형태 — **유력 후보** |
+| `https://eland-fashion.vercel.app` | 404 | 배포 없음 |
+| `https://web-fashion.vercel.app` | 200, `<title>React App</title>` | CRA 기본 타이틀 = **무관한 제3자 프로젝트로 추정** |
+
+**확인필요**
+
+- **web-fashion 운영 URL 최종 확정** — 위 실측은 "살아 있다"까지만 말해준다. 그것이 *우리* 앱인지, 커스텀 도메인이 정본인지는 사용자만 안다. `redirect_uri`는 정확매칭이라 오타 1자면 전부 400.
+- **`SSO_HUB_ISSUER` 바이트 일치** — 허브 `SSO_ISSUER`가 Vercel Sensitive라 코드로 대조 불가. 파일럿 때 실제 발급 id_token의 `iss`를 디코드해 확인할 것.
+- **known-good 3건** 여전히 미실행.
+- `app/level-assess-preview/`는 주석에 "로그인 게이트 없이 단독 확인용"이라 적힌 **무인증 공개 라우트**다. 현재 미추적이라 배포되지 않지만 `git add -A`로 딸려 들어가면 운영에 인증 없이 노출된다 — 정리 권장.
 
 ### 2026-08-06 — ② 허브 활성화 완료 + 활성화 후 감사 + 하드닝 (커밋 5개, 배포 완료)
 
