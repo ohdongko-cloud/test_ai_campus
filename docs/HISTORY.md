@@ -18,10 +18,11 @@
   - **자료실**(배우기 영역, 게시판형) — 외부링크(드라이브/노션/URL) 연동·메타데이터만 DB·좋아요/댓글·관리자 큐레이션·데스크톱+모바일. **로그인 필수**.
   - **세션 30일 durable** — 데스크톱 자동로그인 기본 ON + 가입 자동로그인 durable (기존 6h 만료로 "로그인했는데 401" 버그 해소).
   - **레벨진단 팝업** — 30일 억제 + '30일간 보지 않기' 버튼 + 진단 완료자는 모달 미노출·30일 후 토스트.
-- **HEAD**: `9cbcd7a` — origin/main 동기화·Vercel 배포 완료. 운영 스모크 통과(홈·login·m 200 · JWKS 500=SSO OFF 불변 · admin/userinfo 401).
+- **HEAD**: `66101aa` — origin/main 동기화·Vercel 배포 완료.
+- **🟢 SSO 허브 ON** (2026-08-06 활성화). JWKS 200(`kid=aicampus-rsa-20260806`) · Vercel Production env 4종 등록 · `sso_clients`는 `sso-selftest` 1건(검증 후 `enabled=false`) → **활성 스포크 0개**.
 - **마이그레이션**: **M001~M013 전부 prod(Neon) 적용 완료** (2026-08-06 `POST /api/admin/migrate` 1회 실행, 전 항목 `ok`).
 - **2026-07-27 ① 관측 선탑재 배포 완료**: M013(`sso_events`·`sso_daily_stats`·`stats_url`) + `logSsoEvent` + authorize/logout 계측 + `GET /api/admin/sso/overview`(master) + AdminSso 탭. env 없이 휴면 동작. 게이트: security(차단1건 수정 후 통과)·설계렌즈(조건부 승인)·release-verifier 통과. 운영 스모크: 홈/login/m 200 · overview 401(`관리자 인증이 필요합니다.`) · admin matrix 401 · userinfo 401 · logout 302 · authorize 미등록앱 400(`unknown app`).
-- **🔴 남은 운영 작업**: **② 허브 활성화** — Vercel env 4종(`SSO_PRIVATE_KEY`·`SSO_PUBLIC_KEY`·`SSO_KID`·`SSO_ISSUER`) 등록 + 재배포 + `sso-selftest` 등록 + `node scripts/sso-e2e-verify.mjs`. 런북은 블루프린트 §3. (migrate는 2026-08-06 완료)
+- **🔴 남은 운영 작업**: **known-good 3건**(실제 로그인 / 가입 OTP 메일 수신 / 비번 재설정 메일 수신) — 사람만 가능. SSO를 켠 변경이라 블루프린트 §3 단계 6이 요구한다. 나머지 3건(영상·모바일·admin 권한)은 2026-08-06 자동 점검으로 갈음했다.
 - **2026-07-27 ⓪ 보안 선행 패치 배포 완료**: sanitizeNext URL 파서 재작성(+회귀 25케이스) · userinfo nonce 1회 소비 가드+레이트리밋 · Sentry token 마스킹 (`2a9b42a`·`50ad909`·`b62a6ab`+docs `bda5ab9`). 게이트 4종(security·release·설계렌즈·gitleaks) 통과, 사용자 승인 후 푸시. 운영 스모크: 홈/login/m 200 · admin API 401 · userinfo 401 통일응답 · jwks 500(SSO OFF 불변). 롤아웃 다음 단계 = ① 관측 선탑재(M013).
 - **2026-07-15 추가 배포**:
   - **강의 영상 팝업 → 영상별 단독 페이지 `/video/[id]` 전환 + 공유 링크**. 목록 클릭 시 팝업 대신 페이지 이동(모달 제거로 `VideoPage.tsx` 2026→1010줄). 로그인 필수(비로그인은 페이지 내 "로그인 후 시청" 게이트 + `/login?next` 복귀), 썸네일+제목 OG 카드(`generateMetadata`, robots noindex), 워터마크·보호레이어 패리티 유지. 신규 `app/video/[id]/page.tsx`(Server, force-dynamic)·`components/VideoWatch.tsx`·`lib/videos.ts`·`GET /api/videos/[id]`. 모바일 `/m/video/[id]` 링크복사 + versionCode 13. DB 변경 없음. 게이트: security ✅·release ✅(tsc·build·golden18)·preview·prod 실측 ✅. **`73150e8`**
@@ -36,7 +37,12 @@
 
 ### 🎯 다음 세션 착수 지점 (2026-08-06 세션 종료 시점)
 
-**SSO 롤아웃 진행도**: ⓪ 보안 선행 패치 ✅배포 · ① 관측 선탑재 ✅배포·**DB 적용 완료** · **② 허브 활성화 ← 다음(Vercel env 4종만 남음)** · ③ 파일럿 · ④ 확대 · ⑤ 정착
+**SSO 롤아웃 진행도**: ⓪ 보안 선행 패치 ✅ · ① 관측 선탑재 ✅ · **② 허브 활성화 ✅완료(2026-08-06, AC2~AC7 11 PASS)** · **③ 파일럿 ← 다음(web-fashion URL 확정이 유일한 차단)** · ④ 확대 · ⑤ 정착
+
+**③ 착수 전 필요한 것**
+- **web-fashion 운영 URL 확정**(§9-1, 미해결) → 확정되면 블루프린트 §3의 "실앱용 예시 SQL"로 `enabled=false` 등록 → 스포크 배포·출처 확인 후 `true`.
+- 스포크 측 `/sso/callback` 구현 — 계약 v1.1 + **신설 §2.2(nonce 형식 요건)** + §2.1(userinfo 무재진입) 준수. 킷은 아직 설계 문서 상태(실 .ts 파일 미작성).
+- 파일럿 시 처음으로 검증되는 것: **AC8**(실제 스포크 왕복) · `nonce` 400 분기(등록·활성 앱이 있어야 도달) · `kit=` 텔레메트리.
 
 1. ~~**[사용자 작업] `POST /api/admin/migrate` 1회 실행**~~ → ✅ **2026-08-06 완료** (M001~M013 전 항목 `ok`). 실행 전 degrade·실행 후 적재까지 실측 완료(아래 세션 로그).
 2. ~~**[사용자 결정 — ② 착수 전 필수] 블루프린트 §9**~~ → ✅ **2026-08-06 결정 완료** (파일럿 URL 미확정→②는 selftest만 / §6-10 개정 승인·관측 등급 유지 / Hobby 유지·수용 / rememberMe 기본 ON 확정).
@@ -54,6 +60,57 @@
 ---
 
 ## 세션 로그 (최신이 위)
+
+### 2026-08-06 — ② 허브 활성화 완료 + 활성화 후 감사 + 하드닝 (커밋 5개, 배포 완료)
+
+> [배포 완료] `31ef775..66101aa` push → Vercel READY → 운영 실측 검증. **SSO 허브가 ON 됐다.**
+
+**② 활성화 실행 기록 (블루프린트 §3 런북)**
+
+| 단계 | 결과 |
+|---|---|
+| 0 사전 스냅샷 | JWKS **500**(OFF) 확인 — 시작점 증거 |
+| 1 RSA 키 생성 | Git Bash + openssl 3.5.6. PKCS#8/SPKI 헤더 확인 + **키쌍 일치 검증** 통과 |
+| 2 Vercel env | `SSO_PRIVATE_KEY`·`SSO_PUBLIC_KEY`·`SSO_KID=aicampus-rsa-20260806`·`SSO_ISSUER` Production 전용. 계정 정책이 4종 모두 Sensitive로 강제 |
+| 3 재배포 | `vercel redeploy` → alias 확정 |
+| 4 검증 | JWKS **200**, `kid` 일치, 개인키 성분(d/p/q) 부재 |
+| 5 selftest 등록 | `sso_clients` 1건 `enabled=true` |
+| 6~7 E2E | **11 PASS · 0 FAIL · 0 SKIP · 종료코드 0** (AC2~AC7 전항) |
+| 8 정리 | selftest `enabled=false` → 라이브 400 확인. 쿠키 파일 삭제 |
+
+**E2E 핵심 실측**: T8 발급 302(`jwt len=699`) · T9 `aud=sso-selftest`·**`ttl=60s`**·인가 클레임 부재 · T10 userinfo 200(필드 정확히 5개·`no-store`) · **T11 동일 토큰 재사용 401**(발급 후 2초) = ⓪ nonce 1회성 가드가 운영에서 실제로 방어 중.
+
+**중간에 잡은 실제 결함 — env 등록 실패**
+
+첫 등록에서 `SSO_PUBLIC_KEY` 값의 **PEM armor 2줄(`-----BEGIN/END PUBLIC KEY-----`)이 통째로 누락**돼 있었다(대시보드 값이 `MIIBIj…`로 시작). `importSPKI`가 armor 없이는 파싱 못 해 JWKS가 계속 500이었다. 로컬 원본 2행과 대조해 **같은 키·armor만 누락**임을 확정한 뒤, `\n` 이스케이프 단일행(`normalizePem` 정식 지원 형식)으로 4종 전부 CLI 재등록해 해소.
+
+**활성화 후 감사 (3렌즈 워크플로우) — 보안 렌즈 URGENT 판정**
+
+| 발견 | 성격 | 조치 |
+|---|---|---|
+| `sso-selftest`가 검증 후에도 `enabled=true` 잔존 | 로그인한 임직원의 id_token을 404 URL로 유출 가능 + `prompt=none` 로그인상태 오라클 | ✅ 즉시 비활성화 |
+| **`deny_*` 3종 무제한 INSERT** | `rate_limited`만 저빈도 버킷이 있었고 `deny_*`는 없음 → 86,400행/일/IP(40~60MB) | ✅ `2efa121` |
+| **`sso_nonces` 정리 코드 0건 + nonce 무검증** | 블루프린트 G5. 쿼리 원문이 검증 없이 PK 저장(btree 상한 ~2.7KB) → 계정 1개로 200MB+/일 | ✅ `00c3f81`·`2efa121` |
+| PII 응답 `no-store` 누락 | 전수 조사 결과 3곳이 아니라 **9개 라우트**. reservations는 `String(e)` 원문 노출(§6-8 위반)도 동반 | ✅ `8aa3e34`·`66101aa` |
+
+**둘 다 어제까지는 무해했다** — M013 미적용으로 INSERT가 조용히 실패했고 SSO는 OFF였다. **migrate + 활성화가 동시에 실체화시킨 위험**이다. 소진 시 Neon Free 0.5GB를 앱 전체가 공유하므로 로그인·가입 OTP·재설정이 동반 중단된다.
+
+**핵심 설계 판단**
+
+- `deny_*` 게이트에 **과거 회귀 재발 방지**를 구조로 넣었다. ① 세션에서 로깅용 `checkRateLimit`을 판정 try 안에 두는 바람에 throw 시 `return tooManyRequests()`를 건너뛰어 차단 대상이 통과한 사고가 있었다 → `canLogSso()`를 **절대 throw하지 않게**(exit 경로가 `return` 둘뿐) 설계해 응답 흐름을 구조적으로 불변화.
+- nonce는 **치환이 아니라 400 거부**. 킷이 토큰 nonce를 자기 쿠키와 대조하므로(KIT §2.3) 허브가 값을 바꾸면 정상 스포크 로그인이 전부 깨진다. **활성 스포크 0개인 지금이 규칙을 세울 수 있는 유일한 시점**이라 계약 §2.2 신설로 동기화.
+- 계약 문서의 코드 참조를 **줄번호 → 코드 앵커**로 전환. 이번 수정으로 행이 밀려 기존 참조가 어긋났고, 줄번호는 앞으로도 계속 어긋난다.
+
+**내가 놓쳤다가 실측에서 드러난 것**
+
+`8aa3e34` 커밋 메시지에 "모든 응답 경로에 no-store"라고 썼으나 **거부(401/403) 응답은 라우트가 아니라 공유 헬퍼가 만들어서 빠져 있었다.** 배포 후 실측에서 드러나 `lib/admin-auth.ts`에 `denied()` 헬퍼를 넣어 한 곳에서 덮도록 수정(`66101aa`). 운영 재확인 **6/6 `no-store`**.
+
+**확인필요**
+
+- **known-good 3건 미실행** — 실제 로그인 / 가입 OTP / 재설정 메일 수신. 사람만 가능하며 SSO를 켠 변경이라 §3 단계 6이 요구한다. 나머지 3건(영상·모바일·admin)은 자동 점검으로 갈음.
+- **`nonce` 400 분기 라이브 미검증** — 등록·활성 앱이 있어야 도달하는데 selftest를 껐다. ③ 파일럿에서 확인된다.
+- 개인키가 `C:\Users\oh_dongha01\sso-keys\`에 평문 잔존(사용자 보존 선택). 유출 시 임직원 사칭 가능 — 정리 권고.
+- 세션 토큰 1건이 대화에 노출됐다(2026-08-26 만료). 스테이트리스 JWT라 로그아웃으로 무효화되지 않는다. **사용자 결정 = 수용·자연 만료 대기**(무효화하려면 `JWT_SECRET` 회전 = 전원 재로그인).
 
 ### 2026-08-06 — ② 착수 전 결정 4건 + 코드 후속 3건 + M013 운영 적용 (커밋 11개, 배포 완료)
 
