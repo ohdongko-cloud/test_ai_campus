@@ -1,7 +1,7 @@
 # PRD: 이랜드리테일 AI 캠퍼스 — 마스터 변경 이력 (CHANGELOG)
 
 - 최초 작성: 2026-05-30
-- 최종 갱신: 2026-07-27
+- 최종 갱신: 2026-08-06
 - 작성자/소유자: <오너> + Claude
 - 운영 URL: https://retail-ai-campus.vercel.app
 - GitHub: https://github.com/ohdongko-cloud/test_ai_campus
@@ -87,7 +87,7 @@
 | `93d712a` | security(sso): 로그 새니타이저 — bidi·제로폭 제거 + 코드포인트 단위 절단 | 게이트 경고 반영. C0/DEL에 더해 bidi 오버라이드(U+202A~202E)·격리(U+2066~2069)·제로폭(U+200B~200D·U+FEFF) 제거(코드포인트 비교로 판정 — 소스에 비가시 문자 미포함). 길이 절단을 UTF-16 slice → `Array.from` 기반으로 교체(서러게이트 페어 분할 → 고립 서러게이트 → U+FFFD 렌더, 이 프로젝트 과거 버그 클래스). 원문 함수 직접 실행 검증: 한글·이모지 보존, RLO/제로폭 제거, 이모지 60→40 절단 시 U+FFFD 0 |
 | `14cf880` | fix(admin): SSO 현황 — 최근 실패를 '등록 앱' vs '미등록 프로빙'으로 분리 | ① 설계 렌즈 권고(공격 노이즈가 실장애 신호를 밀어냄). `EXISTS`/`NOT EXISTS`(sso_clients) 서브쿼리로 SQL 측 분리 → `recentFailures`(등록앱 20) + `recentProbes`(프로빙 20). degrade 분기에도 `recentProbes: []`. UI는 프로빙을 건수 먼저+기본 접힘, app 문자열은 코드포인트 말줄임+`unicodeBidi:'isolate'`. 한계 명시 = 조회 시점 재계산이라 등록해제·rename 시 과거 실패가 소급 재분류(§4.6 캐빗·UI 캡션, 근본해소 M014는 백로그) |
 | `1f6dfaf` | docs(sso): 스포크 계약 — userinfo 단일 사용 규약 + 실패 시 무재진입 규범 | ⓪ 설계 렌즈 조건(③ 파일럿 전 필수). **보안 게이트 차단 반영** — 초안의 "실패 시 `/sso/authorize` 재진입"은 허브 세션 생존 시 사용자 상호작용 0으로 재발급되어 콜백→실패→재진입 **무한 루프(자기-DoS)**가 된다(storeNonce 삼킴·PUBLIC_KEY 오류·users 행 부재 = 결정적 실패 경로 실재). 최종 규범 = **재시도·자동재진입 금지, 검증된 id_token 클레임(email)만으로 세션 발급**(userinfo는 프로필 보강 전용이라 인가 영향 0). 네트워크 예외 동일취급 + HTTP 클라이언트 자동재시도 비활성화 MUST. §2.1.1 응답코드표(200/401/404/429/500/무응답) 신설. §8 이슈창구 정정(auth_logs·Sentry → sso_events / userinfo 실패는 허브 무기록, Vercel 액세스 로그가 유일 단서) |
-| `e01f47f` | docs(sso): SSO 허브 설계도 v2 + 스포크 킷 등재 (② 착수 전 결정 4건 기록) | `docs/sso/SSO-HUB-BLUEPRINT.md`+`SSO-SPOKE-KIT.md`. §9에 2026-07-28 사용자 결정: 파일럿 URL **미확정→②는 `sso-selftest` 1건만 등록** / §6-10 개정 승인(관측 등급 유지) / **Vercel Hobby 유지·리스크 수용**(Pro는 비상경로) / rememberMe **현행 기본 ON 확정·종결**(WelcomePopup:146·MobileWelcome:81 `useState(true)` 실측). §7-5 완료판정에 `login_required` 표본·카운터 전환을 선행조건 명문화(①렌즈). §3 런북에 ②용 selftest SQL과 ③용 실앱 예시 분리 |
+| `e01f47f` | docs(sso): SSO 허브 설계도 v2 + 스포크 킷 등재 (② 착수 전 결정 4건 기록) | `docs/sso/SSO-HUB-BLUEPRINT.md`+`SSO-SPOKE-KIT.md`. §9에 2026-08-06 사용자 결정: 파일럿 URL **미확정→②는 `sso-selftest` 1건만 등록** / §6-10 개정 승인(관측 등급 유지) / **Vercel Hobby 유지·리스크 수용**(Pro는 비상경로) / rememberMe **현행 기본 ON 확정·종결**(WelcomePopup:146·MobileWelcome:81 `useState(true)` 실측). §7-5 완료판정에 `login_required` 표본·카운터 전환을 선행조건 명문화(①렌즈). §3 런북에 ②용 selftest SQL과 ③용 실앱 예시 분리 |
 | `566e8a8` | feat(admin): 'SSO 현황' 탭 (masterOnly) | 블루프린트 §4.6. 앱별 카드(오늘·7일·30일 발급/유니크/거부)·14일 BarChart·최근 실패 20건(email 컬럼 없음)·Tier2 병기·cron 상태. "발급 기준 ≠ DAU" 툴팁 고정, `ssoEnabled=false` 휴면 배너 + 빈 상태(현 운영 상태가 정상으로 보이게). adminFetch·팔레트·recharts는 기존 Admin* 이식 |
 | `c7909bc` | feat(sso): 관리자 SSO 현황 overview API (master 전용) | 블루프린트 §4.4·§4.6. `requireMaster`+`force-dynamic`+`no-store`. PII 이중 강제 — 응답 타입에 email 필드 부재 + SQL은 `COUNT(DISTINCT email)` 집계로만 소비(원문이 JS로 안 넘어옴). apps 카드는 등록 클라이언트 기준(임의 app 값 대시보드 오염 차단, 공격 가시성은 recentFailures 유지). M013 미적용 시 `to_regclass` 빈 응답 degrade. 90일 lazy DELETE는 `after()` |
 | `93bddec` | feat(sso): logSsoEvent + authorize·logout 계측 (Tier1 관측) | 블루프린트 §4.1. PII·인젝션 가드(이메일 마스킹·제어문자 제거·app 64/UA 255/detail 500자 절단). issue는 `after()`로 응답 후 기록, kit 텔레메트리는 화이트리스트 통과분만. **보안 게이트 차단 반영**: logout은 유효 세션+레이트리밋(10/분)일 때만 기록(익명 GET 무제한 INSERT 벡터 제거), 429 로깅은 저빈도 버킷(3/분), 레이트리밋 판정·429 반환을 try 밖으로 분리. 보존 폴백 = 삽입 500회당 1회 확률 정리. `login_required`는 원시 행 미기록(타입만 예약) |

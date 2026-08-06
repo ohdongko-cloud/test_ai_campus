@@ -9,18 +9,19 @@
 
 ---
 
-## 현재 상태 (Current State) — 2026-07-27 기준
+## 현재 상태 (Current State) — 2026-08-06 기준
 
 - **운영 URL**: https://retail-ai-campus.vercel.app · **운영 DB**: Neon (`.env.local` `DATABASE_URL`, host `ep-sparkling-breeze…ap-southeast-1.aws.neon.tech`). Vercel main 푸시 → 자동배포.
   - ⚠️ 한때 "prod는 Neon 아님"이라는 착오가 있었으나 **prod = Neon 확정**. 2026-06-23 만든 Prisma "AI-CAMPUS" DB는 별도 빈 DB(미사용). (메모리 `prod-db-is-neon` 참조)
-- **마이그레이션 적용**: M001~M012 전부 prod(Neon) 적용 완료. (M012 = 자료실 4테이블)
+- (구) 마이그레이션 기록: M001~M012는 이전 세션까지 적용. M013은 2026-08-06 적용(위 참조).
 - **최근 배포 완료 기능**:
   - **자료실**(배우기 영역, 게시판형) — 외부링크(드라이브/노션/URL) 연동·메타데이터만 DB·좋아요/댓글·관리자 큐레이션·데스크톱+모바일. **로그인 필수**.
   - **세션 30일 durable** — 데스크톱 자동로그인 기본 ON + 가입 자동로그인 durable (기존 6h 만료로 "로그인했는데 401" 버그 해소).
   - **레벨진단 팝업** — 30일 억제 + '30일간 보지 않기' 버튼 + 진단 완료자는 모달 미노출·30일 후 토스트.
-- **HEAD**: `7dc8bd0` — **미푸시 커밋 7개**(`e01f47f`~`7dc8bd0`). origin/main은 `c71b833`. **푸시 전 security-reviewer 재실행 필요**(아래 세션 로그 참조).
+- **HEAD**: `9cbcd7a` — origin/main 동기화·Vercel 배포 완료. 운영 스모크 통과(홈·login·m 200 · JWKS 500=SSO OFF 불변 · admin/userinfo 401).
+- **마이그레이션**: **M001~M013 전부 prod(Neon) 적용 완료** (2026-08-06 `POST /api/admin/migrate` 1회 실행, 전 항목 `ok`).
 - **2026-07-27 ① 관측 선탑재 배포 완료**: M013(`sso_events`·`sso_daily_stats`·`stats_url`) + `logSsoEvent` + authorize/logout 계측 + `GET /api/admin/sso/overview`(master) + AdminSso 탭. env 없이 휴면 동작. 게이트: security(차단1건 수정 후 통과)·설계렌즈(조건부 승인)·release-verifier 통과. 운영 스모크: 홈/login/m 200 · overview 401(`관리자 인증이 필요합니다.`) · admin matrix 401 · userinfo 401 · logout 302 · authorize 미등록앱 400(`unknown app`).
-- **🔴 남은 운영 작업**: **`POST /api/admin/migrate` 1회 실행**(M013 미적용 — 실행 전엔 로깅 INSERT가 조용히 실패하고 AdminSso는 빈 응답 degrade로 동작). 실행 전 SSO 현황 탭을 먼저 열면 degrade 경로가 실측된다.
+- **🔴 남은 운영 작업**: **② 허브 활성화** — Vercel env 4종(`SSO_PRIVATE_KEY`·`SSO_PUBLIC_KEY`·`SSO_KID`·`SSO_ISSUER`) 등록 + 재배포 + `sso-selftest` 등록 + `node scripts/sso-e2e-verify.mjs`. 런북은 블루프린트 §3. (migrate는 2026-08-06 완료)
 - **2026-07-27 ⓪ 보안 선행 패치 배포 완료**: sanitizeNext URL 파서 재작성(+회귀 25케이스) · userinfo nonce 1회 소비 가드+레이트리밋 · Sentry token 마스킹 (`2a9b42a`·`50ad909`·`b62a6ab`+docs `bda5ab9`). 게이트 4종(security·release·설계렌즈·gitleaks) 통과, 사용자 승인 후 푸시. 운영 스모크: 홈/login/m 200 · admin API 401 · userinfo 401 통일응답 · jwks 500(SSO OFF 불변). 롤아웃 다음 단계 = ① 관측 선탑재(M013).
 - **2026-07-15 추가 배포**:
   - **강의 영상 팝업 → 영상별 단독 페이지 `/video/[id]` 전환 + 공유 링크**. 목록 클릭 시 팝업 대신 페이지 이동(모달 제거로 `VideoPage.tsx` 2026→1010줄). 로그인 필수(비로그인은 페이지 내 "로그인 후 시청" 게이트 + `/login?next` 복귀), 썸네일+제목 OG 카드(`generateMetadata`, robots noindex), 워터마크·보호레이어 패리티 유지. 신규 `app/video/[id]/page.tsx`(Server, force-dynamic)·`components/VideoWatch.tsx`·`lib/videos.ts`·`GET /api/videos/[id]`. 모바일 `/m/video/[id]` 링크복사 + versionCode 13. DB 변경 없음. 게이트: security ✅·release ✅(tsc·build·golden18)·preview·prod 실측 ✅. **`73150e8`**
@@ -33,32 +34,32 @@
   - (레벨테스트 후속) insert 실패 Sentry 가시화, `users.level_test_done_at` 폴백.
   - SSO 허브 실제 활성화 = 롤아웃 ② (아래 "다음 세션 착수 지점" 참조). **런북·로드맵은 `docs/sso/SSO-HUB-BLUEPRINT.md` §3·§7.**
 
-### 🎯 다음 세션 착수 지점 (2026-07-27 세션 종료 시점)
+### 🎯 다음 세션 착수 지점 (2026-08-06 세션 종료 시점)
 
-**SSO 롤아웃 진행도**: ⓪ 보안 선행 패치 ✅배포 · ① 관측 선탑재 ✅배포 · **② 허브 활성화 ← 다음** · ③ 파일럿 · ④ 확대 · ⑤ 정착
+**SSO 롤아웃 진행도**: ⓪ 보안 선행 패치 ✅배포 · ① 관측 선탑재 ✅배포·**DB 적용 완료** · **② 허브 활성화 ← 다음(Vercel env 4종만 남음)** · ③ 파일럿 · ④ 확대 · ⑤ 정착
 
-1. **[사용자 작업] `POST /api/admin/migrate` 1회 실행** — M013 미적용. 마스터 로그인 후 관리자 화면에서 실행.
-   - 순서 팁: 실행 **전에** 관리자 'SSO 현황' 탭을 먼저 열면 테이블 부재 시 graceful degrade(빈 화면, 500 아님)가 실측된다 → 이번 세션의 "확인필요" 2건이 닫힌다. 실행 후 재방문하면 정상 경로까지 확인.
-2. ~~**[사용자 결정 — ② 착수 전 필수] 블루프린트 §9**~~ → **2026-07-27 결정 완료** (파일럿 URL 미확정→②는 selftest만 / §6-10 개정 승인·관측 등급 유지 / Hobby 유지·수용 / rememberMe 기본 ON 확정). 상세는 아래 세션 로그.
-   - **[신규 선행작업] 미푸시 커밋 7개(`e01f47f`~`7dc8bd0`)의 `security-reviewer` 재게이트** — 한도 초과로 미실행. 푸시 전 필수.
+1. ~~**[사용자 작업] `POST /api/admin/migrate` 1회 실행**~~ → ✅ **2026-08-06 완료** (M001~M013 전 항목 `ok`). 실행 전 degrade·실행 후 적재까지 실측 완료(아래 세션 로그).
+2. ~~**[사용자 결정 — ② 착수 전 필수] 블루프린트 §9**~~ → ✅ **2026-08-06 결정 완료** (파일럿 URL 미확정→②는 selftest만 / §6-10 개정 승인·관측 등급 유지 / Hobby 유지·수용 / rememberMe 기본 ON 확정).
 3. **[② 실행] 허브 활성화** — 블루프린트 §3 런북 단계 0~7: RS256 키 생성 → Vercel env 4종(`SSO_PRIVATE_KEY`·`SSO_PUBLIC_KEY`·`SSO_KID`·`SSO_ISSUER`) → 재배포 → `sso_clients` 2단계 등록(enabled=false→검증→true) → 스모크 S1~S3 + AC2~AC7 → **known-good 6종 재실행**.
-4. **[코드 후속]** — 4건 중 3건 완료(2026-07-27, 커밋 `1f6dfaf`·`e01f47f`·`14cf880`).
+4. **[코드 후속]** — 4건 중 3건 완료(2026-08-06, 커밋 `1f6dfaf`·`e01f47f`·`14cf880`).
    - ~~계약 문서에 userinfo 단일 사용 명문화~~ ✅ `1f6dfaf` (+ 실패 시 무재진입 규범까지 확장)
    - ~~§7-5 완료 판정에 `login_required` 카운터 전환 선행조건~~ ✅ `e01f47f`
    - ~~`recentFailures`를 등록앱/미등록프로빙으로 분리~~ ✅ `14cf880`
    - **v1.5 cron `/api/cron/sso-daily`(§4.3) — 미착수(의도적 보류).** Tier2 풀 대상 스포크가 아직 0개라 지금 만들면 검증 불가능한 죽은 코드가 된다. 블루프린트 §7-4(확대 단계) 항목이며 90일 내 도입이 시한.
-   - **[신규 백로그] M014 `sso_events.was_registered`** — 등록앱/프로빙 분리가 조회 시점 재계산이라 `sso_clients` 삭제·rename 시 과거 실패가 프로빙으로 소급 재분류된다. 현재는 §5.2 "삭제 대신 enabled=false" 운영 규칙 + UI 캡션 고지로만 방어. M013조차 운영 미적용이라 지금 스키마를 늘리지 않는다.
+   - **[신규 백로그] M014 `sso_events.was_registered`** — 등록앱/프로빙 분리가 조회 시점 재계산이라 `sso_clients` 삭제·rename 시 과거 실패가 프로빙으로 소급 재분류된다. 현재는 §5.2 "삭제 대신 enabled=false" 운영 규칙 + UI 캡션 고지로만 방어. M013이 방금 적용됐으나 스냅샷 컬럼은 소급 복원이 불가해 실익이 낮다 — 운영 규칙+UI 고지로 유지.
    - **[신규 백로그] 프로빙 대량 유입 시 overview 응답 지연** — `sso_events`에 event 단독 인덱스가 없어 실패 조회 2건이 `created_at` 역방향으로 많은 행을 훑을 수 있다(master 전용 화면이라 즉시 위험은 아님).
-- **로컬 개발 환경**: `.env.local` 없음(2026-07-27 확인) → 로컬 DB 실측 불가 상태였음. 템플릿은 코드의 `process.env` 전수 추출본으로 생성해 사용자에게 전달(SSO 4종은 ②에서 채움). 훅이 `.env*` 읽기·출력을 차단하므로 값 확인은 사용자만 가능.
+- **로컬 개발 환경**: `.env.local` **존재**(2026-08-06 확인 — 이전 기록의 "없음"에서 바뀜, 내용은 규칙상 미열람) → 로컬 DB 실측 불가 상태였음. 템플릿은 코드의 `process.env` 전수 추출본으로 생성해 사용자에게 전달(SSO 4종은 ②에서 채움). 훅이 `.env*` 읽기·출력을 차단하므로 값 확인은 사용자만 가능.
 - **2026-07-27 설계 산출물(코드 무변경·미커밋)**: SSO 허브 설계도 v2([docs/sso/SSO-HUB-BLUEPRINT.md](sso/SSO-HUB-BLUEPRINT.md)) + 스포크 구현 패키지 설계([docs/sso/SSO-SPOKE-KIT.md](sso/SSO-SPOKE-KIT.md)). 신규 핵심 = 전 서비스 사용현황 중앙 관리(Tier1 sso_events / Tier2 일일 풀, M013 예정) + 보안 보강 필수 5건(§6 B1~B5: userinfo nonce 가드·Sentry 토큰 마스킹·sanitizeNext URL파서 패치·등록 2단계·키회전 SLA). 구현 착수 전 사용자 결정 필요 항목은 블루프린트 §9.
 
 ---
 
 ## 세션 로그 (최신이 위)
 
-### 2026-07-28 — ② 착수 전 결정 4건 + 비차단 코드 후속 3건 (커밋 7개, 미푸시)
+### 2026-08-06 — ② 착수 전 결정 4건 + 코드 후속 3건 + M013 운영 적용 (커밋 11개, 배포 완료)
 
-> [상태] 로컬 커밋 `e01f47f`~`7dc8bd0` 7개. **미푸시** — `security-reviewer` 재게이트가 월 사용량 한도로 실행되지 못했다(아래 "확인필요"). 운영 배포 없음.
+> [배포 완료] 커밋 11개 `c71b833..9cbcd7a` push → Vercel 배포 → 운영 스모크 통과(홈·login·m 200 · JWKS 500=SSO OFF 불변 · admin/userinfo 401). 이어서 **M013 마이그레이션 실행 완료**(전 항목 `ok`).
+>
+> 게이트: security-reviewer **2회 통과**(1차 차단 2건 → 수정 → 재검토 차단 0 → 추가 커밋 2개 재검토도 차단 0) · release-verifier 통과 · sso-auth-architect 차단 1건 수정 후 반영 · pre-push(tsc+gitleaks 11커밋) 통과.
 
 **사용자 결정 (블루프린트 §9 → 문서 반영 완료)**
 
@@ -96,11 +97,28 @@
 - 단계 1~5(키 생성·Vercel env 4종·재배포·`sso_clients` 등록)는 **사용자 작업**(시크릿은 Claude가 취급하지 않음).
 - 단계 6~7 검증은 `node scripts/sso-e2e-verify.mjs`로 자동화됨.
 
-**확인필요 (실행 증거 없음)**
+**이월돼 있던 확인필요 2건 — 이 세션에서 닫힘 (관리자 화면 실측)**
 
-- 🔴 **`security-reviewer` 재게이트 미실행** — 월 사용량 한도 초과. 대신 내가 직접 원문 대조로 검증했다(차단 2건의 합격조건 grep 0건 · tsc 0 · golden 43/43 · build 73/73 · U+FFFD 0 · 커밋별 gitleaks clean · 새니타이저 원문 함수 실행 검증). **CLAUDE.md 규칙상 푸시 전 이 게이트 재실행이 필요하다.**
-- M013 graceful degrade 실측 · AdminSso 탭 실제 렌더 — 여전히 마스터 세션·migrate 필요(이전 세션에서 이월).
-- `.env.local`이 **존재**한다(2026-07-27 이전 기록의 "없음"과 다름). 내용은 규칙상 미열람.
+- ✅ **M013 graceful degrade 실측** — migrate **실행 전** 'SSO 현황' 탭을 열어 확인. 테이블 부재 상태에서 500이 아니라 빈 상태로 정상 렌더("등록된 스포크 앱이 없습니다"/"표시할 추이 데이터가 없습니다"/"실패 이벤트가 없습니다"). `to_regclass` 가드가 의도대로 동작.
+- ✅ **AdminSso 탭 실제 렌더** — 정상. 이번에 푸시한 신규 UI("최근 실패 이벤트(등록 앱, 최대 20건)" + "미등록 앱 프로빙(N건)" 2블록 + 소급 재분류 캐빗)까지 배포 반영 확인.
+- 참고: 접속 role은 `legacy`(ADMIN_PASSWORD 쿠키, 화면 배지 "비상 모드")였다. `requireMaster`가 `master`·`legacy`를 모두 통과시키므로 overview·migrate 둘 다 정상 동작. 콘솔의 `/api/admin/ping` 401은 관리자 모드 진입 전 초기 로드 1회분.
+
+**M013 적용 후 라이브 검증 — 관리자 화면 실측으로 전부 통과**
+
+운영 `/sso/authorize`에 미등록 app 프로브 2건을 발사하고 'SSO 현황' 탭에서 결과를 확인했다.
+
+| 검증 | 결과 |
+|---|---|
+| `logSsoEvent` 적재 | ✅ "미등록 앱 프로빙 **2건**" · 90일 누적 2건 · 14일 추이 차트에 08-06 거부 2건 — M013 이전의 조용한 INSERT 실패가 해소됨 |
+| **새니타이저 라이브 검증** | ✅ 프로브 2에 **U+202E(RLO)** 를 심어 보냈으나 화면 표기는 `__selftest_unknown__check` — **RLO가 제거되어 문자 순서 역전 없음**. `93d712a`/`fe9039f`가 운영에서 실제로 동작 |
+| 등록/프로빙 분리(`14cf880`) | ✅ 프로브 2건이 전부 **프로빙 패널**로 가고 "최근 실패 이벤트(등록 앱)"는 0건 유지 — 공격 노이즈가 실장애 신호를 밀어내지 않음 |
+| PII | ✅ 프로빙 표에 event·app·IP·시각만, email 없음 |
+| cron 배지 | ✅ "cron 미도입(v1.5 예정)" 정상 표기 |
+
+**확인필요 (남음)**
+
+- `.env.local`이 **존재**한다(이전 기록의 "없음"과 다름). 내용은 규칙상 미열람.
+- known-good 6종은 이번 세션에서 미실행 — 이번 변경이 인증/세션/모바일을 건드리지 않아 필수 대상은 아니나, **② 활성화 후에는 반드시 실행**해야 한다.
 
 ### 2026-07-27 — ① 관측 선탑재 (Tier1 SSO 이벤트 + 관리자 SSO 현황 탭) — 배포 완료
 
