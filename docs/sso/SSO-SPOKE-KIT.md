@@ -145,6 +145,9 @@ export async function GET(req: NextRequest) {
   const returnTo = sanitizeReturnTo(new URL(req.url).searchParams.get('returnTo'));
   const state = randomToken();   // CSRF
   const nonce = randomToken();   // 허브가 id_token nonce 클레임에 그대로 반영(허브 코드 확인됨)
+                                 // ※ randomToken() = randomBytes(32).toString('base64url')(43자)로 구현한다 —
+                                 //   산출 문자집합이 base64url(A-Za-z0-9_-)이라 허브의 nonce 형식 요건
+                                 //   (계약 §2.2: RFC 3986 unreserved 16~128자, 위반 시 400)을 항상 만족한다.
 
   const authorize = new URL('/sso/authorize', cfg.hubUrl);
   authorize.searchParams.set('app', cfg.appId);

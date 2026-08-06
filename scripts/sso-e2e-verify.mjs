@@ -5,8 +5,10 @@
 // 원칙
 //   - 신규 의존성 0 — repo에 이미 설치된 jose만 사용한다.
 //   - **운영에 쓰기가 발생한다.** 1회 실행 기준 인벤토리:
-//       · `sso_events` INSERT 3행 — T2 deny_unknown_app · T3 deny_redirect_mismatch · T4 deny_state_missing
+//       · `sso_events` INSERT **최대** 3행 — T2 deny_unknown_app · T3 deny_redirect_mismatch · T4 deny_state_missing
 //         (T7 prompt=none은 설계상 원시 행을 기록하지 않는다)
+//         deny_* 로깅도 `sso_authorize_log` 예산(IP당 3행/분, rate_limited와 공유)을 통과할 때만 남는다 —
+//         같은 분에 재실행하면 예산 소진으로 행이 안 생길 수 있다(응답 코드 판정은 영향받지 않는다).
 //       · 세션 제공 시에만 추가로: `sso_events` issue 1행(실행자 email 포함) + `sso_nonces` INSERT 1행
 //         + T10의 `sso_nonces` UPDATE 1행(consumed=true — nonce 1회 소비)
 //       · 레이트리밋에 걸리면 `sso_events` rate_limited 행(IP당 3/분 상한)
