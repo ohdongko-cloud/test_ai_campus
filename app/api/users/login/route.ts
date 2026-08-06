@@ -55,6 +55,7 @@ export async function POST(req: NextRequest) {
     await setUserSessionCookie(u.id, u.email, rememberMe);
     await logAuth({ type: 'login_success', email: emailRaw, success: true, req, detail: rememberMe ? 'remember' : 'session' });
 
+    // PII(이메일·이름·소속·직급) 응답 — no-store (§6-7)
     return NextResponse.json({
       id: u.id,
       nickname: u.name,
@@ -62,7 +63,7 @@ export async function POST(req: NextRequest) {
       corporationName: u.corporation_name,
       organizationName: u.organization_name,
       position: u.position,
-    });
+    }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (e) {
     reportError(e, { route: 'users/login' });
     return NextResponse.json({ error: '서버 오류가 발생했습니다.' }, { status: 500 });

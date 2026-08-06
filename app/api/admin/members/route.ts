@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '../../../../lib/db';
 import { requireAdmin, isDenied, getMasterEmails, getActorLabel } from '../../../../lib/admin-auth';
 import { logAdminAction } from '../../../../lib/audit';
+import { reportError } from '../../../../lib/error-report';
+
+// PII(이메일·닉네임·소속·직급) 응답 라우트 — 모든 경로에 no-store (§6-7).
+function noStoreJson(body: unknown, status = 200) {
+  return NextResponse.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
+}
 
 // GET /api/admin/members
 // 회원 목록 + 필터/정렬/페이지네이션.
@@ -35,7 +41,7 @@ export async function GET(req: NextRequest) {
 
   // 화이트리스트 검증 (SQL injection 방지)
   if (!ALLOWED_SORT.has(sort)) {
-    return NextResponse.json({ error: '허용되지 않은 정렬 컬럼입니다.' }, { status: 400 });
+    return noStoreJson({ error: '허용되지 않은 정렬 컬럼입니다.' }, 400);
   }
   const order: 'ASC' | 'DESC' = orderQ.toLowerCase() === 'asc' ? 'ASC' : 'DESC';
 
@@ -121,7 +127,7 @@ export async function GET(req: NextRequest) {
       });
     } catch { /* 로그 실패는 무시 */ }
 
-    return NextResponse.json({
+    return noStoreJson({
       total,
       rows: rows.map((r: Record<string, unknown>) => ({
         id: r.id,
@@ -139,7 +145,8 @@ export async function GET(req: NextRequest) {
         organizations: orgs.map((r: Record<string, unknown>) => r.v as string),
       },
     });
-  } catch {
-    return NextResponse.json({ error: '서버 오류가 발생했습니다.' }, { status: 500 });
+  } catch (e) {
+    reportError(e, { route: 'admin/members.get' });
+    return noStoreJson({ error: '서버 오류가 발생했습니다.' }, 500);
   }
 }

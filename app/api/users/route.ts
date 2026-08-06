@@ -87,12 +87,13 @@ export async function POST(req: NextRequest) {
     await setUserSessionCookie(u.id, u.email, true);
     await logAuth({ type: 'signup_complete', email, success: true, req });
 
+    // PII(이메일·닉네임·소속·직급) 응답 — no-store (§6-7)
     return NextResponse.json({
       id: u.id, nickname: u.nickname, email: u.email,
       corporationName: u.corporation_name,
       organizationName: u.organization_name,
       position: u.position,
-    }, { status: 201 });
+    }, { status: 201, headers: { 'Cache-Control': 'no-store' } });
   } catch (e) {
     reportError(e, { route: 'users.signup', detail: { email } });
     return NextResponse.json({ error: '서버 오류가 발생했습니다.' }, { status: 500 });

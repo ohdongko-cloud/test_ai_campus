@@ -4,6 +4,7 @@ import { requireMaster, isDenied, getActorLabel, PERMISSION_KEYS } from '../../.
 import { logAdminAction } from '../../../../lib/audit';
 
 // GET /api/admin/users — 위임 관리자 목록 (master 전용)
+// PII(이메일·닉네임·소속·직급) 응답 — no-store (§6-7).
 export async function GET(req: NextRequest) {
   const auth = await requireMaster(req);
   if (isDenied(auth)) return auth;
@@ -23,9 +24,9 @@ export async function GET(req: NextRequest) {
       permissions: r.permissions || {},
       createdAt: r.created_at,
       updatedAt: r.updated_at,
-    })));
+    })), { headers: { 'Cache-Control': 'no-store' } });
   } catch {
-    return NextResponse.json({ error: '서버 오류가 발생했습니다.' }, { status: 500 });
+    return NextResponse.json({ error: '서버 오류가 발생했습니다.' }, { status: 500, headers: { 'Cache-Control': 'no-store' } });
   }
 }
 

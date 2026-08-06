@@ -4,11 +4,17 @@ import { getCurrentUser, clearUserSessionCookie } from '../../../../lib/session'
 import { getAdminContext } from '../../../../lib/admin-auth';
 import { verifyPassword } from '../../../../lib/password';
 import { logAuth } from '../../../../lib/audit';
+import { reportError } from '../../../../lib/error-report';
+
+// PII(이메일·이름·소속·직급) 응답 라우트 — 모든 경로에 no-store (§6-7).
+function noStoreJson(body: unknown, status = 200) {
+  return NextResponse.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
+}
 
 // GET /api/users/me — 현재 세션 사용자 정보 + 관리자 역할/권한 포함
 export async function GET(req: Request) {
   const session = await getCurrentUser();
-  if (!session) return NextResponse.json({ user: null });
+  if (!session) return noStoreJson({ user: null });
 
   try {
     // 레벨테스트 컬럼(M005)은 마이그레이션 전일 수 있어 방어적으로 조회.
@@ -26,13 +32,13 @@ export async function GET(req: Request) {
         FROM users WHERE id = ${session.uid} LIMIT 1`;
       u = rows[0];
     }
-    if (!u) return NextResponse.json({ user: null });
+    if (!u) return noStoreJson({ user: null });
 
     const ctx = await getAdminContext(req);
     const isAdmin = ctx?.role === 'master' || ctx?.role === 'admin' || ctx?.role === 'legacy';
     const isMaster = ctx?.role === 'master' || ctx?.role === 'legacy';
 
-    return NextResponse.json({
+    return noStoreJson({
       user: {
         id: u.id,
         nickname: u.name,
@@ -49,8 +55,9 @@ export async function GET(req: Request) {
         levelTestDone: u.level_test_done_at != null,
       },
     });
-  } catch {
-    return NextResponse.json({ user: null });
+  } catch (e) {
+    reportError(e, { route: 'users/me.get' });
+    return noStoreJson({ user: null });
   }
 }
 
@@ -88,6 +95,7 @@ export async function DELETE(req: NextRequest) {
     await logAuth({ type: 'account_delete', email, success: true, req });
     return NextResponse.json({ ok: true });
   } catch (e) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    reportError(e, { route: 'users/me.delete' });
+    return NextResponse.json({ error: '서버 오류가 발생했습니다.' }, { status: 500 });
   }
 }

@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '../../../../lib/db';
 import { requireAdmin, isDenied } from '../../../../lib/admin-auth';
+import { reportError } from '../../../../lib/error-report';
 
 // GET /api/admin/level-tests — 레벨 테스트 검증내역 (권한: members)
+// PII(이메일) 응답 — no-store (§6-7).
 export async function GET(req: NextRequest) {
   const auth = await requireAdmin(req, 'members');
   if (isDenied(auth)) return auth;
@@ -20,8 +22,9 @@ export async function GET(req: NextRequest) {
       answers: r.answers,
       securityFlag: r.security_flag,
       createdAt: r.created_at,
-    })));
+    })), { headers: { 'Cache-Control': 'no-store' } });
   } catch (e) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    reportError(e, { route: 'admin/level-tests.get' });
+    return NextResponse.json({ error: '서버 오류가 발생했습니다.' }, { status: 500, headers: { 'Cache-Control': 'no-store' } });
   }
 }

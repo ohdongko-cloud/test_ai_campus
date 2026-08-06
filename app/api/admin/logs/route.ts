@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '../../../../lib/db';
 import { checkAdmin } from '../../../../lib/admin-auth';
 
+// PII(이메일·IP·User-Agent) 응답 라우트 — 모든 경로에 no-store (§6-7).
+function noStoreJson(body: unknown, status = 200) {
+  return NextResponse.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
+}
+
 // GET /api/admin/logs?source=auth|audit|access&page=1&type=...
 export async function GET(req: NextRequest) {
   const denied = await checkAdmin(req, 'logs');
@@ -25,24 +30,24 @@ export async function GET(req: NextRequest) {
             SELECT id, type, email, ip, user_agent, success, detail, created_at
             FROM auth_logs
             ORDER BY created_at DESC LIMIT ${limit} OFFSET ${offset}`;
-      return NextResponse.json(rows);
+      return noStoreJson(rows);
     }
     if (source === 'audit') {
       const rows = await sql`
         SELECT id, action, target_type, target_id, ip, detail, created_at
         FROM admin_audit_logs
         ORDER BY created_at DESC LIMIT ${limit} OFFSET ${offset}`;
-      return NextResponse.json(rows);
+      return noStoreJson(rows);
     }
     if (source === 'access') {
       const rows = await sql`
         SELECT id, session_id, user_id, path, ip, user_agent, created_at
         FROM access_logs
         ORDER BY created_at DESC LIMIT ${limit} OFFSET ${offset}`;
-      return NextResponse.json(rows);
+      return noStoreJson(rows);
     }
-    return NextResponse.json({ error: '잘못된 source' }, { status: 400 });
+    return noStoreJson({ error: '잘못된 source' }, 400);
   } catch {
-    return NextResponse.json({ error: '서버 오류가 발생했습니다.' }, { status: 500 });
+    return noStoreJson({ error: '서버 오류가 발생했습니다.' }, 500);
   }
 }
