@@ -46,7 +46,14 @@ function sanitizeNext(raw: string | null): string {
     const base = 'https://x.invalid';
     const u = new URL(decoded, base);
     if (u.origin !== base) return '/';
-    return u.pathname + u.search + u.hash;
+    const out = u.pathname + u.search + u.hash;
+    // ★ 정규화 결과를 한 번 더 판정한다. 위 origin 검사는 정규화 '이전' 값에 대한 것이라
+    //   dot-segment를 놓친다: '/..//evil.com' 은 origin이 base 그대로여서 통과하지만
+    //   파서가 '..'를 걷어낸 pathname은 '//evil.com'(프로토콜 상대)이 되고, 이 값을
+    //   리다이렉트 대상으로 쓰면 https://evil.com 으로 해석된다.
+    //   ('/%2e%2e//evil.com', '/foo/..//evil.com', '/..///evil.com' 도 같은 경로)
+    if (new URL(out, base).origin !== base) return '/';
+    return out;
   } catch {
     return '/';
   }

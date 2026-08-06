@@ -37,7 +37,10 @@ function sanitizeNext(raw) {
     const base = 'https://x.invalid';
     const u = new URL(decoded, base);
     if (u.origin !== base) return '/';
-    return u.pathname + u.search + u.hash;
+    const out = u.pathname + u.search + u.hash;
+    // 정규화 결과 재판정 — origin 검사는 정규화 '이전' 값 기준이라 dot-segment를 놓친다.
+    if (new URL(out, base).origin !== base) return '/';
+    return out;
   } catch {
     return '/';
   }
@@ -76,6 +79,13 @@ const attacks = [
   ['인코딩된 슬래시 %2F%2F (decode 후 //)', '%2F%2Fevil.com'],
   ['슬래시 3개 (특수 스킴 슬래시 무시)', '///evil.com'],
   ['백슬래시 2개', '/\\\\evil.com'],
+  // ★ dot-segment 정규화 우회 (2026-08-06 킷 보안 게이트가 발견 — 기존 25케이스가 못 잡던 실취약점).
+  //   origin 검사는 정규화 '이전' 값 기준이라 통과하고, 파서가 '..'를 걷어낸 pathname만
+  //   '//evil.com'(프로토콜 상대)이 되어 리다이렉트 대상으로 쓰이면 외부 오리진으로 해석됐다.
+  ['dot-segment → 프로토콜 상대', '/..//evil.com'],
+  ['인코딩된 dot-segment %2e%2e', '/%2e%2e//evil.com'],
+  ['하위경로 뒤 dot-segment', '/foo/..//evil.com'],
+  ['dot-segment + 슬래시 3개', '/..///evil.com'],
 ];
 for (const [desc, input] of attacks) {
   test(`A. 공격 차단: ${desc} → '/'`, () => {
@@ -131,8 +141,10 @@ contract('C1. sanitizeNext — URL 파서 기반 검증 계약', 'app/login/page
     /new URL\(decoded, base\)/],
   ['origin 유지 판정 (바뀌면 /)',
     /if \(u\.origin !== base\) return '\/';/],
-  ['파서 정규화 값 반환 (pathname+search+hash — 쿼리·해시 보존)',
-    /return u\.pathname \+ u\.search \+ u\.hash;/],
+  ['파서 정규화 값 산출 (pathname+search+hash — 쿼리·해시 보존)',
+    /const out = u\.pathname \+ u\.search \+ u\.hash;/],
+  ['정규화 결과 재판정 (dot-segment → 프로토콜 상대 우회 차단)',
+    /if \(new URL\(out, base\)\.origin !== base\) return '\/';/],
   ['파싱 실패 catch → /',
     /new URL\(decoded, base\);[\s\S]*?\}\s*catch\s*\{\s*return '\/';\s*\}/],
 ]);
