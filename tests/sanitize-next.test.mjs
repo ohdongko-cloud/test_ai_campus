@@ -9,13 +9,17 @@
 //   → URL 파서 기반 검증으로 교체: 더미 오리진(https://x.invalid)에 상대 해석해
 //     origin 유지 판정 + '/'-prefix 검사 + 파서 정규화 값(pathname+search+hash) 반환.
 //
-// 판정 로직 위치(프로덕션): app/login/page.tsx sanitizeNext
-//   "use client" tsx라 직접 import 불가 — 리팩터 금지 제약(1,800명 운영 코드).
+// 판정 로직 위치(프로덕션): lib/sanitize-next.ts sanitizeNext
+//   2026-09-21 이전에는 app/login/page.tsx 안에 인라인으로 있었다. 사내 SSO 로그인이
+//   /auth/login·/auth/callback에서도 같은 검증을 해야 해서 공용 .ts 모듈로 추출했고,
+//   app/login/page.tsx는 이제 이 모듈을 import한다(복사본 없음 — C3가 강제).
+//   .ts라 node 테스트에서 직접 import는 여전히 불가(트랜스파일 필요) → 미러 + 소스 계약 검사 유지.
 //
 // 구성:
 //   PART 1. sanitizeNext 미러 구현에 대한 단위 테스트 (공격/정상 케이스를 실행 가능한 스펙으로 고정)
 //   PART 2. 프로덕션 소스 계약 검사 — 핵심 표현식이 소스에서 사라지거나 바뀌면 실패
 //           (인라인 로직을 import할 수 없으므로, 미러와 실제 코드의 표류를 이걸로 방지)
+//           C3는 추가로 "호출처가 재구현하지 않고 공용 모듈을 쓰는지"까지 고정한다.
 
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -130,7 +134,7 @@ function contract(name, file, patterns) {
   });
 }
 
-contract('C1. sanitizeNext — URL 파서 기반 검증 계약', 'app/login/page.tsx', [
+contract('C1. sanitizeNext — URL 파서 기반 검증 계약', 'lib/sanitize-next.ts', [
   ['decodeURIComponent 후 시작 (디코딩 실패 catch → /)',
     /decoded = decodeURIComponent\(raw\);\s*\}\s*catch\s*\{\s*return '\/';/],
   ['/-prefix 선행 검사 (상대경로 의미 변화 방지)',
@@ -151,12 +155,32 @@ contract('C1. sanitizeNext — URL 파서 기반 검증 계약', 'app/login/page
 
 test('C2. sanitizeNext — 취약했던 prefix 문자열 검사(구식 프로토콜 정규식) 잔존 금지', () => {
   // 과거 우회 가능 패턴(/^\/[a-zA-Z][a-zA-Z0-9+\-.]*:/ 정규식 검사)이 되살아나면 실패시킨다
-  const text = src('app/login/page.tsx');
+  const text = src('lib/sanitize-next.ts');
   assert.equal(text.includes('[a-zA-Z][a-zA-Z0-9'), false,
-    '구식 정규식 기반 프로토콜 검사가 app/login/page.tsx 에 다시 나타남 — URL 파서 검증으로 유지할 것');
+    '구식 정규식 기반 프로토콜 검사가 lib/sanitize-next.ts 에 다시 나타남 — URL 파서 검증으로 유지할 것');
   assert.equal(text.includes("startsWith('//')"), false,
     "구식 startsWith('//') prefix 검사가 다시 나타남 — 탭/CR/LF 우회 가능 패턴");
 });
+
+// C3. 호출처가 공용 모듈을 쓰는지 — 재구현/복사본 금지.
+//     추출 이전에는 구현이 한 곳뿐이라 이 검사가 불필요했지만, 이제는 "각자 자기 버전을
+//     들고 있다가 한쪽만 패치되는" 표류가 가장 현실적인 재발 경로다. C1이 모듈 내용을,
+//     C3가 소비자 쪽을 고정한다.
+const SANITIZE_CONSUMERS = [
+  'app/login/page.tsx',
+  'app/auth/login/AuthLoginClient.tsx',
+  'app/auth/callback/AuthCallbackClient.tsx',
+];
+
+for (const file of SANITIZE_CONSUMERS) {
+  test(`C3. ${file} — sanitizeNext 재구현 금지(공용 모듈 import 강제)`, () => {
+    const text = src(file);
+    assert.match(text, /import\s*\{[^}]*\bsanitizeNext\b[^}]*\}\s*from\s*'[^']*lib\/sanitize-next'/,
+      `${file} 가 lib/sanitize-next 에서 sanitizeNext 를 import 하지 않음 — 로컬 재구현 의심`);
+    assert.equal(/function\s+sanitizeNext\s*\(/.test(text), false,
+      `${file} 에 sanitizeNext 로컬 정의가 다시 나타남 — 공용 모듈과 표류한다`);
+  });
+}
 
 // ─────────────────────────────────────────────────────────────
 // 결과 요약
