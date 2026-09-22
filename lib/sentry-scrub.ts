@@ -8,8 +8,12 @@ import type { TransactionEvent } from '@sentry/core';
 
 // `?token=`·`&token=`·`#token=`·문자열 선두 `token=` (+ `id_token` 변형)만 매칭.
 // `mytoken=` 같은 다른 파라미터는 구분자 조건 때문에 매칭되지 않는다.
-const TOKEN_RE = /((?:^|[?&#])(?:id_)?token=)[^&#\s]+/gi;
-const TOKEN_KEY_RE = /^(?:id_)?token$/i;
+// NoA Vibe SSO 콜백(`/auth/callback?code=...&session_state=...`)의 Keycloak
+// 인가코드·세션상태도 동일한 쿼리파라미터 형태라 함께 마스킹한다. `code=`는 흔한
+// 단어라 오탐 위험이 있으므로 `?`/`&`/`#`/문자열 선두 뒤에 오는 쿼리파라미터
+// 형태일 때만 매칭되게 구분자 조건을 유지한다(예: 문장 중간의 "code=이렇게"는 매칭 안 됨).
+const TOKEN_RE = /((?:^|[?&#])(?:(?:id_)?token|code|session_state)=)[^&#\s]+/gi;
+const TOKEN_KEY_RE = /^(?:(?:id_)?token|code|session_state)$/i;
 
 export function maskToken(value: string): string {
   return value.replace(TOKEN_RE, '$1[Filtered]');
