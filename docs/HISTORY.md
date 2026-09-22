@@ -61,6 +61,29 @@
 
 ## 세션 로그 (최신이 위)
 
+### 2026-09-21~22 — **사내 통합계정(NoA Vibe Keycloak) SSO 로그인** (커밋 5개, PR #1, 미배포)
+
+> [PR 대기] `feat/noa-sso` → [PR #1](https://github.com/ohdongko-cloud/test_ai_campus/pull/1). **main·운영 Vercel 무접촉.**
+
+**사용자 결정 3건**
+1. AI 캠퍼스를 NoA Vibe로 옮기고 사내 계정 로그인으로 전환(선택지 A/B/C 중 B). 대안(다른 앱에 붙이기 / 자체 허브 스포크)을 제시했으나 재확인받음.
+2. DB는 **VibeBase 안 쓰고 Neon 유지**. 실측으로 뒷받침 — 배포본 `eland-ai-campus.noavibe.app`에 가짜 이메일 로그인 1회 시도 → **401**(DB 못 닿으면 500) → Lambda에서 외부 Postgres 도달 확인.
+3. `@noa/auth-sdk` **벤더링**(선택지 C). 가드레일이 "승인 후 SDK 사용"을 명시하므로 의도적 이탈이며 PRD §6에 부채로 기록.
+
+**결정적 발견 — SDK를 그대로 쓰면 운영 Vercel 빌드가 깨진다**
+`@noa/auth-sdk`는 사내 CodeArtifact 전용(무인증 tarball **401**, 공개 npm **404**)인데 repo에 `.npmrc`가 없다. main에 머지하는 순간 운영 빌드가 install에서 실패한다. 와이어 계약(authorize/token/디렉터리)만 옮겨 자체 구현 → **`package-lock.json`의 resolved 호스트가 `registry.npmjs.org` 단일**이 됐다. 옮기며 보강: `state`(SDK에 없어 인가 응답이 CSRF 무방비였음)·`nonce`·토큰 미저장.
+
+**설계 — 브리지**: Keycloak은 자격증명 확인만, 앱 세션은 기존 `lib/session.ts` httpOnly JWT 그대로(§6-4). 권한·admin·모바일·레이트리밋 무변경, 롤백은 버튼 제거 한 번. 기존 이메일 로그인 병행 유지.
+
+**검증**: tsc 0 · build 0 · 골든 **50/50** · gitleaks 5회 통과.
+8렌즈 감사(에이전트 104개) 지적 32 → 반박단 통과 18 → 전량 수정 → 재감사 **18/18 폐쇄** + 벤더 모듈 신규 8건 중 7건 수정.
+`sanitizeNext`를 공용 모듈로 뺀 탓에 골든 PART 2가 깨졌는데, 덮지 않고 **계약을 재조준 + C3(재구현 금지) 3케이스 추가**로 오히려 강화했다.
+
+**🔴 남은 것**
+- **PR에서 결정**: 공용 PC 로그아웃 — 앱 쿠키만 지우고 Keycloak 세션이 남아 다음 사람이 직전 사용자 계정으로 무인증 로그인된다. RP-initiated logout(`post_logout_redirect_uri` 등록 필요, 확인 불가) vs `prompt=login`(SSO 편의 상실).
+- **사람만 가능**: ① M014 마이그레이션(`POST /api/admin/migrate`) — **미실행 시 SSO 전면 401**(fail-closed) ② Keycloak 콜백 URI 등록 확인 — 첫 로그인 시도가 곧 테스트 ③ known-good 재실행 ④ APK(versionCode 14) 재빌드 — 그전까지 네이티브 SSO 버튼은 한시적으로 숨김.
+- **백로그 M015**: 계정 결속 키가 `email`이라 IdP 이메일 변경 시 재바인딩. `users.noa_sub` 컬럼 필요.
+
 ### 2026-08-06 — 스포크 킷 실코드 구현 + **로그인 오픈리다이렉트 실취약점 수정** (커밋 2개, 배포 완료)
 
 > [배포 완료] `6adf7b7..fc21143` push → Vercel READY → **운영 배포본을 번들에서 꺼내 실행 검증**.

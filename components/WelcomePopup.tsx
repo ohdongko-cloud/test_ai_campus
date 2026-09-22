@@ -6,6 +6,7 @@ import { isAllowedSignupEmail, DOMAIN_REJECT_MESSAGE } from '../lib/email-allowl
 import { isValidSimplePassword, PASSWORD_POLICY_MESSAGE } from '../lib/password';
 import SearchableSelect from './SearchableSelect';
 import { CORPORATIONS, ORG_DIRECTORY_CORP, CORP_OTHER, type OrgDepartment } from '../lib/org';
+import { resolveClientNextPath } from '../lib/sanitize-next';
 
 const T = {
   primary: '#004A99', primaryDark: '#003A78', primaryLight: '#E6EEF7',
@@ -106,6 +107,27 @@ export default function WelcomePopup({ onClose }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
+  // ── 한시적 조치: 설치된 구버전 APK(versionCode 13 이하)에서 SSO 버튼 숨김 ──
+  // 데스크톱 SPA는 통상 네이티브 WebView 안에서 렌더되지 않는다(capacitor.config.ts의
+  // server.url이 '/m'을 로딩). 다만 로그인 세션 만료 등으로 /login → isMobile 판정 전
+  // 경합이나, 향후 라우팅 변경으로 네이티브 WebView가 '/'(루트 SPA)를 열 가능성을
+  // 배제할 수 없어, app/m/_components/MobileWelcome.tsx와 동일한 가드를 방어적으로
+  // 적용한다(일관성·안전). 상세 배경은 MobileWelcome.tsx의 동일 주석 참고.
+  // 제거 조건: versionCode 14+ APK가 충분히 보급된 뒤 이 가드와 안내문을 지운다.
+  const [isNativeApp, setIsNativeApp] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { Capacitor } = await import('@capacitor/core');
+        if (!cancelled && Capacitor.isNativePlatform()) setIsNativeApp(true);
+      } catch {
+        // @capacitor/core 미설치 환경(웹 전용 빌드) — 네이티브 아님으로 간주
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
   // 공통
   const [email, setEmail] = useState('');
 
@@ -152,6 +174,13 @@ export default function WelcomePopup({ onClose }: Props) {
   const [resetPwConfirm, setResetPwConfirm] = useState('');
 
   const resetError = () => setError('');
+
+  // 사내 통합계정(SSO) 로그인 — /auth/login으로 이동해 Keycloak 인증을 시작한다.
+  // next는 지금 위치(이미 /login?next=...이면 그 값, 아니면 현재 경로)를 그대로 이어받는다.
+  // remember는 현재 '자동 로그인' 체크 상태를 콜백까지 이어 전달한다(F15).
+  const handleSsoLogin = () => {
+    window.location.href = `/auth/login?next=${encodeURIComponent(resolveClientNextPath())}&remember=${rememberMe ? '1' : '0'}`;
+  };
 
   // Step 1: 이메일 입력 → 인증 코드 요청 (or 로그인 분기)
   const handleEmailNext = async () => {
@@ -472,6 +501,23 @@ export default function WelcomePopup({ onClose }: Props) {
               style={{ ...primaryBtn, marginTop: 16, opacity: busy ? 0.6 : 1 }}>
               {busy ? '확인 중...' : '다음'}
             </button>
+            {!isNativeApp && (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '16px 0' }}>
+                  <div style={{ flex: 1, height: 1, background: T.border }} />
+                  <span style={{ fontSize: 12, color: T.textFaint }}>또는</span>
+                  <div style={{ flex: 1, height: 1, background: T.border }} />
+                </div>
+                <button type="button" onClick={handleSsoLogin} disabled={busy} style={ghostBtn}>
+                  사내 계정으로 로그인
+                </button>
+              </>
+            )}
+            {isNativeApp && (
+              <p style={{ margin: '16px 0 0', fontSize: 12, color: T.textFaint, textAlign: 'center', lineHeight: 1.5 }}>
+                이 앱 버전에서는 이메일로 로그인해주세요. 업데이트 후 사내 계정 로그인이 열립니다.
+              </p>
+            )}
           </>
         )}
 
