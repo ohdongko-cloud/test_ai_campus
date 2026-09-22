@@ -106,6 +106,21 @@ export async function startLogin(cfg: NoaOidcConfig): Promise<void> {
     code_challenge_method: 'S256',
     state,
     nonce,
+    // prompt=login — IdP가 기존 세션이 있어도 반드시 재인증하게 한다(OIDC Core 3.1.2.1).
+    //
+    // 없으면: 매장 공용 PC에서 A가 로그아웃해도 Keycloak 세션 쿠키(auth.noa.eland.com)는
+    // 남아 있어서, 다음 사람 B가 「사내 계정으로 로그인」을 누르면 IdP가 말없이 A의 코드를
+    // 발급하고 B가 A 계정으로 들어간다. 우리 로그아웃(POST /api/users/logout)은 앱 쿠키만
+    // 지우므로 앱 코드만으로는 이 경로를 막을 수 없다.
+    //
+    // 비용은 크지 않다 — Keycloak을 거치는 건 앱 세션이 없을 때뿐이고, 로그인 후에는 자체
+    // httpOnly JWT(자동 로그인 기본 ON → 30일, lib/session.ts)로 버틴다. 체감상 월 1회 수준의
+    // 비밀번호 입력이다.
+    //
+    // 한계: 이건 우리 앱만 막는다. Keycloak 세션 자체는 살아 있어 같은 브라우저의 다른 사내
+    // 앱은 여전히 A로 열린다. 근본 해결은 RP-initiated logout(로그아웃 시 IdP 세션까지 종료)
+    // 이며, Keycloak에 post_logout_redirect_uri 등록이 확인되면 후속으로 추가한다.
+    prompt: 'login',
   });
 
   window.location.assign(`${issuerBase(cfg)}/protocol/openid-connect/auth?${params.toString()}`);
