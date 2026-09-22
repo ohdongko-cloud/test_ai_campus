@@ -1,7 +1,7 @@
 # PRD: 이랜드리테일 AI 캠퍼스 — 마스터 변경 이력 (CHANGELOG)
 
 - 최초 작성: 2026-05-30
-- 최종 갱신: 2026-08-06
+- 최종 갱신: 2026-09-22
 - 작성자/소유자: <오너> + Claude
 - 운영 URL: https://retail-ai-campus.vercel.app
 - GitHub: https://github.com/ohdongko-cloud/test_ai_campus
@@ -35,7 +35,7 @@
 
 ---
 
-## 2. 작성된 PRD 목록 (29건)
+## 2. 작성된 PRD 목록 (30건)
 
 모두 `docs/prd/` 하위에 보관.
 
@@ -70,6 +70,7 @@
 | 27 | [2026-06-24-resource-library.md](./2026-06-24-resource-library.md) | 배우기 '자료실'(게시판형) — 외부링크(드라이브/노션/URL) 연동·메타데이터만 DB·풀 게시판(좋아요·댓글)·관리자 큐레이션·데스크톱+모바일·M012 |
 | 28 | [2026-06-30-admin-ai-level-matrix-email-joined.md](./2026-06-30-admin-ai-level-matrix-email-joined.md) | 관리자 AI 레벨 매트릭스 — 이름 옆 이메일·가입일시 컬럼 추가 (DB 마이그레이션 없음, PII no-store) |
 | 29 | [2026-07-15-video-standalone-shareable-page.md](./2026-07-15-video-standalone-shareable-page.md) | 강의 영상 팝업 → 영상별 단독 페이지 `/video/[id]` 전환(URL 복사·공유) — 로그인 게이트(?next)·썸네일+제목 OG·GET /api/videos/[id]·모바일 패리티, DB 변경 없음 |
+| 30 | [2026-09-21-noa-sso-login.md](./2026-09-21-noa-sso-login.md) | 사내 통합계정(NoA Vibe Keycloak) SSO 로그인 — 브리지 방식(앱 세션은 기존 lib/session.ts httpOnly JWT 그대로), 이메일+비밀번호 로그인과 병행 유지, JIT 프로비저닝, M014 noa_sso_used_tokens(재생 차단), @noa/auth-sdk 배포 브레이크로 제거·와이어 계약 자체구현(벤더링 부채 명시) |
 
 > ※ 테스트 계정(`test@eland.co.kr` / `000000`)과 15 페르소나 리서치는 별도 PRD 없이 본 CHANGELOG와 `public/research/` 폴더로 관리.
 
@@ -81,6 +82,7 @@
 
 | 커밋 | 메시지 | 비고 |
 |---|---|---|
+| `b111c93` | feat(sso): 사내 통합계정(NoA Vibe Keycloak) SSO 브리지 로그인 | PRD `2026-09-21-noa-sso-login.md`. 브리지 방식(Keycloak은 자격증명 확인만, 앱 세션은 기존 `lib/session.ts` httpOnly JWT 그대로 발급 — CLAUDE.md §6-4 근거) — `lib/noa-oidc.ts`(브라우저 PKCE)·`lib/noa-directory.ts`(서버 디렉터리)·`lib/noa-sso.ts`(RS256 JWKS 검증+jti 재생차단) 신규, `POST /api/users/sso-login`(CSRF 동일오리진 검사·레이트리밋), `app/auth/login`·`app/auth/callback`, `WelcomePopup`·`MobileWelcome` 버튼(모바일 패리티), `lib/sanitize-next.ts`(기존 오픈리다이렉트 방지 로직 공용 추출), M014 `noa_sso_used_tokens`(jti 1회 소비). `@noa/auth-sdk`는 사내 CodeArtifact 전용이라 Vercel install이 깨져 의존성 제거 → 와이어 계약만 자체구현(state·nonce 보강, 토큰 sessionStorage 미저장 — 벤더링 부채로 PRD에 명시). 8렌즈 병렬 감사(에이전트 104개, 지적 32건 → 반박단 통과 18건) 전량 수정 반영. 로컬 게이트(tsc·build·golden 50/50) 통과, **실제 Keycloak 왕복은 미검증**(배포 후 M014 마이그레이션 선행 필요 — 미실행 시 SSO 전면 401) |
 | `66101aa` | security(api): 관리자 인증/권한 거부 응답에도 no-store | 직전 커밋의 "모든 응답 경로" 주장이 **불완전했음이 배포 후 실측에서 드러남** — 거부 응답은 라우트가 아니라 공유 헬퍼(`requireAdmin`/`requireMaster`)가 만든다. `lib/admin-auth.ts`에 `denied()` 헬퍼를 두고 401/403 4경로 일괄 처리. 본문에 PII는 없지만 **요청자 쿠키에 따라 달라지는 응답**이라 공유 캐시가 저장하면 사용자별 결과가 섞인다. 운영 재확인 6/6 no-store |
 | `1f0bb37` | docs(sso): 계약 §2.2 authorize 파라미터 요건 신설 (nonce 형식 명문화) | 허브가 nonce 형식을 강제하게 돼 타 레포 규범 문서를 동기화. 파라미터 요건 표(app·redirect_uri·state·nonce·prompt·kit)와 위반 시 응답. **치환이 아니라 거부인 이유**(치환하면 스포크의 nonce 대조가 항상 실패) 명시. 표준 base64는 `+/=`가 난수에 따라 섞여 **간헐적으로만** 400이 나는 재현 어려운 실패가 되므로 base64url 필수 경고. 코드 참조를 줄번호→코드 앵커로 전환 |
 | `8aa3e34` | security(api): PII 응답에 no-store 전수 적용 + 예약 API 에러 통일 | 활성화 후 감사 발견(기존 결함, SSO 무관). `app/api/**` 전수 조사로 **9개 라우트** 수정. 발단 = `/api/users/me`가 email·소속·직급+관리자 role/permissions를 `public, max-age=0, must-revalidate` + Vary에 Cookie 없이 반환(매 페이지 로드마다 호출되는 최고빈도 인증 라우트). reservations는 `catch`에서 `String(e)` 원문 반환(§6-8 위반) 동반 정정. 권한 게이트 무변경 |
