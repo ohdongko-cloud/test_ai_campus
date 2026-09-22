@@ -20,6 +20,7 @@ import { flattenOrgSeed, ORG_SEED_CORP } from '../../../../lib/org-seed';
  *   M011: sso_nonces 테이블 생성 + 만료 인덱스 (SSO 1회성 nonce 스토어 — PRD §4.3)
  *   M012: resources / resource_likes / resource_comments / resource_comment_likes 테이블 생성 (자료실 게시판 — PRD 2026-06-24)
  *   M013: sso_events / sso_daily_stats 테이블 생성 + sso_clients.stats_url 컬럼 추가 (SSO 관측 — Tier1 허브 이벤트 + Tier2 스포크 일별 통계, docs/sso/SSO-HUB-BLUEPRINT.md §4.5)
+ *   M014: noa_sso_used_tokens 테이블 생성 (사내 통합계정 Keycloak SSO id_token replay 차단 — jti 1회성 사용 기록)
  */
 export async function POST(req: NextRequest) {
   const authCheck = await requireMaster(req);
@@ -352,6 +353,22 @@ export async function POST(req: NextRequest) {
     });
   } catch (e) {
     results.push({ id: 'M013', status: 'error', message: String(e) });
+  }
+
+  // M014: noa_sso_used_tokens — 사내 통합계정(Keycloak) SSO id_token 재사용(replay) 차단.
+  // 검증에 성공한 id_token의 jti를 1회성으로 기록해 재제출을 거부한다(PK 충돌로 자연 차단).
+  // expires_at 인덱스: 만료 행 배치 삭제(별도 정리 잡)를 위한 사전 준비 — 정리 로직 자체는 이번 범위 밖.
+  try {
+    await sql`
+      CREATE TABLE IF NOT EXISTS noa_sso_used_tokens (
+        jti        TEXT PRIMARY KEY,
+        expires_at TIMESTAMPTZ NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      )`;
+    await sql`CREATE INDEX IF NOT EXISTS noa_sso_used_tokens_expires_idx ON noa_sso_used_tokens (expires_at)`;
+    results.push({ id: 'M014', status: 'ok', message: 'noa_sso_used_tokens 테이블 및 만료 인덱스 준비 완료' });
+  } catch (e) {
+    results.push({ id: 'M014', status: 'error', message: String(e) });
   }
 
   const hasError = results.some(r => r.status === 'error');

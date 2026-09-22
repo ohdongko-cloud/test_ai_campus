@@ -326,3 +326,16 @@ CREATE TABLE IF NOT EXISTS sso_daily_stats (
 
 -- sso_clients.stats_url: Tier2 스포크 참여 여부(M013). NULL = 미참여(cron이 건너뜀).
 ALTER TABLE sso_clients ADD COLUMN IF NOT EXISTS stats_url TEXT;
+
+-- ─────────────────────────────────────────────────────────────
+-- noa_sso_used_tokens: 사내 통합계정(Keycloak) SSO id_token 재사용(replay) 차단 (M014)
+-- 검증 성공한 id_token의 jti를 1회성으로 기록 — 재제출 시 PK 충돌로 자연 차단.
+-- expires_at 인덱스: 만료 행 배치 삭제(별도 정리 잡)를 위한 사전 준비. 정리 로직 자체는 이번 범위 밖.
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS noa_sso_used_tokens (
+  jti        TEXT PRIMARY KEY,
+  expires_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS noa_sso_used_tokens_expires_idx ON noa_sso_used_tokens (expires_at);

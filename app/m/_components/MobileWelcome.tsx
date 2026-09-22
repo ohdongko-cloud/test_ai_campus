@@ -6,6 +6,7 @@ import { setUserInfo } from '../../../lib/utils';
 import { isValidSimplePassword, PASSWORD_POLICY_MESSAGE } from '../../../lib/password';
 import SearchableSelect from '../../../components/SearchableSelect';
 import { CORPORATIONS, ORG_DIRECTORY_CORP, CORP_OTHER, type OrgDepartment } from '../../../lib/org';
+import { resolveClientNextPath } from '../../../lib/sanitize-next';
 
 type Step =
   | 'email'
@@ -45,6 +46,31 @@ export default function MobileWelcome({ onSuccess }: Props) {
   const [step, setStep] = useState<Step>('email');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+
+  // ── 한시적 조치: 설치된 구버전 APK(versionCode 13 이하)에서 SSO 버튼 숨김 ──
+  // capacitor.config.ts의 server.url이 이 화면을 원격 로딩하므로, 이 컴포넌트를
+  // 웹에 배포하면 이미 설치된 앱 사용자에게도 즉시 반영된다. 반면
+  // allowNavigation에 추가한 'auth.noa.eland.com'은 android/app/src/main/assets/
+  // capacitor.config.json(APK 내부, cap sync 시점 스냅샷)에서 읽히므로 새 APK
+  // (versionCode 14+)를 설치하기 전에는 반영되지 않는다 — 구버전에서 버튼을 누르면
+  // WebView가 Keycloak을 못 열고 외부 브라우저로 튕겨 PKCE verifier를 잃고 100%
+  // 실패한다. 네이티브 런타임에서는 버튼을 숨기고 이메일 로그인만 노출한다.
+  // 제거 조건: versionCode 14+ APK가 충분히 보급된 뒤(구버전 사용자 비중이 무시할
+  // 수준이 되면) 이 가드와 안내문을 지운다. 패턴 출처: lib/secureScreen.ts,
+  // app/m/video/[id]/page.tsx의 Capacitor.isNativePlatform() 동적 임포트 가드.
+  const [isNativeApp, setIsNativeApp] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { Capacitor } = await import('@capacitor/core');
+        if (!cancelled && Capacitor.isNativePlatform()) setIsNativeApp(true);
+      } catch {
+        // @capacitor/core 미설치 환경(웹 전용 빌드) — 네이티브 아님으로 간주
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   // Common
   const [email, setEmail] = useState('');
@@ -87,6 +113,13 @@ export default function MobileWelcome({ onSuccess }: Props) {
   const [resetPw2, setResetPw2] = useState('');
 
   const resetError = () => setError('');
+
+  // 사내 통합계정(SSO) 로그인 — /auth/login으로 이동해 Keycloak 인증을 시작한다.
+  // next는 지금 위치(이미 /login?next=...이면 그 값, 아니면 현재 경로)를 그대로 이어받는다.
+  // remember는 현재 '자동 로그인' 체크 상태를 콜백까지 이어 전달한다(F15).
+  const handleSsoLogin = () => {
+    window.location.href = `/auth/login?next=${encodeURIComponent(resolveClientNextPath())}&remember=${rememberMe ? '1' : '0'}`;
+  };
 
   // ── Step 1: 이메일 → exists → signup-request or login ──
   const handleEmailNext = async () => {
@@ -409,7 +442,21 @@ export default function MobileWelcome({ onSuccess }: Props) {
               <PrimaryButton onClick={handleEmailNext} busy={busy}>
                 다음
               </PrimaryButton>
-              <Hint>사내 임직원 인증 후 이용 가능합니다</Hint>
+              {!isNativeApp && (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '12px 0' }}>
+                    <div style={{ flex: 1, height: 1, background: M.border }} />
+                    <span style={{ fontSize: 12, color: M.textFaint }}>또는</span>
+                    <div style={{ flex: 1, height: 1, background: M.border }} />
+                  </div>
+                  <SecondaryButton onClick={handleSsoLogin}>사내 계정으로 로그인</SecondaryButton>
+                </>
+              )}
+              <Hint>
+                {isNativeApp
+                  ? '이 앱 버전에서는 이메일로 로그인해주세요. 업데이트 후 사내 계정 로그인이 열립니다.'
+                  : '사내 임직원 인증 후 이용 가능합니다'}
+              </Hint>
             </>
           )}
 
